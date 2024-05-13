@@ -231,6 +231,14 @@ External library support:
   --enable-libdc1394       enable IIDC-1394 grabbing using libdc1394
                            and libraw1394 [no]
   --enable-libfdk-aac      enable AAC de/encoding via libfdk-aac [no]
+  --enable-es-aac          enable AAC de/encoding via es_codec [no]
+  --enable-es-mp3          enable MP3 de/encoding via es_codec [no]
+  --enable-es-amrnb        enable amrnb de/encoding via es_codec [no]
+  --enable-es-amrwb        enable amrwb de/encoding via es_codec [no]
+  --enable-es-g711alaw     enable amrnb de/encoding via es_codec [no]
+  --enable-es-g711mulaw    enable amrwb de/encoding via es_codec [no]
+  --enable-es-g722         enable amrnb de/encoding via es_codec [no]
+  --enable-es-g726         enable amrwb de/encoding via es_codec [no]
   --enable-libflite        enable flite (voice synthesis) support via libflite [no]
   --enable-libfontconfig   enable libfontconfig, useful for drawtext filter [no]
   --enable-libfreetype     enable libfreetype, needed for drawtext filter [no]
@@ -329,6 +337,13 @@ External library support:
   --disable-vulkan         disable Vulkan code [autodetect]
   --disable-xlib           disable xlib [autodetect]
   --disable-zlib           disable zlib [autodetect]
+  --enable-esvd            enable es video decoder [no]
+  --enable-esve            enable es video encoder [no]
+  --enable-esjd            enable es jpeg decoder [no]
+  --enable-esje            enable es jpeg encoder [no]
+  --enable-convert_es      enable es convert_es filter [no]
+  --enable-esumd           enable es umd as a DNN module backend
+                           for DNN based filters like sr [no]
 
   The following libraries provide various hardware acceleration features:
   --disable-amf            disable AMF video encoding code [autodetect]
@@ -1787,7 +1802,22 @@ EXTERNAL_LIBRARY_GPL_LIST="
 EXTERNAL_LIBRARY_NONFREE_LIST="
     decklink
     libfdk_aac
+    es_aac
+    es_mp3
+    es_amrnb
+    es_amrwb
+    es_g711alaw
+    es_g711mulaw
+    es_g722
+    es_g726
     libtls
+#ifdef ESW_FF_ENHANCEMENT
+    esvd
+    esjd
+    esje
+    esve
+    convert_es
+#endif
 "
 
 EXTERNAL_LIBRARY_VERSION3_LIST="
@@ -1885,6 +1915,7 @@ EXTERNAL_LIBRARY_LIST="
     openssl
     pocketsphinx
     vapoursynth
+    esumd
 "
 
 HWACCEL_AUTODETECT_LIBRARY_LIST="
@@ -2518,6 +2549,11 @@ CONFIG_EXTRA="
     vp8dsp
     wma_freqs
     wmv2dsp
+#ifdef ESW_FF_ENHANCEMENT
+    es_codec
+    es_decode
+    es_video_decoder
+#endif
 "
 
 CMDLINE_SELECT="
@@ -3250,6 +3286,20 @@ vp9_qsv_encoder_select="qsvenc"
 vp9_v4l2m2m_decoder_deps="v4l2_m2m vp9_v4l2_m2m"
 wmv3_crystalhd_decoder_select="crystalhd"
 av1_qsv_decoder_select="qsvdec"
+#ifdef ESW_FF_ENHANCEMENT
+h264_es_decoder_deps="esvd"
+h264_es_decoder_select="es_video_decoder es_decode es_codec"
+hevc_es_decoder_deps="esvd"
+hevc_es_decoder_select="es_video_decoder es_decode es_codec"
+h264_es_encoder_deps="esve"
+h264_es_encoder_select="esve es_codec"
+h265_es_encoder_deps="esve"
+h265_es_encoder_select="esve es_codec"
+jpeg_es_encoder_deps="esje"
+jpeg_es_encoder_select="es_codec"
+jpeg_es_decoder_deps="esjd"
+jpeg_es_decoder_select="es_decode es_codec"
+#endif
 
 # parsers
 aac_parser_select="adts_header mpeg4audio"
@@ -3332,6 +3382,36 @@ libdavs2_decoder_deps="libdavs2"
 libdavs2_decoder_select="avs2_parser"
 libfdk_aac_decoder_deps="libfdk_aac"
 libfdk_aac_encoder_deps="libfdk_aac"
+es_aac_decoder_extralibs="-les_codec"
+es_aac_decoder_deps="es_aac"
+es_aac_encoder_extralibs="-les_codec"
+es_aac_encoder_deps="es_aac"
+es_mp3_decoder_extralibs="-les_codec"
+es_mp3_decoder_deps="es_mp3"
+es_amrnb_decoder_extralibs="-les_codec"
+es_amrnb_decoder_deps="es_amrnb"
+es_amrnb_encoder_extralibs="-les_codec"
+es_amrnb_encoder_deps="es_amrwb"
+es_amrwb_decoder_extralibs="-les_codec"
+es_amrwb_decoder_deps="es_amrwb"
+es_amrwb_encoder_extralibs="-les_codec"
+es_amrwb_encoder_deps="es_amrwb"
+es_g711alaw_decoder_extralibs="-les_codec"
+es_g711alaw_decoder_deps="es_g711alaw"
+es_g711alaw_encoder_extralibs="-les_codec"
+es_g711alaw_encoder_deps="es_g711alaw"
+es_g711mulaw_decoder_extralibs="-les_codec"
+es_g711mulaw_decoder_deps="es_g711mulaw"
+es_g711mulaw_encoder_extralibs="-les_codec"
+es_g711mulaw_encoder_deps="es_g711mulaw"
+es_g722_decoder_extralibs="-les_codec"
+es_g722_decoder_deps="es_g722"
+es_g722_encoder_extralibs="-les_codec"
+es_g722_encoder_deps="es_g722"
+es_g726_decoder_extralibs="-les_codec"
+es_g726_decoder_deps="es_g726"
+es_g726_encoder_extralibs="-les_codec"
+es_g726_encoder_deps="es_g726"
 libfdk_aac_encoder_select="audio_frame_queue"
 libgme_demuxer_deps="libgme"
 libgsm_decoder_deps="libgsm"
@@ -3763,6 +3843,7 @@ xfade_opencl_filter_deps="opencl"
 yadif_cuda_filter_deps="ffnvcodec"
 yadif_cuda_filter_deps_any="cuda_nvcc cuda_llvm"
 yadif_videotoolbox_filter_deps="metal corevideo videotoolbox"
+convert_es_filter_deps="convert_es"
 
 # examples
 avio_list_dir_deps="avformat avutil"
@@ -5643,7 +5724,7 @@ case $target_os in
         enabled x86_64 && objformat="win64" || objformat="win32"
         enable dos_paths
         enabled shared && ! enabled small && test_cmd $windres --version && enable gnu_windres
-        add_cppflags -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600
+        add_cppflags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600
         ;;
     *-dos|freedos|opendos)
         network_extralibs="-lsocket"
@@ -5741,10 +5822,10 @@ probe_libc(){
     # uclibc defines __GLIBC__, so it needs to be checked before glibc.
     if test_${pfx}cpp_condition features.h "defined __UCLIBC__"; then
         eval ${pfx}libc_type=uclibc
-        add_${pfx}cppflags -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600
+        add_${pfx}cppflags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600
     elif test_${pfx}cpp_condition features.h "defined __GLIBC__"; then
         eval ${pfx}libc_type=glibc
-        add_${pfx}cppflags -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600
+        add_${pfx}cppflags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600
     # MinGW headers can be installed on Cygwin, so check for newlib first.
     elif test_${pfx}cpp_condition newlib.h "defined _NEWLIB_VERSION"; then
         eval ${pfx}libc_type=newlib
@@ -5761,7 +5842,7 @@ probe_libc(){
             add_${pfx}cppflags -D__printf__=__gnu_printf__
         test_${pfx}cpp_condition windows.h "!defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0600" &&
             add_${pfx}cppflags -D_WIN32_WINNT=0x0600
-        add_${pfx}cppflags -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600
+        add_${pfx}cppflags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600
     elif test_${pfx}cpp_condition _mingw.h "defined __MINGW_VERSION"  ||
          test_${pfx}cpp_condition _mingw.h "defined __MINGW32_VERSION"; then
         eval ${pfx}libc_type=mingw32
@@ -5775,7 +5856,7 @@ probe_libc(){
             add_${pfx}cppflags -D_WIN32_WINNT=0x0600
         eval test \$${pfx_no_}cc_type = "gcc" &&
             add_${pfx}cppflags -D__printf__=__gnu_printf__
-        add_${pfx}cppflags -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600
+        add_${pfx}cppflags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600
     elif test_${pfx}cpp_condition crtversion.h "defined _VC_CRT_MAJOR_VERSION"; then
         eval ${pfx}libc_type=msvcrt
         if test_${pfx}cpp_condition crtversion.h "_VC_CRT_MAJOR_VERSION < 14"; then
@@ -5829,7 +5910,7 @@ EOF
 #include <time.h>
 void *v = localtime_r;
 EOF
-test "$?" != 0 && test_${pfx}cc -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600 <<EOF && add_${pfx}cppflags -D_POSIX_C_SOURCE=200112 -D_XOPEN_SOURCE=600
+test "$?" != 0 && test_${pfx}cc -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600 <<EOF && add_${pfx}cppflags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=600
 #include <time.h>
 void *v = localtime_r;
 EOF
@@ -6545,6 +6626,14 @@ enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aace
                                { require libfdk_aac fdk-aac/aacenc_lib.h aacEncOpen -lfdk-aac &&
                                  warn "using libfdk without pkg-config"; } }
 flite_extralibs="-lflite_cmu_time_awb -lflite_cmu_us_awb -lflite_cmu_us_kal -lflite_cmu_us_kal16 -lflite_cmu_us_rms -lflite_cmu_us_slt -lflite_usenglish -lflite_cmulex -lflite"
+enabled es_aac            && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_mp3            && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_amrnb          && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_amrwb          && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_g711alaw       && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_g711mulaw      && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_g722           && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_g726           && require eswin_codec codec_api.h es_aenc_create -les_codec
 enabled libflite          && require libflite "flite/flite.h" flite_init $flite_extralibs
 enabled fontconfig        && enable libfontconfig
 enabled libfontconfig     && require_pkg_config libfontconfig fontconfig "fontconfig/fontconfig.h" FcInit
@@ -6737,6 +6826,74 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
                              }
 enabled vapoursynth       && require_pkg_config vapoursynth "vapoursynth-script >= 42" VSScript.h vsscript_init
 
+enabled esvd               && {
+
+    add_cflags -DESW_FF_ENHANCEMENT -DFIFO_DATATYPE=void* -DUSE_EXTERNAL_BUFFER -DUSE_OUTPUT_RELEASE -D_FILE_OFFSET_BITS=64 -D_DEFAULT_SOURCE -D_LARGEFILE64_SOURCE -DALWAYS_OUTPUT_REF -DUSE_NON_BLOCKING -DGET_FREE_BUFFER_NON_BLOCK -DGET_FREE_BUFFER_NON_BLOCK -DGET_OUTPUT_BUFFER_NON_BLOCK -DSKIP_OPENB_FRAME -DENABLE_DPB_RECOVER -D_LARGEFILE64_SOURCE -DEXPIRY_DATE=1 -D_RANGE_CHECK -D_ERROR_PRINT -DDEC_X170_OUTPUT_FORMAT=0 -DDEC_X170_TIMEOUT_LENGTH=-1 -DREORDER_ERROR_FIX -DCLEAR_HDRINFO_IN_SEEK -DNEW_MEM_ALLOC -DDWL_USE_DEC_IRQ -DENABLE_HUGEPAGE -DDEC_TRANS_ENABLE -DSUPPORT_CACHE -DSUPPORT_L2CACHE -DDRV_NEW_ARCH -DNEW_MEM_ALLOC -DCTBRC_STRENGTH -DFB_PERFORMANCE_STATIC -DFPGA -DDRV_NEW_ARCH
+
+    enabled h264_es_decoder && {
+        log check_pkg_config h264_es_decoder
+    } || disable h264_es_decoder
+    enabled hevc_es_decoder && {
+        log check_pkg_config hevc_es_decoder
+    } || disable hevc_es_decoder
+
+    if disabled_all h264_es_decoder hevc_es_decoder ; then
+        die "video decoder enabled but no supported codecs found"
+    fi
+}
+
+enabled esve               && {
+
+    add_cflags  -DESW_FF_ENHANCEMENT -DFIFO_DATATYPE=void* -DUSE_EXTERNAL_BUFFER -DUSE_OUTPUT_RELEASE -D_FILE_OFFSET_BITS=64 -D_DEFAULT_SOURCE -D_LARGEFILE64_SOURCE -DALWAYS_OUTPUT_REF -DUSE_NON_BLOCKING -DGET_FREE_BUFFER_NON_BLOCK -DGET_FREE_BUFFER_NON_BLOCK -DGET_OUTPUT_BUFFER_NON_BLOCK -DSKIP_OPENB_FRAME -DENABLE_DPB_RECOVER -D_LARGEFILE64_SOURCE -DEXPIRY_DATE=1 -D_RANGE_CHECK -D_ERROR_PRINT -DDEC_X170_OUTPUT_FORMAT=0 -DDEC_X170_TIMEOUT_LENGTH=-1 -DREORDER_ERROR_FIX -DCLEAR_HDRINFO_IN_SEEK -DNEW_MEM_ALLOC -DDWL_USE_DEC_IRQ -DENABLE_HUGEPAGE -DDEC_TRANS_ENABLE -DSUPPORT_CACHE -DSUPPORT_L2CACHE -DDRV_NEW_ARCH -DNEW_MEM_ALLOC -DCTBRC_STRENGTH -DFB_PERFORMANCE_STATIC -DFPGA -DDRV_NEW_ARCH
+
+    enabled h264_es_encoder && {
+        log check_pkg_config h264_es_encoder
+    } || disable h264_es_encoder
+
+    enabled h265_es_encoder  && {
+        log check_pkg_config h265_es_encoder
+    } || disable h265_es_encoder
+
+    if disabled_all h264_es_encoder h265_es_encoder; then
+        die "esve enabled but no supported codecs found"
+    fi
+}
+
+enabled esjd && {
+    add_cflags -DESW_FF_ENHANCEMENT -DFIFO_DATATYPE=void* -DUSE_EXTERNAL_BUFFER -DUSE_OUTPUT_RELEASE -D_FILE_OFFSET_BITS=64 -D_DEFAULT_SOURCE -D_LARGEFILE64_SOURCE -DALWAYS_OUTPUT_REF -DUSE_NON_BLOCKING -DGET_FREE_BUFFER_NON_BLOCK -DGET_FREE_BUFFER_NON_BLOCK -DGET_OUTPUT_BUFFER_NON_BLOCK -DSKIP_OPENB_FRAME -DENABLE_DPB_RECOVER -D_LARGEFILE64_SOURCE -DEXPIRY_DATE=1 -D_RANGE_CHECK -D_ERROR_PRINT -DDEC_X170_OUTPUT_FORMAT=0 -DDEC_X170_TIMEOUT_LENGTH=-1 -DREORDER_ERROR_FIX -DCLEAR_HDRINFO_IN_SEEK -DNEW_MEM_ALLOC -DDWL_USE_DEC_IRQ -fpic -DENABLE_HUGEPAGE -DDEC_TRANS_ENABLE -DSUPPORT_CACHE -DSUPPORT_L2CACHE -DDRV_NEW_ARCH -DNEW_MEM_ALLOC -DCTBRC_STRENGTH -DFB_PERFORMANCE_STATIC -DFPGA -DDRV_NEW_ARCH
+
+    enabled jpeg_es_decoder  && {
+        log check_pkg_config jpeg_es_decoder
+    } || disable jpeg_es_decoder
+
+    if disabled_all jpeg_es_decoder; then
+        die "esjd enabled but no supported jpegdecoders found"
+    fi
+}
+
+enabled convert_es && {
+    add_cflags -DESW_FF_ENHANCEMENT
+
+    enabled convert_es_filter  && {
+        log check_pkg_config convert_es_filter
+    } || disable convert_es_filter
+
+    if disabled_all convert_es_filter; then
+        die "convert_es_filter enabled but no supported filter found"
+    fi
+}
+
+enabled esje && {
+    add_cflags -DESW_FF_ENHANCEMENT -DFIFO_DATATYPE=void* -DUSE_EXTERNAL_BUFFER -DUSE_OUTPUT_RELEASE -D_FILE_OFFSET_BITS=64 -D_DEFAULT_SOURCE -D_LARGEFILE64_SOURCE -DALWAYS_OUTPUT_REF -DUSE_NON_BLOCKING -DGET_FREE_BUFFER_NON_BLOCK -DGET_FREE_BUFFER_NON_BLOCK -DGET_OUTPUT_BUFFER_NON_BLOCK -DSKIP_OPENB_FRAME -DENABLE_DPB_RECOVER -D_LARGEFILE64_SOURCE -DEXPIRY_DATE=1 -D_RANGE_CHECK -D_ERROR_PRINT -DDEC_X170_OUTPUT_FORMAT=0 -DDEC_X170_TIMEOUT_LENGTH=-1 -DREORDER_ERROR_FIX -DCLEAR_HDRINFO_IN_SEEK -DNEW_MEM_ALLOC -DDWL_USE_DEC_IRQ -fpic -DENABLE_HUGEPAGE -DDEC_TRANS_ENABLE -DSUPPORT_CACHE -DSUPPORT_L2CACHE -DDRV_NEW_ARCH -DNEW_MEM_ALLOC -DCTBRC_STRENGTH -DFB_PERFORMANCE_STATIC -DFPGA -DDRV_NEW_ARCH
+
+    enabled jpeg_es_encoder && {
+    log check_pkg_config jpeg_es_encoder
+    } || disable jpeg_es_encoder
+
+    if disabled_all jpeg_es_encoder; then
+        die "esje enabled but no supported jpegencoders found"
+    fi
+}
 
 if enabled gcrypt; then
     GCRYPT_CONFIG="${cross_prefix}libgcrypt-config"

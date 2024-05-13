@@ -2491,6 +2491,120 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
         },
         .flags = AV_PIX_FMT_FLAG_PLANAR,
     },
+    [AV_PIX_FMT_ES] = {
+        .name = "es",
+        .flags = AV_PIX_FMT_FLAG_HWACCEL,
+    },
+// ESW_FF_ENHANCEMENT
+    [AV_PIX_FMT_B16G16R16I] = {
+        .name = "b16g16r16i",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 0, 6, 4, 0, 16 },       /* R */
+            { 0, 6, 2, 0, 16 },       /* G */
+            { 0, 6, 0, 0, 16 },       /* B */
+        },
+        .flags = AV_PIX_FMT_FLAG_RGB,
+    },
+    [AV_PIX_FMT_B16G16R16I_PLANAR] = {
+        .name = "b16g16r16i_p",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 2, 2, 0, 0, 16 },       /* R */
+            { 1, 2, 0, 0, 16 },       /* G */
+            { 0, 2, 0, 0, 16 },       /* B */
+        },
+        .flags = AV_PIX_FMT_FLAG_PLANAR | AV_PIX_FMT_FLAG_RGB,
+    },
+    [AV_PIX_FMT_B8G8R8_PLANAR] = {
+        .name = "bgr24_p",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 2, 1, 0, 0, 8 },        /* R */
+            { 1, 1, 0, 0, 8 },        /* G */
+            { 0, 1, 0, 0, 8 },        /* B */
+        },
+        .flags = AV_PIX_FMT_FLAG_PLANAR | AV_PIX_FMT_FLAG_RGB,
+    },
+    [AV_PIX_FMT_B8G8R8I] = {
+        .name = "bgr24i",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 0, 3, 2, 0, 8 },        /* R */
+            { 0, 3, 1, 0, 8 },        /* G */
+            { 0, 3, 0, 0, 8 },        /* B */
+        },
+        .flags = AV_PIX_FMT_FLAG_RGB,
+    },
+    [AV_PIX_FMT_B8G8R8I_PLANAR] = {
+        .name = "bgr24i_p",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 2, 1, 0, 0, 8 },        /* R */
+            { 1, 1, 0, 0, 8 },        /* G */
+            { 0, 1, 0, 0, 8 },        /* B */
+        },
+        .flags = AV_PIX_FMT_FLAG_PLANAR | AV_PIX_FMT_FLAG_RGB,
+    },
+    [AV_PIX_FMT_B16G16R16F] = {
+        .name = "b16g16r16f",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 0, 6, 4, 0, 16 },       /* R */
+            { 0, 6, 2, 0, 16 },       /* G */
+            { 0, 6, 0, 0, 16 },       /* B */
+        },
+        .flags = AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_FLOAT,
+    },
+    [AV_PIX_FMT_B16G16R16F_PLANAR] = {
+        .name = "b16g16r16f_p",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 2, 2, 0, 0, 16 },       /* R */
+            { 1, 2, 0, 0, 16 },       /* G */
+            { 0, 2, 0, 0, 16 },       /* B */
+        },
+        .flags = AV_PIX_FMT_FLAG_PLANAR | AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_FLOAT,
+    },
+    [AV_PIX_FMT_B32G32R32F] = {
+        .name = "b32g32r32f",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 0, 12, 8, 0, 32 },       /* R */
+            { 0, 12, 4, 0, 32 },       /* G */
+            { 0, 12, 0, 0, 32 },       /* B */
+        },
+        .flags = AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_FLOAT,
+    },
+    [AV_PIX_FMT_B32G32R32F_PLANAR] = {
+        .name = "b32g32r32f_p",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 2, 4, 0, 0, 32 },       /* R */
+            { 1, 4, 0, 0, 32 },       /* G */
+            { 0, 4, 0, 0, 32 },       /* B */
+        },
+        .flags = AV_PIX_FMT_FLAG_PLANAR | AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_FLOAT,
+    },
+// ESW_FF_ENHANCEMENT END
 };
 
 static const char * const color_range_names[] = {
