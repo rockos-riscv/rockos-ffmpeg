@@ -1,1 +1,7 @@
 0001-hwcontext_vulkan-remove-optional-encode-decode-exten.patch
+0001-sync-sync-eswin-code.patch
+0002-configure-fix-compilation-with-glslang-14.patch
+0003-fix-libplacebo-v6-compatibility.patch
+0004-avcodec-libsvtav1-remove-compressed_ten_bit_format-a.patch
+0005-avcodec-libsvtav1-replace-vbv_bufsize-with-maximum_b.patch
+0006-doc-html-support-texinfo-7.0.patch
