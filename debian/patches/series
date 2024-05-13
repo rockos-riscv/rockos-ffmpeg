@@ -5,3 +5,4 @@
 0004-avcodec-libsvtav1-remove-compressed_ten_bit_format-a.patch
 0005-avcodec-libsvtav1-replace-vbv_bufsize-with-maximum_b.patch
 0006-doc-html-support-texinfo-7.0.patch
+0007-fix-usleep-in-_POSIX_C_SOURCE-200809L.patch

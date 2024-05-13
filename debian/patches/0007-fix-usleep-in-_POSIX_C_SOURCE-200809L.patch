@@ -1,0 +1,25 @@
+From 9fcc4a83193d4c439c374685c8d25521631cd27b Mon Sep 17 00:00:00 2001
+From: Han Gao <gaohan@iscas.ac.cn>
+Date: Tue, 14 May 2024 00:56:41 +0800
+Subject: [PATCH 7/7] fix usleep in _POSIX_C_SOURCE = 200809L
+
+Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
+---
+ doc/examples/filtering_video.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/doc/examples/filtering_video.c b/doc/examples/filtering_video.c
+index 7b3e16c40c..88246683c6 100644
+--- a/doc/examples/filtering_video.c
++++ b/doc/examples/filtering_video.c
+@@ -28,6 +28,7 @@
+  */
+ 
+ #define _XOPEN_SOURCE 600 /* for usleep */
++#define _POSIX_C_SOURCE 200112L /* for usleep */
+ #include <unistd.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+-- 
+2.40.1
+

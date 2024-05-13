@@ -1,7 +1,7 @@
 From 9a26c885716e8981df2001cffa276fc2a49722b8 Mon Sep 17 00:00:00 2001
 From: Christopher Degawa <christopher.degawa@intel.com>
 Date: Thu, 20 Oct 2022 22:55:28 -0500
-Subject: [PATCH 5/6] avcodec/libsvtav1: replace vbv_bufsize with
+Subject: [PATCH 5/7] avcodec/libsvtav1: replace vbv_bufsize with
  maximum_buffer_size_ms
 
 svt-av1 v1.2.0 has deprecated vbv_bufsize in favor of using

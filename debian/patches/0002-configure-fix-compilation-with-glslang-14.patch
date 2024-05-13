@@ -1,7 +1,7 @@
 From dc9d6cd9d9e6d32d594aa4f34262930c07aa5cb6 Mon Sep 17 00:00:00 2001
 From: Lynne <dev@lynne.ee>
 Date: Wed, 31 Jan 2024 17:28:56 +0100
-Subject: [PATCH 2/6] configure: fix compilation with glslang 14
+Subject: [PATCH 2/7] configure: fix compilation with glslang 14
 
 The configure check already had fallback for the previous version
 of glslang, which had different requirements for flags.
