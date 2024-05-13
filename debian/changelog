@@ -1,3 +1,10 @@
+ffmpeg (8:5.1.2-3eswin1) unstable; urgency=medium
+
+  * Disable openmax, because openmax is dropped
+  * Apply eswin pacthset & backport patchset
+
+ -- Han Gao <gaohan@iscas.ac.cn>  Tue, 14 May 2024 00:01:38 +0800
+
 ffmpeg (7:5.1.2-3) unstable; urgency=medium
 
   * debian/rules: Disable more tests on ppc64 (Closes: #1022764)
