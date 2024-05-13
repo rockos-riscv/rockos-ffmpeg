@@ -28,6 +28,7 @@ CONFIG := --prefix=/usr \
 	--arch=$(DEB_HOST_ARCH_CPU) \
 	--enable-gpl \
 	--disable-stripping \
+	--disable-omx \
 	--enable-gnutls \
 	--enable-ladspa \
 	--enable-libaom \
@@ -75,7 +76,6 @@ CONFIG := --prefix=/usr \
 	--enable-libzmq \
 	--enable-libzvbi \
 	--enable-lv2 \
-	--enable-omx \
 	--enable-openal \
 	--enable-opencl \
 	--enable-opengl \

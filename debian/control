@@ -95,8 +95,6 @@ Build-Depends:
  libmysofa-dev,
 # --enable-openal
  libopenal-dev,
-# --enable-omx
- libomxil-bellagio-dev,
 # --enable-libopencore_amrnb
  libopencore-amrnb-dev,
 # --enable-libopencore_amrwb
