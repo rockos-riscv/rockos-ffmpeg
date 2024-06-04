@@ -1,4 +1,4 @@
-From d25b99c547e118ff57d3f68602b9005b9ea757ef Mon Sep 17 00:00:00 2001
+From 1813562b08aeeb3bd9eabe135c4de48116aab48f Mon Sep 17 00:00:00 2001
 From: Han Gao <gaohan@iscas.ac.cn>
 Date: Mon, 13 May 2024 22:56:22 +0800
 Subject: [PATCH 3/7] fix libplacebo v6 compatibility

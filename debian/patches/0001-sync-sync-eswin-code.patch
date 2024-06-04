@@ -1,38 +1,39 @@
-From 6faeb7f7a23fafc189190f8e049b3a035d33a3c7 Mon Sep 17 00:00:00 2001
+From c2766777108f9db66046700381fc2df3a92c9792 Mon Sep 17 00:00:00 2001
 From: Han Gao <gaohan@iscas.ac.cn>
-Date: Mon, 13 May 2024 21:15:08 +0800
+Date: Tue, 4 Jun 2024 17:19:05 +0800
 Subject: [PATCH 1/7] sync: sync eswin code
 
 Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
 ---
  Makefile                          |    3 +-
- configure                         |  169 +-
+ configure                         |  171 +-
  fftools/ffmpeg.h                  |    2 +
  fftools/ffmpeg_es.c               |   73 +
  fftools/ffmpeg_opt.c              |    8 +-
+ fftools/ffplay.c                  |   14 +-
  libavcodec/Makefile               |   22 +
  libavcodec/allcodecs.c            |   24 +
- libavcodec/es_audio_dec.c         |  285 ++
+ libavcodec/es_audio_dec.c         |  276 ++
  libavcodec/es_audio_enc.c         |  346 +++
  libavcodec/es_codec_private.h     |   60 +
  libavcodec/es_common.c            |  359 +++
  libavcodec/es_common.h            |  134 +
- libavcodec/es_jpeg_decode.c       | 2455 +++++++++++++++++
+ libavcodec/es_jpeg_decode.c       | 2453 +++++++++++++++++
  libavcodec/es_jpeg_decode.h       |  399 +++
  libavcodec/es_jpegdec.c           |  507 ++++
  libavcodec/es_jpegenc.c           | 2621 ++++++++++++++++++
  libavcodec/es_jpegenc.h           |  412 +++
  libavcodec/esdec_common.c         |  292 ++
  libavcodec/esdec_common.h         |   71 +
- libavcodec/esdec_internal.c       |  968 +++++++
- libavcodec/esdec_internal.h       |   41 +
- libavcodec/esdec_wrapper.c        |  157 ++
- libavcodec/esdec_wrapper.h        |   15 +
- libavcodec/esdecapi.c             | 1198 +++++++++
- libavcodec/esdecapi.h             |  106 +
+ libavcodec/esdec_internal.c       |  985 +++++++
+ libavcodec/esdec_internal.h       |   47 +
+ libavcodec/esdec_wrapper.c        |  102 +
+ libavcodec/esdec_wrapper.h        |   13 +
+ libavcodec/esdecapi.c             | 1189 +++++++++
+ libavcodec/esdecapi.h             |  105 +
  libavcodec/esdecbuffer.c          |  731 +++++
  libavcodec/esdecbuffer.h          |  135 +
- libavcodec/esdecode.c             |  449 ++++
+ libavcodec/esdecode.c             |  448 ++++
  libavcodec/esenc_common.c         |  325 +++
  libavcodec/esenc_common.h         |   96 +
  libavcodec/esenc_h26x.c           |  445 ++++
@@ -42,8 +43,8 @@ Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
  libavcodec/esenc_vid_buffer.h     |   53 +
  libavcodec/esenc_vid_internal.c   | 1341 ++++++++++
  libavcodec/esenc_vid_internal.h   |   64 +
- libavcodec/esjdecapi.c            | 2256 ++++++++++++++++
- libavcodec/esjdecapi.h            |  180 ++
+ libavcodec/esjdecapi.c            | 2252 ++++++++++++++++
+ libavcodec/esjdecapi.h            |  179 ++
  libavcodec/esjdecode.c            |  383 +++
  libavcodec/eslog.h                |   30 +
  libavcodec/esqueue.c              |  439 +++
@@ -56,7 +57,7 @@ Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
  libavfilter/dnn/dnn_backend_umd.h |   40 +
  libavfilter/dnn/dnn_interface.c   |   13 +
  libavfilter/dnn_interface.h       |    2 +-
- libavfilter/esvfbuffer.c          |  482 ++++
+ libavfilter/esvfbuffer.c          |  504 ++++
  libavfilter/esvfbuffer.h          |   71 +
  libavfilter/esvfcommon.c          |  442 ++++
  libavfilter/esvfcommon.h          |  147 +
@@ -76,7 +77,7 @@ Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
  libavutil/hwcontext_internal.h    |    1 +
  libavutil/pixdesc.c               |  114 +
  libavutil/pixfmt.h                |   14 +
- 71 files changed, 26893 insertions(+), 9 deletions(-)
+ 72 files changed, 26864 insertions(+), 15 deletions(-)
  create mode 100644 fftools/ffmpeg_es.c
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
@@ -141,7 +142,7 @@ index 61f79e27ae..130c4153b7 100644
  VERSION_SH  = $(SRC_PATH)/ffbuild/version.sh
  GIT_LOG     = $(SRC_PATH)/.git/logs/HEAD
 diff --git a/configure b/configure
-index ba5793b2ff..d5b29f4ec0 100755
+index ba5793b2ff..2e8eaf963f 100755
 --- a/configure
 +++ b/configure
 @@ -231,6 +231,14 @@ External library support:
@@ -421,6 +422,15 @@ index ba5793b2ff..d5b29f4ec0 100755
  
  if enabled gcrypt; then
      GCRYPT_CONFIG="${cross_prefix}libgcrypt-config"
+@@ -6752,7 +6909,7 @@ if enabled gcrypt; then
+ fi
+ 
+ if enabled sdl2; then
+-    SDL2_CONFIG="${cross_prefix}sdl2-config"
++    SDL2_CONFIG="${sysroot}/usr/bin/sdl2-config"
+     test_pkg_config sdl2 "sdl2 >= 2.0.1 sdl2 < 3.0.0" SDL_events.h SDL_PollEvent
+     if disabled sdl2 && "${SDL2_CONFIG}" --version > /dev/null 2>&1; then
+         sdl2_cflags=$("${SDL2_CONFIG}" --cflags)
 diff --git a/fftools/ffmpeg.h b/fftools/ffmpeg.h
 index 391a35cf50..db08724d09 100644
 --- a/fftools/ffmpeg.h
@@ -539,6 +549,81 @@ index 6e18a4a23e..8a7b58fe74 100644
                  ist->hwaccel_output_format = av_get_pix_fmt(hwaccel_output_format);
                  if (ist->hwaccel_output_format == AV_PIX_FMT_NONE) {
                      av_log(NULL, AV_LOG_FATAL, "Unrecognised hwaccel output "
+diff --git a/fftools/ffplay.c b/fftools/ffplay.c
+index 9242047f5c..1011415fdb 100644
+--- a/fftools/ffplay.c
++++ b/fftools/ffplay.c
+@@ -390,6 +390,7 @@ static const struct TextureFormatEntry {
+     { AV_PIX_FMT_YUV420P,        SDL_PIXELFORMAT_IYUV },
+     { AV_PIX_FMT_YUYV422,        SDL_PIXELFORMAT_YUY2 },
+     { AV_PIX_FMT_UYVY422,        SDL_PIXELFORMAT_UYVY },
++    { AV_PIX_FMT_NV12,           SDL_PIXELFORMAT_NV12},
+     { AV_PIX_FMT_NONE,           SDL_PIXELFORMAT_UNKNOWN },
+ };
+ 
+@@ -2503,7 +2504,7 @@ static int audio_open(void *opaque, AVChannelLayout *wanted_channel_layout, int
+     }
+     while (next_sample_rate_idx && next_sample_rates[next_sample_rate_idx] >= wanted_spec.freq)
+         next_sample_rate_idx--;
+-    wanted_spec.format = AUDIO_S16SYS;
++    wanted_spec.format = AUDIO_S32SYS;
+     wanted_spec.silence = 0;
+     wanted_spec.samples = FFMAX(SDL_AUDIO_MIN_BUFFER_SIZE, 2 << av_log2(wanted_spec.freq / SDL_AUDIO_MAX_CALLBACKS_PER_SEC));
+     wanted_spec.callback = sdl_audio_callback;
+@@ -2524,9 +2525,9 @@ static int audio_open(void *opaque, AVChannelLayout *wanted_channel_layout, int
+         av_channel_layout_default(wanted_channel_layout, wanted_spec.channels);
+     }
+     if (spec.format != AUDIO_S16SYS) {
+-        av_log(NULL, AV_LOG_ERROR,
++        av_log(NULL, AV_LOG_WARNING,
+                "SDL advised audio format %d is not supported!\n", spec.format);
+-        return -1;
++        //return -1;
+     }
+     if (spec.channels != wanted_spec.channels) {
+         av_channel_layout_uninit(wanted_channel_layout);
+@@ -2538,7 +2539,7 @@ static int audio_open(void *opaque, AVChannelLayout *wanted_channel_layout, int
+         }
+     }
+ 
+-    audio_hw_params->fmt = AV_SAMPLE_FMT_S16;
++    audio_hw_params->fmt = AV_SAMPLE_FMT_S32;
+     audio_hw_params->freq = spec.freq;
+     if (av_channel_layout_copy(&audio_hw_params->ch_layout, wanted_channel_layout) < 0)
+         return -1;
+@@ -3332,6 +3333,7 @@ static void event_loop(VideoState *cur_stream)
+                 toggle_audio_display(cur_stream);
+ #endif
+                 break;
++/*
+             case SDLK_PAGEUP:
+                 if (cur_stream->ic->nb_chapters <= 1) {
+                     incr = 600.0;
+@@ -3382,6 +3384,7 @@ static void event_loop(VideoState *cur_stream)
+                         stream_seek(cur_stream, (int64_t)(pos * AV_TIME_BASE), (int64_t)(incr * AV_TIME_BASE), 0);
+                     }
+                 break;
++*/
+             default:
+                 break;
+             }
+@@ -3416,6 +3419,7 @@ static void event_loop(VideoState *cur_stream)
+                     break;
+                 x = event.motion.x;
+             }
++            /*
+                 if (seek_by_bytes || cur_stream->ic->duration <= 0) {
+                     uint64_t size =  avio_size(cur_stream->ic->pb);
+                     stream_seek(cur_stream, size*x/cur_stream->width, 0, 1);
+@@ -3439,7 +3443,7 @@ static void event_loop(VideoState *cur_stream)
+                     if (cur_stream->ic->start_time != AV_NOPTS_VALUE)
+                         ts += cur_stream->ic->start_time;
+                     stream_seek(cur_stream, ts, 0, 0);
+-                }
++                }*/
+             break;
+         case SDL_WINDOWEVENT:
+             switch (event.window.event) {
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
 index 457ec58377..ceddb1b5d6 100644
 --- a/libavcodec/Makefile
@@ -630,10 +715,10 @@ index bdfc2f6f45..9c0cfb2e77 100644
  extern const FFCodec ff_libgsm_ms_encoder;
 diff --git a/libavcodec/es_audio_dec.c b/libavcodec/es_audio_dec.c
 new file mode 100644
-index 0000000000..34baabfd82
+index 0000000000..043a7d6c2f
 --- /dev/null
 +++ b/libavcodec/es_audio_dec.c
-@@ -0,0 +1,285 @@
+@@ -0,0 +1,276 @@
 +#include "libavutil/channel_layout.h"
 +#include "libavutil/common.h"
 +#include "libavutil/opt.h"
@@ -649,7 +734,7 @@ index 0000000000..34baabfd82
 +
 +#define DEFAULT_G722_BIT_RATE       64000
 +#define DEFAULT_G726_BIT_RATE       32000
-+#define MAX_BUFFER_SIZE             32768
++#define MAX_BUFFER_SIZE             16384
 +#define MAX_STREAM_LEN              2048
 +
 +typedef struct ESADECContext {
@@ -662,6 +747,12 @@ index 0000000000..34baabfd82
 +    uint32_t offset;
 +    AVChannelLayout downmix_layout;
 +} ESADECContext;
++
++static const AVOption options[] = {
++    { "bit_rate", "Set bit rate", offsetof(ESADECContext, bit_rate), AV_OPT_TYPE_INT,
++      {.i64 = 0}, 0, INT_MAX, AV_OPT_FLAG_DECODING_PARAM },
++    { NULL },
++};
 +
 +static es_codec_type convert_codec_id_to_type(enum AVCodecID codec_id)
 +{
@@ -686,25 +777,9 @@ index 0000000000..34baabfd82
 +    }
 +}
 +
-+static aac_profile convert_aot_to_esprofile(int aot)
-+{
-+    switch(aot) {
-+        case FF_PROFILE_AAC_LOW:
-+            return AAC_TYPE_AACLC;
-+        case FF_PROFILE_AAC_MAIN:
-+            return AAC_TYPE_AACMAIN;
-+        case FF_PROFILE_AAC_HE:
-+        case FF_PROFILE_AAC_HE_V2:
-+            return AAC_TYPE_AACHE;
-+        case FF_PROFILE_AAC_LD:
-+            return  AAC_TYPE_AACLD;
-+        default:
-+            return AAC_TYPE_AACLC;
-+    }
-+}
-+
 +static void *get_audio_decoder_attr(AVCodecContext *avctx, enum AVCodecID codec_id)
 +{
++    ESADECContext *s = (ESADECContext *)avctx->priv_data;
 +    void *attr = NULL;
 +
 +    if (AV_CODEC_ID_AMR_NB == codec_id || AV_CODEC_ID_AMR_WB == codec_id) {
@@ -722,20 +797,20 @@ index 0000000000..34baabfd82
 +    } else if (AV_CODEC_ID_ADPCM_G722 == codec_id) {
 +        audio_g722_attr *g722_attr = av_mallocz(sizeof(audio_g722_attr));
 +        if (g722_attr) {
-+            g722_attr->bit_rate = (avctx->bit_rate == 0) ? DEFAULT_G722_BIT_RATE : avctx->bit_rate;
++            g722_attr->bit_rate = (s->bit_rate == 0) ? DEFAULT_G722_BIT_RATE : s->bit_rate;
 +            attr = g722_attr;
 +        }
 +    } else if (AV_CODEC_ID_ADPCM_G726 == codec_id) {
 +        audio_g726_attr *g726_attr = av_mallocz(sizeof(audio_g726_attr));
 +        if (g726_attr) {
-+            g726_attr->bit_rate = (avctx->bit_rate == 0) ? DEFAULT_G726_BIT_RATE : avctx->bit_rate;
++            g726_attr->bit_rate = (s->bit_rate == 0) ? DEFAULT_G726_BIT_RATE : s->bit_rate;
 +            attr = g726_attr;
 +        }
 +    } else if (AV_CODEC_ID_AAC == codec_id) {
 +        audio_aacdecoder_attr *aac_attr = av_mallocz(sizeof(audio_aacdecoder_attr));
 +        if (aac_attr) {
 +            aac_attr->output_format = 1;
-+            aac_attr->profile = convert_aot_to_esprofile(avctx->profile);
++            aac_attr->profile = avctx->profile;
 +            aac_attr->trans_type = AAC_TRANS_TYPE_ADTS;
 +            attr = aac_attr;
 +        }
@@ -893,6 +968,7 @@ index 0000000000..34baabfd82
 +    static const AVClass es_##ctype##_decoder_class = {                                             \
 +        .class_name = #ctype "_esadec",                                                             \
 +        .item_name = av_default_item_name,                                                          \
++        .option = options,                                                                          \
 +        .version = LIBAVUTIL_VERSION_INT,                                                           \
 +    };                                                                                              \
 +    const FFCodec ff_es_##ctype##_decoder = {                                                       \
@@ -1846,10 +1922,10 @@ index 0000000000..857ef29d3c
 +#endif
 diff --git a/libavcodec/es_jpeg_decode.c b/libavcodec/es_jpeg_decode.c
 new file mode 100644
-index 0000000000..7110363eed
+index 0000000000..ef3acf2203
 --- /dev/null
 +++ b/libavcodec/es_jpeg_decode.c
-@@ -0,0 +1,2455 @@
+@@ -0,0 +1,2453 @@
 +/*
 + * Copyright (C) 2019  VeriSilicon
 + *
@@ -2331,7 +2407,7 @@ index 0000000000..7110363eed
 +    return JpegDecSetInfo(inst, &dec_cfg);
 +}
 +
-+enum DecRet jpeg_get_buffer_info(void *inst, struct DecBufferInfo *buf_info)
++enum DecRet jpeg_get_buffer_info(void *inst, struct DecBufferInfo *buf_info) 
 +{
 +    struct DecBufferInfo hbuf;
 +    enum DecRet rv;
@@ -2502,7 +2578,6 @@ index 0000000000..7110363eed
 +
 +int ff_es_jpeg_output_buffer_fd_split(void *dwl_inst,
 +                                      void *dec_inst,
-+                                      int dev_mem_fd,
 +                                      ESJpegOutputMemory *memory,
 +                                      struct DecConfig *dec_config) {
 +    int ret = SUCCESS;
@@ -2547,7 +2622,7 @@ index 0000000000..7110363eed
 +    av_log(NULL, AV_LOG_DEBUG, "pp_count: %d\n", pp_count);
 +
 +    if (pp_count == ES_VID_DEC_MAX_OUT_COUNT) {
-+        ret = ESDecGetDmaFdSplit(dwl_inst, &esjdec, dev_mem_fd, dma_fd, memory->fd, ES_VID_DEC_MAX_OUT_COUNT);
++        ret = ESDecGetDmaFdSplit(dwl_inst, &esjdec, dma_fd, memory->fd, ES_VID_DEC_MAX_OUT_COUNT);
 +    }
 +
 +    return ret;
@@ -2596,7 +2671,6 @@ index 0000000000..7110363eed
 +
 +            ff_es_jpeg_output_buffer_fd_split(dec_ctx->dwl_inst,
 +                                              dec_ctx->dec_inst,
-+                                              dec_ctx->dev_mem_fd,
 +                                              memory,
 +                                              config);
 +
@@ -8648,10 +8722,10 @@ index 0000000000..a8524c2a75
 \ No newline at end of file
 diff --git a/libavcodec/esdec_internal.c b/libavcodec/esdec_internal.c
 new file mode 100644
-index 0000000000..9b26d8a578
+index 0000000000..43b862b3e4
 --- /dev/null
 +++ b/libavcodec/esdec_internal.c
-@@ -0,0 +1,968 @@
+@@ -0,0 +1,985 @@
 +#define LOG_TAG "esdec_internal"
 +#include <dectypes.h>
 +#include <vcdecapi.h>
@@ -8663,8 +8737,7 @@ index 0000000000..9b26d8a578
 +#include "esdecapi.h"
 +#include "esdec_wrapper.h"
 +
-+static int esdec_output_buffer_fd_split(
-+    void *dwl_inst, void *dec_inst, int dev_mem_fd, ESOutputMemory *memory, int pp_count);
++static int esdec_output_buffer_fd_split(void *dwl_inst, void *dec_inst, ESOutputMemory *memory, int pp_count);
 +
 +void esdec_dwl_memory_free(void *opaque, uint8_t *data) {
 +    struct DWLLinearMem *mem = (struct DWLLinearMem *)data;
@@ -8902,7 +8975,11 @@ index 0000000000..9b26d8a578
 +                     ES_DEFAULT_STREAM_BUFFER_SIZE,
 +                     mem->virtual_address);
 +        }
-+        esdec_input_buffer_init(&input_buffer, mem->virtual_address, mem->bus_address, mem->logical_size, mem->size);
++        esdec_input_buffer_init(&input_buffer,
++                                mem->virtual_address,
++                                mem->bus_address,
++                                mem->logical_size,
++                                mem->size);
 +        esdec_release_input_buffer(port->release_queue, &input_buffer);
 +    }
 +    if (ret == FAILURE) {
@@ -8916,7 +8993,10 @@ index 0000000000..9b26d8a578
 +    return port;
 +}
 +
-+int esdec_enlarge_input_port(ESDecCodec codec, ESInputPort *port, struct AVBufferRef *dwl_ref, int32_t buf_num) {
++int esdec_enlarge_input_port(ESDecCodec codec,
++                                   ESInputPort *port,
++                                   struct AVBufferRef *dwl_ref,
++                                   int32_t buf_num) {
 +    int ret = SUCCESS;
 +    int rv = 0;
 +    struct DWLLinearMem *mem;
@@ -8960,7 +9040,11 @@ index 0000000000..9b26d8a578
 +                     ES_DEFAULT_STREAM_BUFFER_SIZE,
 +                     mem->virtual_address);
 +        }
-+        esdec_input_buffer_init(&input_buffer, mem->virtual_address, mem->bus_address, mem->logical_size, mem->size);
++        esdec_input_buffer_init(&input_buffer,
++                                mem->virtual_address,
++                                mem->bus_address,
++                                mem->logical_size,
++                                mem->size);
 +        esdec_release_input_buffer(port->release_queue, &input_buffer);
 +    }
 +
@@ -9087,8 +9171,7 @@ index 0000000000..9b26d8a578
 +    return memory;
 +}
 +
-+int esdec_allocate_all_output_memorys(
-+    ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, int dev_mem_fd, void *dwl_inst) {
++int esdec_allocate_all_output_memorys(ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, void *dwl_inst) {
 +    int ret = SUCCESS;
 +    int pp_count;
 +    ESOutputMemory *memory;
@@ -9104,12 +9187,12 @@ index 0000000000..9b26d8a578
 +            port->output_mems[i] = memory;
 +            memory->port_ref = av_buffer_ref(port->port_ref);
 +            if (codec != ES_JPEG) {
-+                esdec_output_buffer_fd_split(dwl_inst, dec_inst, dev_mem_fd, memory, pp_count);
++                esdec_output_buffer_fd_split(dwl_inst, dec_inst, memory, pp_count);
 +            } else {
 +                struct ESDecoderWrapper esdec;
 +                esdec.codec = DEC_JPEG;
 +                esdec.inst = dec_inst;
-+                esdec_output_buffer_fd_split(dwl_inst, &esdec, dev_mem_fd, memory, pp_count);
++                esdec_output_buffer_fd_split(dwl_inst, &esdec, memory, pp_count);
 +            }
 +            log_info(NULL, "memory: %d allocate success vir_addr: %p\n", i, memory->vir_addr);
 +        } else {
@@ -9127,8 +9210,11 @@ index 0000000000..9b26d8a578
 +    return ret;
 +}
 +
-+static int esdec_allocate_more_output_memorys(
-+    ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, void *dwl_inst, int dev_mem_fd, int memory_count) {
++static int esdec_allocate_more_output_memorys(ESDecCodec codec,
++                                              ESOutputPort *port,
++                                              ESVDecInst dec_inst,
++                                              void *dwl_inst,
++                                              int memory_count) {
 +    int ret = SUCCESS;
 +    int pp_count;
 +    int mem_num;
@@ -9157,12 +9243,12 @@ index 0000000000..9b26d8a578
 +            port->mem_num++;
 +            memory->port_ref = av_buffer_ref(port->port_ref);
 +            if (codec != ES_JPEG) {
-+                esdec_output_buffer_fd_split(dwl_inst, dec_inst, dev_mem_fd, memory, pp_count);
++                esdec_output_buffer_fd_split(dwl_inst, dec_inst, memory, pp_count);
 +            } else {
 +                struct ESDecoderWrapper esdec;
 +                esdec.codec = DEC_JPEG;
 +                esdec.inst = dec_inst;
-+                esdec_output_buffer_fd_split(dwl_inst, &esdec, dev_mem_fd, memory, pp_count);
++                esdec_output_buffer_fd_split(dwl_inst, &esdec, memory, pp_count);
 +            }
 +            log_info(NULL, "memory: %d allocate success vir_addr: %p\n", i, memory->vir_addr);
 +        } else {
@@ -9182,7 +9268,6 @@ index 0000000000..9b26d8a578
 +
 +ESOutputPort *esdec_allocate_output_port(ESDecCodec codec,
 +                                         ESVDecInst dec_inst,
-+                                         int dev_mem_fd,
 +                                         struct AVBufferRef *dwl_ref,
 +                                         int pp_count) {
 +    int ret = FAILURE;
@@ -9224,7 +9309,7 @@ index 0000000000..9b26d8a578
 +            port->mem_size = info.next_buf_size;
 +            port->mem_num = output_buf_num > port->max_mem_num ? port->max_mem_num : output_buf_num;
 +            port->pp_count = pp_count;
-+            ret = esdec_allocate_all_output_memorys(codec, port, dec_inst, dev_mem_fd, dwl_inst);
++            ret = esdec_allocate_all_output_memorys(codec, port, dec_inst, dwl_inst);
 +            if (ret == FAILURE) {
 +                break;
 +            }
@@ -9248,7 +9333,7 @@ index 0000000000..9b26d8a578
 +    return port;
 +}
 +
-+int esdec_output_port_change(ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, int dev_mem_fd,int pp_count, int new_hdr) {
++int esdec_output_port_change(ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, int pp_count, int new_hdr) {
 +    int ret;
 +    int free_buf_count = 0;
 +    enum DecRet rv;
@@ -9300,7 +9385,7 @@ index 0000000000..9b26d8a578
 +        port->mem_size = info.next_buf_size;
 +        port->pp_count = pp_count;
 +
-+        ret = esdec_allocate_all_output_memorys(codec, port, dec_inst, dev_mem_fd, dwl_inst);
++        ret = esdec_allocate_all_output_memorys(codec, port, dec_inst, dwl_inst);
 +        if (ret == FAILURE) {
 +            log_error(NULL, "esdec_allocate_all_output_memorys failed\n");
 +            return ret;
@@ -9316,8 +9401,11 @@ index 0000000000..9b26d8a578
 +    return ret;
 +}
 +
-+int esdec_enlarge_output_port(
-+    ESDecCodec codec, ESOutputPort *port, void *dec_inst, int dev_mem_fd, struct AVBufferRef *dwl_ref, int buf_num) {
++int esdec_enlarge_output_port(ESDecCodec codec,
++                              ESOutputPort *port,
++                              void* dec_inst,
++                              struct AVBufferRef *dwl_ref,
++                              int buf_num) {
 +    struct DecBufferInfo info = {0};
 +    int ret = FAILURE;
 +    enum DecRet rv;
@@ -9339,7 +9427,11 @@ index 0000000000..9b26d8a578
 +
 +    do {
 +        if (port->mem_size > 0) {
-+            ret = esdec_allocate_more_output_memorys(codec, port, dec_inst, dwl_inst, dev_mem_fd, buf_num);
++            ret = esdec_allocate_more_output_memorys(codec,
++                                                     port,
++                                                     dec_inst,
++                                                     dwl_inst,
++                                                     buf_num);
 +            if (ret == FAILURE) {
 +                break;
 +            }
@@ -9515,8 +9607,7 @@ index 0000000000..9b26d8a578
 +    return FAILURE;
 +}
 +
-+static int esdec_output_buffer_fd_split(
-+    void *dwl_inst, void *dec_inst, int dev_mem_fd, ESOutputMemory *memory, int pp_count) {
++static int esdec_output_buffer_fd_split(void *dwl_inst, void *dec_inst, ESOutputMemory *memory, int pp_count) {
 +    int ret = SUCCESS;
 +    int dma_fd;
 +
@@ -9545,7 +9636,7 @@ index 0000000000..9b26d8a578
 +    log_debug(NULL, "pp_count: %d, dma_fd: %d\n", pp_count, dma_fd);
 +
 +    if (pp_count == ES_VID_DEC_MAX_OUT_COUNT) {
-+        ret = ESDecGetDmaFdSplit(dwl_inst, dec_inst, dev_mem_fd, dma_fd, memory->fd, ES_VID_DEC_MAX_OUT_COUNT);
++        ret = ESDecGetDmaFdSplit(dwl_inst, dec_inst, dma_fd, memory->fd, ES_VID_DEC_MAX_OUT_COUNT);
 +    }
 +
 +    return ret;
@@ -9622,10 +9713,10 @@ index 0000000000..9b26d8a578
 +}
 diff --git a/libavcodec/esdec_internal.h b/libavcodec/esdec_internal.h
 new file mode 100644
-index 0000000000..e4833546db
+index 0000000000..9376bef8a6
 --- /dev/null
 +++ b/libavcodec/esdec_internal.h
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,47 @@
 +#ifndef AVCODEC_ESDEC_INTERNAL_H__
 +#define AVCODEC_ESDEC_INTERNAL_H__
 +#include "esdec_common.h"
@@ -9642,11 +9733,19 @@ index 0000000000..e4833546db
 +                                       struct AVBufferRef *dwl_ref,
 +                                       void *dwl_init,
 +                                       int32_t input_buf_num);
-+ESOutputPort *esdec_allocate_output_port(
-+    ESDecCodec codec, ESVDecInst dec_inst, int dev_mem_fd, struct AVBufferRef *dwl_ref, int pp_count);
-+int esdec_enlarge_input_port(ESDecCodec codec, ESInputPort *port, struct AVBufferRef *dwl_ref, int32_t buf_num);
-+int esdec_enlarge_output_port(
-+    ESDecCodec codec, ESOutputPort *port, void *dec_inst, int dev_mem_fd, struct AVBufferRef *dwl_ref, int buf_num);
++ESOutputPort *esdec_allocate_output_port(ESDecCodec codec,
++                                         ESVDecInst dec_inst,
++                                         struct AVBufferRef *dwl_ref,
++                                         int pp_count);
++int esdec_enlarge_input_port(ESDecCodec codec,
++                             ESInputPort *port,
++                             struct AVBufferRef *dwl_ref,
++                             int32_t buf_num);
++int esdec_enlarge_output_port(ESDecCodec codec,
++                              ESOutputPort *port,
++                              void* dec_inst,
++                              struct AVBufferRef *dwl_ref,
++                              int buf_num);
 +
 +int esdec_wait_picture_consumed_until_timeout(ESDecCodec codec,
 +                                              ESVDecInst dec_inst,
@@ -9657,23 +9756,21 @@ index 0000000000..e4833546db
 +                                                   ESOutputPort *port,
 +                                                   int timeout_ms);
 +ESOutputMemory *esdec_find_memory_by_picture(ESOutputPort *port, struct DecPicturePpu *pic);
-+int esdec_allocate_all_output_memorys(
-+    ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, int dev_mem_fd, void *dwl_inst);
++int esdec_allocate_all_output_memorys(ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, void *dwl_inst);
 +void esdec_reset_output_memorys(ESOutputPort *port);
 +int esdec_consumed_one_output_buffer(ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, OutputBuffer *buffer);
 +int esdec_wait_release_picture_add_buffer(ESDecCodec codec, ESVDecInst dec_inst, ESOutputPort *port, int timeout_ms);
-+int esdec_output_port_change(
-+    ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, int dev_mem_fd, int pp_count, int new_hdr);
++int esdec_output_port_change(ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, int pp_count, int new_hdr);
 +int esdec_add_all_output_memorys(ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst);
 +int esdec_add_all_output_memorys_until_timeout(ESDecCodec codec, ESOutputPort *port, ESVDecInst dec_inst, int timeout);
 +#endif
 \ No newline at end of file
 diff --git a/libavcodec/esdec_wrapper.c b/libavcodec/esdec_wrapper.c
 new file mode 100644
-index 0000000000..efd0565481
+index 0000000000..78123913a4
 --- /dev/null
 +++ b/libavcodec/esdec_wrapper.c
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,102 @@
 +#define LOG_TAG "vcdec_wrapper"
 +#include <dectypes.h>
 +#include <hevcdecapi.h>
@@ -9739,67 +9836,12 @@ index 0000000000..efd0565481
 +}
 +#endif
 +
-+// refer to HANTRODEC_IOC_DMA_HEAP_GET_IOVA & HANTRO_IOC_MAGIC
-+#include <sys/ioctl.h>
-+#define ES_IOC_MAGIC 'k'
-+#define ES_IOC_DMA_HEAP_FD_SPLIT _IOR(ES_IOC_MAGIC, 35, struct dmabuf_split *)
-+
-+struct es_dmabuf_split {
-+    int dmabuf_fd;       /* dma buf fd to be splitted */
-+    int slice_fd;        /* splitted dma buf fd */
-+    unsigned int offset; /* offset of the buffer corresponding to dmabuf_fd */
-+    unsigned int length; /* size of the splitted buffer start from offset */
-+};
-+
-+static int ESDecSplitFd(int dev_mem_fd, int fd, unsigned int offset, unsigned int size) {
-+    if (!(fd > 0 && size > 0)) {
-+        return 0;
-+    }
-+    if (dev_mem_fd <= 0) {
-+        log_error(NULL, "dev mem fd is wrong\n");
-+        return 0;
-+    }
-+    struct es_dmabuf_split dmaSplit = {0};
-+    unsigned int pgsize = getpagesize();
-+    if (offset % pgsize) {
-+        return 0;
-+    }
-+    dmaSplit.dmabuf_fd = fd;
-+    dmaSplit.slice_fd = -1;
-+    dmaSplit.offset = offset;
-+    dmaSplit.length = size;
-+    ioctl(dev_mem_fd, ES_IOC_DMA_HEAP_FD_SPLIT, &dmaSplit);
-+    if (dmaSplit.slice_fd < 0) {
-+        log_error(NULL, "split dma buf fd failed, slice_fd %d\n", dmaSplit.slice_fd);
-+        return 0;
-+    }
-+    return dmaSplit.slice_fd;
-+}
-+
-+int ESDecInitDevMemFd(int *dev_mem_fd) {
-+    if (*dev_mem_fd <= 0) {
-+        *dev_mem_fd = open("/dev/es_vdec", O_RDONLY);
-+        if (*dev_mem_fd < 0) {
-+            log_error(NULL, "open dev mem fd failed\n");
-+            return FAILURE;
-+        }
-+    }
-+    return SUCCESS;
-+}
-+
-+void ESDecDeinitDevMemFd(int *dev_mem_fd) {
-+    if (*dev_mem_fd > 0) {
-+        close(*dev_mem_fd);
-+        *dev_mem_fd = -1;
-+    }
-+}
-+
-+int ESDecGetDmaFdSplit(void *dwl_inst, void *dec_inst, int dev_mem_fd, int dmabuf_fd, int *split_fds, int fd_array_size) {
++int ESDecGetDmaFdSplit(void *dwl_inst, void *dec_inst, int dmabuf_fd, int *split_fds, int fd_array_size) {
 +    enum DecRet rv;
 +    int valid_fd_num = 0;
 +    uint32_t buf_size = 0, offset = 0;
 +
-+    log_info(NULL, "memFd: %d dmabuf_fd: %d, pp_count: %d\n", dev_mem_fd, dmabuf_fd, fd_array_size);
++    log_info(NULL, "dmabuf_fd: %d, pp_count: %d\n", dmabuf_fd, fd_array_size);
 +    if (!split_fds) {
 +        return FAILURE;
 +    }
@@ -9810,11 +9852,11 @@ index 0000000000..efd0565481
 +        rv = ESDecGetPPXBufferSize(dec_inst, i, &buf_size);
 +        if (rv == DEC_OK && buf_size > 0) {
 +            // split_fds[i] = DWLDmaBufFdSplit(dwl_inst, dmabuf_fd, offset, buf_size);
-+            split_fds[i] = ESDecSplitFd(dev_mem_fd, dmabuf_fd, offset, buf_size);
 +            offset += buf_size;
 +            if (split_fds[i] < 0) {
 +                log_error(NULL, "DWLDmaBufFdSplit failed\n");
-+            } else {
++            }
++            else{
 +                valid_fd_num++;
 +            }
 +        }
@@ -9834,10 +9876,10 @@ index 0000000000..efd0565481
 \ No newline at end of file
 diff --git a/libavcodec/esdec_wrapper.h b/libavcodec/esdec_wrapper.h
 new file mode 100644
-index 0000000000..fd5290e394
+index 0000000000..80c498fcc3
 --- /dev/null
 +++ b/libavcodec/esdec_wrapper.h
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,13 @@
 +#ifndef AVCODEC_ESDEC_WRAPPER_H__
 +#define AVCODEC_ESDEC_WRAPPER_H__
 +#include <dwl.h>
@@ -9848,18 +9890,16 @@ index 0000000000..fd5290e394
 +
 +int ESDecIsSimulation(void);
 +int ESDecGetDmaBufFd(struct DWLLinearMem *mem);
-+int ESDecGetDmaFdSplit(void *dwl_inst, void *dec_inst, int dev_mem_fd, int dmabuf_fd, int *split_fds, int pp_count);
-+int ESDecInitDevMemFd(int *dev_mem_fd);
-+void ESDecDeinitDevMemFd(int *dev_mem_fd);
++int ESDecGetDmaFdSplit(void *dwl_inst, void *dec_inst, int dmabuf_fd, int *split_fds, int pp_count);
 +
 +#endif
 \ No newline at end of file
 diff --git a/libavcodec/esdecapi.c b/libavcodec/esdecapi.c
 new file mode 100644
-index 0000000000..cb0810e381
+index 0000000000..d85084aaab
 --- /dev/null
 +++ b/libavcodec/esdecapi.c
-@@ -0,0 +1,1198 @@
+@@ -0,0 +1,1189 @@
 +#define LOG_TAG "esdecapi"
 +#include "avcodec.h"
 +#include <hevcdecapi.h>
@@ -10291,11 +10331,6 @@ index 0000000000..cb0810e381
 +        return ret;
 +    }
 +
-+    if (ESDecInitDevMemFd(&dec_ctx->dev_mem_fd)) {
-+        log_error(dec_ctx, "init dev mem fd failed\n");
-+        return FAILURE;
-+    }
-+
 +    port = esdec_allocate_input_port(dec_ctx->codec, dec_ctx->dwl_ref, NULL, dec_ctx->input_buf_num);
 +    if (port) {
 +        dec_ctx->input_port = port;
@@ -10484,15 +10519,13 @@ index 0000000000..cb0810e381
 +            }
 +        } else if (rv == DEC_WAITING_FOR_BUFFER) {
 +            if (!dec_ctx->output_port) {
-+                dec_ctx->output_port = esdec_allocate_output_port(
-+                    dec_ctx->codec, dec_ctx->dec_inst, dec_ctx->dev_mem_fd, dec_ctx->dwl_ref, dec_ctx->pp_count);
++                dec_ctx->output_port =
++                    esdec_allocate_output_port(dec_ctx->codec, dec_ctx->dec_inst, dec_ctx->dwl_ref, dec_ctx->pp_count);
 +            } else {
 +                ret = esdec_output_port_change(dec_ctx->codec,
 +                                               dec_ctx->output_port,
 +                                               dec_ctx->dec_inst,
-+                                               dec_ctx->dev_mem_fd,
-+                                               dec_ctx->pp_count,
-+                                               new_hdr);
++                                               dec_ctx->pp_count, new_hdr);
 +            }
 +            if (new_hdr) {
 +                new_hdr = FALSE;
@@ -11031,8 +11064,6 @@ index 0000000000..cb0810e381
 +        log_info(NULL, "dec_inst release success\n");
 +    }
 +
-+    ESDecDeinitDevMemFd(&dec_ctx->dev_mem_fd);
-+
 +    esdec_input_port_unref(&dec_ctx->input_port);
 +    esdec_output_port_unref(&dec_ctx->output_port);
 +
@@ -11060,10 +11091,10 @@ index 0000000000..cb0810e381
 +}
 diff --git a/libavcodec/esdecapi.h b/libavcodec/esdecapi.h
 new file mode 100644
-index 0000000000..0fd59fcbee
+index 0000000000..3ec6069d07
 --- /dev/null
 +++ b/libavcodec/esdecapi.h
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,105 @@
 +#ifndef AVCODEC_ESDEC_API_H__
 +#define AVCODEC_ESDEC_API_H__
 +
@@ -11122,7 +11153,6 @@ index 0000000000..0fd59fcbee
 +    ESVDecInst dec_inst;
 +    void *dwl_inst;
 +    struct AVBufferRef *dwl_ref;
-+    int dev_mem_fd;           // for dev fd split
 +
 +    ESDecCodec codec;
 +    int pic_width;
@@ -12052,10 +12082,10 @@ index 0000000000..d450f4eefb
 \ No newline at end of file
 diff --git a/libavcodec/esdecode.c b/libavcodec/esdecode.c
 new file mode 100644
-index 0000000000..80578b5f63
+index 0000000000..7379da255b
 --- /dev/null
 +++ b/libavcodec/esdecode.c
-@@ -0,0 +1,449 @@
+@@ -0,0 +1,448 @@
 +#define LOG_TAG "esdecode"
 +#include <libavutil/log.h>
 +#include "libavutil/pixdesc.h"
@@ -12305,7 +12335,6 @@ index 0000000000..80578b5f63
 +        return;
 +    }
 +
-+    dec_ctx = (ESVDECContext *)avctx->priv_data;
 +    if (dec_ctx->state != ESDEC_STATE_UNINIT && dec_ctx->state != ESDEC_STATE_CLOSED
 +        && dec_ctx->state != ESDEC_STATE_FLUSHED) {
 +        dec_ctx = (ESVDECContext *)avctx->priv_data;
@@ -20031,10 +20060,10 @@ index 0000000000..e1b958edfd
 +#endif
 diff --git a/libavcodec/esjdecapi.c b/libavcodec/esjdecapi.c
 new file mode 100644
-index 0000000000..dc45f11921
+index 0000000000..f7e73da6c9
 --- /dev/null
 +++ b/libavcodec/esjdecapi.c
-@@ -0,0 +1,2256 @@
+@@ -0,0 +1,2252 @@
 +/*
 + * Copyright (C) 2019  VeriSilicon
 + *
@@ -20738,7 +20767,7 @@ index 0000000000..dc45f11921
 +    }
 +
 +    if (buf_num > 0) {
-+        output_buffer_num = buf_num < JPEG_DEFAULT_INPUT_MAX_BUFFERS ? buf_num : JPEG_DEFAULT_INPUT_MAX_BUFFERS;
++        output_buffer_num = buf_num < JPEG_DEFAULT_INPUT_MAX_BUFFERS ? buf_num : JPEG_DEFAULT_INPUT_MAX_BUFFERS; 
 +    } else {
 +        output_buffer_num = JPEG_DEFAULT_INPUT_BUFFERS;
 +    }
@@ -20773,7 +20802,6 @@ index 0000000000..dc45f11921
 +    ret = esdec_enlarge_output_port(dec_ctx->codec,
 +                                    dec_ctx->output_port,
 +                                    dec_ctx->dec_inst,
-+                                    dec_ctx->dev_mem_fd,
 +                                    dec_ctx->dwl_ref,
 +                                    output_buffer_num);
 +    if (ret == FAILURE) {
@@ -21626,8 +21654,10 @@ index 0000000000..dc45f11921
 +    return JpegDecSetInfo(inst, &dec_cfg);
 +}
 +
-+static int esdec_thumb_mem_fd_split(
-+    void *dwl_inst, void *dec_inst, int dev_mem_fd, ESThumbOutputMemory *memory, struct DecConfig *dec_config) {
++static int esdec_thumb_mem_fd_split(void *dwl_inst,
++                                        void *dec_inst,
++                                        ESThumbOutputMemory *memory,
++                                        struct DecConfig *dec_config) {
 +    int ret = SUCCESS;
 +    int dma_fd;
 +    int pp_count = 0;
@@ -21666,15 +21696,14 @@ index 0000000000..dc45f11921
 +    log_info(NULL, "pp_count: %d\n", pp_count);
 +
 +    if (pp_count == ES_VID_DEC_MAX_OUT_COUNT) {
-+        ret = ESDecGetDmaFdSplit(dwl_inst, dec_inst, dev_mem_fd, dma_fd, memory->fd, ES_VID_DEC_MAX_OUT_COUNT);
++        ret = ESDecGetDmaFdSplit(dwl_inst, dec_inst, dma_fd, memory->fd, ES_VID_DEC_MAX_OUT_COUNT);
 +    }
 +
 +    return ret;
 +}
 +
 +static int esjdec_allocate_thumbnail_memory(ESThumbOutputMemory *thumb_mem,
-+                                            void *dec_inst,
-+                                            int dev_mem_fd,
++                                            void* dec_inst,
 +                                            struct AVBufferRef *dwl_ref,
 +                                            struct DecConfig *dec_config) {
 +    struct DWLLinearMem *mem;
@@ -21711,7 +21740,7 @@ index 0000000000..dc45f11921
 +        struct ESDecoderWrapper esdec;
 +        esdec.codec = DEC_JPEG;
 +        esdec.inst = dec_inst;
-+        esdec_thumb_mem_fd_split(dwl_inst, &esdec, dev_mem_fd, &thumb_mem, dec_config);
++        esdec_thumb_mem_fd_split(dwl_inst, &esdec, &thumb_mem, dec_config);
 +
 +        thumb_mem->virtual_address = mem->virtual_address;
 +
@@ -21840,8 +21869,8 @@ index 0000000000..dc45f11921
 +                break;
 +            case DEC_NO_DECODING_BUFFER:
 +                if (!dec_ctx->output_port) {
-+                    dec_ctx->output_port = esdec_allocate_output_port(
-+                        dec_ctx->codec, dec_ctx->dec_inst, dec_ctx->dev_mem_fd, dec_ctx->dwl_ref, dec_ctx->pp_count);
++                    dec_ctx->output_port =
++                    esdec_allocate_output_port(dec_ctx->codec, dec_ctx->dec_inst, dec_ctx->dwl_ref, dec_ctx->pp_count);
 +                    if (!dec_ctx->output_port) {
 +                        break;
 +                    }
@@ -21858,8 +21887,8 @@ index 0000000000..dc45f11921
 +                }
 +            case DEC_WAITING_FOR_BUFFER:
 +                if (!dec_ctx->output_port) {
-+                    dec_ctx->output_port = esdec_allocate_output_port(
-+                        dec_ctx->codec, dec_ctx->dec_inst, dec_ctx->dev_mem_fd, dec_ctx->dwl_ref, dec_ctx->pp_count);
++                    dec_ctx->output_port =
++                    esdec_allocate_output_port(dec_ctx->codec, dec_ctx->dec_inst, dec_ctx->dwl_ref, dec_ctx->pp_count);
 +                    if (!dec_ctx->output_port) {
 +                        break;
 +                    }
@@ -21916,7 +21945,7 @@ index 0000000000..dc45f11921
 +        }
 +    }
 +
-+    // if thumbnail and pic both need to decode,
++    // if thumbnail and pic both need to decode, 
 +    // and thumbnail has decoded, next we will decode pic
 +    if (dec_ctx->thumb_mode == Decode_Pic_Thumb && dec_ctx->thumb_done) {
 +        sequence_info->jpeg_input_info.dec_image_type = JPEGDEC_IMAGE;
@@ -21968,8 +21997,10 @@ index 0000000000..dc45f11921
 +        }
 +
 +        if (dec_ctx->need_out_buf_for_thumb) {
-+            ret = esjdec_allocate_thumbnail_memory(
-+                &dec_ctx->thumb_mem, dec_ctx->dec_inst, dec_ctx->dev_mem_fd, dec_ctx->dwl_ref, &dec_ctx->jdec_config);
++            ret = esjdec_allocate_thumbnail_memory(&dec_ctx->thumb_mem,
++                                                   dec_ctx->dec_inst,
++                                                   dec_ctx->dwl_ref,
++                                                   &dec_ctx->jdec_config);
 +            if (ret == FAILURE) {
 +                log_error(dec_ctx, "esjdec_allocate_thumbnail_memory failed\n");
 +                return FAILURE;
@@ -22168,10 +22199,6 @@ index 0000000000..dc45f11921
 +        log_info(dec_ctx, "JpegDecInit success\n");
 +    }
 +
-+    if (ESDecInitDevMemFd(&dec_ctx->dev_mem_fd)) {
-+        log_error(dec_ctx, "init dev mem fd failed\n");
-+        return FAILURE;
-+    }
 +    return ret;
 +}
 +
@@ -22215,8 +22242,6 @@ index 0000000000..dc45f11921
 +        dec_ctx->dec_inst = NULL;
 +        log_info(NULL, "dec_inst release success\n");
 +    }
-+
-+    ESDecDeinitDevMemFd(&dec_ctx->dev_mem_fd);
 +
 +    esdec_input_port_unref(&dec_ctx->input_port);
 +    esdec_output_port_unref(&dec_ctx->output_port);
@@ -22294,10 +22319,10 @@ index 0000000000..dc45f11921
 \ No newline at end of file
 diff --git a/libavcodec/esjdecapi.h b/libavcodec/esjdecapi.h
 new file mode 100644
-index 0000000000..5fc272e80b
+index 0000000000..470e2ee0c1
 --- /dev/null
 +++ b/libavcodec/esjdecapi.h
-@@ -0,0 +1,180 @@
+@@ -0,0 +1,179 @@
 +/*
 + * Copyright (C) 2019  VeriSilicon
 + *
@@ -22423,7 +22448,6 @@ index 0000000000..5fc272e80b
 +    struct DWLInitParam dwl_init;
 +    void *dwl_inst;
 +    struct AVBufferRef *dwl_ref;
-+    int dev_mem_fd;   // for dev fd split
 +
 +    uint32_t pic_display_number;
 +    uint32_t pic_decode_number;
@@ -24302,10 +24326,10 @@ index ef8d7ae66f..4a2d17bf1b 100644
  
 diff --git a/libavfilter/esvfbuffer.c b/libavfilter/esvfbuffer.c
 new file mode 100644
-index 0000000000..4d8bedb2d2
+index 0000000000..13968b4591
 --- /dev/null
 +++ b/libavfilter/esvfbuffer.c
-@@ -0,0 +1,482 @@
+@@ -0,0 +1,504 @@
 +#define LOG_TAG "esvfbuffer"
 +#include "esvfbuffer.h"
 +#include <libavutil/log.h>
@@ -24368,13 +24392,12 @@ index 0000000000..4d8bedb2d2
 +        port->mems[i] = NULL;
 +        if (memory) {
 +            if (memory->buffer_ref && memory->port_ref) {
-+                av_log(NULL,
-+                       AV_LOG_INFO,
-+                       "i: %d, vir_addr: %p, buffer_ref count: %d, port_ref count: %d\n",
-+                       i,
-+                       memory->vir_addr,
-+                       av_buffer_get_ref_count(memory->buffer_ref) - 1,
-+                       av_buffer_get_ref_count(memory->port_ref) - 1);
++                av_log(NULL, AV_LOG_INFO,
++                         "i: %d, vir_addr: %p, buffer_ref count: %d, port_ref count: %d\n",
++                         i,
++                         memory->vir_addr,
++                         av_buffer_get_ref_count(memory->buffer_ref) - 1,
++                         av_buffer_get_ref_count(memory->port_ref) - 1);
 +            }
 +
 +            av_buffer_unref(&memory->port_ref);
@@ -24394,7 +24417,10 @@ index 0000000000..4d8bedb2d2
 +    esvf_output_port_memorys_unref(port);
 +
 +    if (port->port_ref) {
-+        av_log(NULL, AV_LOG_INFO, "port_ref count: %d\n", av_buffer_get_ref_count(port->port_ref) - 1);
++        av_log(NULL,
++               AV_LOG_INFO,
++               "port_ref count: %d\n",
++               av_buffer_get_ref_count(port->port_ref) - 1);
 +        av_buffer_unref(&port->port_ref);
 +    }
 +    if (port->mem_info) {
@@ -24439,7 +24465,11 @@ index 0000000000..4d8bedb2d2
 +    port->max_mem_num = mem_num;
 +
 +    port->port_ref =
-+        av_buffer_create((uint8_t *)port, sizeof(*port), esvf_output_port_free, NULL, AV_BUFFER_FLAG_READONLY);
++        av_buffer_create((uint8_t *)port,
++                         sizeof(*port),
++                         esvf_output_port_free,
++                         NULL,
++                         AV_BUFFER_FLAG_READONLY);
 +    if (!port->port_ref) {
 +        av_log(NULL, AV_LOG_ERROR, "av_buffer_create failed\n");
 +        esvf_output_port_free(NULL, (uint8_t *)port);
@@ -24447,12 +24477,14 @@ index 0000000000..4d8bedb2d2
 +    }
 +
 +    do {
-+        port->frame_queue = esvf_fifo_queue_create(port->max_mem_num, sizeof(ESBuffer), "frame_queue");
++        port->frame_queue = esvf_fifo_queue_create(port->max_mem_num,
++                                                   sizeof(ESBuffer),
++                                                   "frame_queue");
 +        if (!port->frame_queue) {
 +            av_log(NULL, AV_LOG_ERROR, "frame_queue create failed\n");
 +            break;
 +        }
-+        port->mems = av_mallocz_array(sizeof(*port->mems), port->max_mem_num);
++        port->mems = av_mallocz_array(sizeof(*port->mems),  port->max_mem_num);
 +        if (!port->mems) {
 +            av_log(NULL, AV_LOG_ERROR, "av_mallocz_array mems failed\n");
 +            break;
@@ -24495,7 +24527,7 @@ index 0000000000..4d8bedb2d2
 +            memory->vir_addr = dma_buf;
 +            memory->fd = (uint64_t)memory->vir_addr;
 +#else
-+            dma_buf = es_dma_alloc(DMA_TYPE_MMZ_0, mem_size, UNCACHED_BUF, 0);
++            dma_buf = es_dma_alloc(DMA_TYPE_SYS, mem_size, UNCACHED_BUF, 0);
 +            if (!dma_buf) {
 +                av_log(NULL, AV_LOG_ERROR, "allocate dma_buf failed\n");
 +                av_free(memory);
@@ -24509,8 +24541,10 @@ index 0000000000..4d8bedb2d2
 +#endif
 +            memory->size = mem_size;
 +
-+            buffer_ref = av_buffer_create(
-+                (uint8_t *)memory, sizeof(*memory), esvf_output_mempry_free, NULL, AV_BUFFER_FLAG_READONLY);
++            buffer_ref = av_buffer_create((uint8_t *)memory, sizeof(*memory),
++                                          esvf_output_mempry_free,
++                                          NULL,
++                                          AV_BUFFER_FLAG_READONLY);
 +            if (!buffer_ref) {
 +                esvf_output_mempry_free(NULL, (uint8_t *)memory);
 +                memory = NULL;
@@ -24533,7 +24567,9 @@ index 0000000000..4d8bedb2d2
 +    return memory;
 +}
 +
-+static void esvf_output_buffer_init(ESBuffer *buffer, ESOutputPort *port, ESMemory *memory) {
++static void esvf_output_buffer_init(ESBuffer *buffer,
++                                    ESOutputPort *port,
++                                    ESMemory *memory) {
 +    if (!buffer || !port || !memory) {
 +        return;
 +    }
@@ -24555,11 +24591,10 @@ index 0000000000..4d8bedb2d2
 +    }
 +
 +    if (port->mem_num >= port->max_mem_num) {
-+        av_log(NULL,
-+               AV_LOG_INFO,
-+               "output port can not allocate any memory anyway, max_mem_num: %d, mem_num: %d\n",
-+               port->max_mem_num,
-+               port->mem_num);
++        av_log(NULL, AV_LOG_INFO,
++                "output port can not allocate any memory anyway, max_mem_num: %d, mem_num: %d\n",
++                port->max_mem_num,
++                port->mem_num);
 +        return FAILURE;
 +    }
 +
@@ -24569,7 +24604,9 @@ index 0000000000..4d8bedb2d2
 +        port->mems[index] = memory;
 +        memory->port_ref = av_buffer_ref(port->port_ref);
 +        port->mem_num++;
-+        esvf_output_buffer_init(&buffer, port, memory);
++        esvf_output_buffer_init(&buffer,
++                                port,
++                                memory);
 +        esvf_release_buffer(port->frame_queue, &buffer);
 +    } else {
 +        ret = FAILURE;
@@ -24600,7 +24637,9 @@ index 0000000000..4d8bedb2d2
 +            port->mems[index] = memory;
 +            memory->port_ref = av_buffer_ref(port->port_ref);
 +            port->mem_num++;
-+            esvf_output_buffer_init(&buffer, port, memory);
++            esvf_output_buffer_init(&buffer,
++                                    port,
++                                    memory);
 +            esvf_release_buffer(port->frame_queue, &buffer);
 +        } else {
 +            ret = FAILURE;
@@ -24617,21 +24656,25 @@ index 0000000000..4d8bedb2d2
 +    return ret;
 +}
 +
-+static int esvf_init_meminfo(
-+    MemInfo *mem_info, enum AVPixelFormat out_fmt, uint32_t pic_width, uint32_t pic_height, uint32_t stride_align) {
++static int esvf_init_meminfo(MemInfo *mem_info,
++                             enum AVPixelFormat out_fmt,
++                             uint32_t pic_width,
++                             uint32_t pic_height,
++                             uint32_t stride_align) {
 +    AVPixFmtDescriptor *desc;
 +    int height = 0;
 +    int buffer_size = 0;
 +
 +    if (!mem_info) {
-+        av_log(NULL, AV_LOG_ERROR, "esvf_init_meminfo invaild paras, mem_info: %p.\n", mem_info);
++        av_log(NULL, AV_LOG_ERROR,
++               "esvf_init_meminfo invaild paras, mem_info: %p.\n",
++               mem_info);
 +        return FAILURE;
 +    }
 +
 +    desc = av_pix_fmt_desc_get(out_fmt);
 +    if (!desc) {
-+        av_log(NULL,
-+               AV_LOG_ERROR,
++        av_log(NULL, AV_LOG_ERROR,
 +               "esvf_init_meminfo get fmt: %s AVPixFmtDescriptor failed.\n",
 +               av_get_pix_fmt_name(out_fmt));
 +        return FAILURE;
@@ -24655,8 +24698,11 @@ index 0000000000..4d8bedb2d2
 +    return SUCCESS;
 +}
 +
-+ESOutputPort *esvf_allocate_output_port(
-+    int mem_num, enum AVPixelFormat out_fmt, uint32_t width, uint32_t height, uint32_t stride_align) {
++ESOutputPort *esvf_allocate_output_port(int mem_num,
++                                        enum AVPixelFormat out_fmt,
++                                        uint32_t width,
++                                        uint32_t height,
++                                        uint32_t stride_align) {
 +    int ret = FAILURE;
 +    ESOutputPort *port = NULL;
 +    int32_t output_buf_num;
@@ -25743,7 +25789,7 @@ index 0000000000..d21c6cf8ea
 \ No newline at end of file
 diff --git a/libavfilter/vf_convert_es.c b/libavfilter/vf_convert_es.c
 new file mode 100644
-index 0000000000..9d9ae4dbc8
+index 0000000000..47aa5181ad
 --- /dev/null
 +++ b/libavfilter/vf_convert_es.c
 @@ -0,0 +1,1234 @@
@@ -26335,9 +26381,9 @@ index 0000000000..9d9ae4dbc8
 +        return FAILURE;
 +    }
 +
-+// #ifndef MODEL_SIMULATION
-+//     es_dma_sync_start(out_mem->dma_buf);
-+// #endif
++#ifndef MODEL_SIMULATION
++    es_dma_sync_start(out_mem->dma_buf);
++#endif
 +    for (int i = 0; i < 4 && s->port->mem_info->datasize[i]; i++) {
 +        height = s->port->mem_info->h;
 +        if (i == 1 || i == 2) {
@@ -26355,9 +26401,9 @@ index 0000000000..9d9ae4dbc8
 +                                height);
 +        }
 +    }
-+// #ifndef MODEL_SIMULATION
-+//     es_dma_sync_end(out_mem->dma_buf);
-+// #endif
++#ifndef MODEL_SIMULATION
++    es_dma_sync_end(out_mem->dma_buf);
++#endif
 +
 +    return 0;
 +}
@@ -26439,9 +26485,9 @@ index 0000000000..9d9ae4dbc8
 +        return FAILURE;
 +    }
 +
-+// #ifndef MODEL_SIMULATION
-+//     es_dma_sync_start(input_mem->dma_buf);
-+// #endif
++#ifndef MODEL_SIMULATION
++    es_dma_sync_start(input_mem->dma_buf);
++#endif
 +    for (int i = 0; i < FF_ARRAY_ELEMS(in->data) && in->data[i]; i++) {
 +        height = in->height;
 +        if (i == 1 || i == 2) {
@@ -26455,9 +26501,9 @@ index 0000000000..9d9ae4dbc8
 +        memcpy(input_mem->vir_addr + totol_size, in->data[i], cp_size);
 +        totol_size += cp_size;
 +    }
-+// #ifndef MODEL_SIMULATION
-+//     es_dma_sync_end(input_mem->dma_buf);
-+// #endif
++#ifndef MODEL_SIMULATION
++    es_dma_sync_end(input_mem->dma_buf);
++#endif
 +
 +    return SUCCESS;
 +}
@@ -26486,7 +26532,7 @@ index 0000000000..9d9ae4dbc8
 +        }
 +    } else {
 +#ifndef MODEL_SIMULATION
-+        input_mem->dma_buf = es_dma_alloc(DMA_TYPE_MMZ_0, FFALIGN(input_mem->size, s->stride_align), UNCACHED_BUF, 0);
++        input_mem->dma_buf = es_dma_alloc(DMA_TYPE_SYS, FFALIGN(input_mem->size, s->stride_align), UNCACHED_BUF, 0);
 +        if (!input_mem->dma_buf) {
 +            av_log(NULL, AV_LOG_ERROR, "allocate input_mem dma_buf failed\n");
 +            return FAILURE;
@@ -26580,7 +26626,7 @@ index 0000000000..9d9ae4dbc8
 +
 +    if (!s->input_mem.dma_buf) {
 +        dma_buf_size = FFALIGN(s->input_mem.size, s->stride_align);
-+        dma_buf = es_dma_alloc(DMA_TYPE_MMZ_0, dma_buf_size, UNCACHED_BUF, 0);
++        dma_buf = es_dma_alloc(DMA_TYPE_SYS, dma_buf_size, UNCACHED_BUF, 0);
 +        if (!dma_buf) {
 +            av_log(NULL, AV_LOG_ERROR, "convert_init_input_mem_from_fd_copy allocate dma_buf failed\n");
 +            return FAILURE;
@@ -26602,9 +26648,9 @@ index 0000000000..9d9ae4dbc8
 +        return FAILURE;
 +    }
 +
-+    // es_dma_sync_start(s->input_mem.dma_buf);
++    es_dma_sync_start(s->input_mem.dma_buf);
 +    ret = read_from_es_dma(src_dma_buf, s->input_mem.vir_addr, s->input_mem.size);
-+    // es_dma_sync_end(s->input_mem.dma_buf);
++    es_dma_sync_end(s->input_mem.dma_buf);
 +    if (ret < 0) {
 +        av_log(NULL, AV_LOG_ERROR, "read_from_es_dma failed\n");
 +        ret = FAILURE;

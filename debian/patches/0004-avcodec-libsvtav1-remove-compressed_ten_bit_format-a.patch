@@ -1,4 +1,4 @@
-From 75f18a4cbbc5035f7b3c614e51a249ffafab6140 Mon Sep 17 00:00:00 2001
+From f23ffa4937c07803e86eb391ea8a64147e988d40 Mon Sep 17 00:00:00 2001
 From: Christopher Degawa <christopher.degawa@intel.com>
 Date: Thu, 20 Oct 2022 22:55:27 -0500
 Subject: [PATCH 4/7] avcodec/libsvtav1: remove compressed_ten_bit_format and
