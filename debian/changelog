@@ -1,4 +1,10 @@
-ffmpeg (8:5.1.2-3eswin1) unstable; urgency=medium
+ffmpeg (8:5.1.2-3rockos2) unstable; urgency=medium
+
+  * enable esvd & convert_es
+
+ -- Han Gao <gaohan@iscas.ac.cn>  Thu, 30 May 2024 18:13:37 +0800
+
+ffmpeg (8:5.1.2-3rockos1) unstable; urgency=medium
 
   * Disable openmax, because openmax is dropped
   * Apply eswin pacthset & backport patchset

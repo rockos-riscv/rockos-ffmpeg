@@ -198,7 +198,9 @@ Build-Depends:
  nasm,
  pkg-kde-tools,
 # autodetected zlib
- zlib1g-dev
+ zlib1g-dev,
+# eswin encoder/decoder lib
+ eswin-ffmpeg-lib
 
 Package: ffmpeg
 Architecture: any
