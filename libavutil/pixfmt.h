@@ -367,6 +367,20 @@ enum AVPixelFormat {
     AV_PIX_FMT_P416BE,      ///< interleaved chroma YUV 4:4:4, 48bpp, big-endian
     AV_PIX_FMT_P416LE,      ///< interleaved chroma YUV 4:4:4, 48bpp, little-endian
 
+// ESW_FF_ENHANCEMENT
+    AV_PIX_FMT_B16G16R16I,        // only be used in convert_es filter and es-umd filter
+    AV_PIX_FMT_B16G16R16I_PLANAR, // only be used in convert_es filter and es-umd filter
+    AV_PIX_FMT_B8G8R8_PLANAR,     // only be used in convert_es filter and es-umd filter
+    AV_PIX_FMT_B8G8R8I,           // only be used in convert_es filter and es-umd filter
+    AV_PIX_FMT_B8G8R8I_PLANAR,    // only be used in convert_es filter and es-umd filter
+    AV_PIX_FMT_B16G16R16F,        // only be used in convert_es filter and es-umd filter
+    AV_PIX_FMT_B16G16R16F_PLANAR, // only be used in convert_es filter and es-umd filter
+    AV_PIX_FMT_B32G32R32F,        // only be used in convert_es filter and es-umd filter
+    AV_PIX_FMT_B32G32R32F_PLANAR, // only be used in convert_es filter and es-umd filter
+// ESW_FF_ENHANCEMENT END
+
+    AV_PIX_FMT_ES,       ///< HW acceleration through VeriSilicon ES VPU
+
     AV_PIX_FMT_NB         ///< number of pixel formats, DO NOT USE THIS if you want to link with shared libav* because the number of formats might differ between versions
 };
 

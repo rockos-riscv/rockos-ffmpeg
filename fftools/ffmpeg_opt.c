@@ -985,7 +985,13 @@ static void add_input_streams(OptionsContext *o, AVFormatContext *ic)
                     "with old commandlines. This behaviour is DEPRECATED and will be removed "
                     "in the future. Please explicitly set \"-hwaccel_output_format qsv\".\n");
                 ist->hwaccel_output_format = AV_PIX_FMT_QSV;
-            } else if (hwaccel_output_format) {
+            } else if (!hwaccel_output_format && hwaccel && !strcmp(hwaccel, "es")) {
+                av_log(NULL, AV_LOG_WARNING,
+                    "WARNING: defaulting hwaccel_output_format to es for compatibility "
+                    "with old commandlines. This behaviour is DEPRECATED and will be removed "
+                    "in the future. Please explicitly set \"-hwaccel_output_format es\".\n");
+                ist->hwaccel_output_format = AV_PIX_FMT_ES;
+            }else if (hwaccel_output_format) {
                 ist->hwaccel_output_format = av_get_pix_fmt(hwaccel_output_format);
                 if (ist->hwaccel_output_format == AV_PIX_FMT_NONE) {
                     av_log(NULL, AV_LOG_FATAL, "Unrecognised hwaccel output "

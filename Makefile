@@ -128,7 +128,8 @@ else
 endif
 
 %$(PROGSSUF)_g$(EXESUF): $(FF_DEP_LIBS)
-	$(LD) $(LDFLAGS) $(LDEXEFLAGS) $(LD_O) $(OBJS-$*) $(FF_EXTRALIBS)
+	echo "$(LD) $(LDFLAGS) $(LDEXEFLAGS) $(LD_O) $(OBJS-$*) $(FF_EXTRALIBS)"
+	$(LD) $(LDFLAGS) $(LDEXEFLAGS) $(LD_O) $(OBJS-$*) -Xlinker "-(" $(FF_EXTRALIBS) -Xlinker "-)"
 
 VERSION_SH  = $(SRC_PATH)/ffbuild/version.sh
 GIT_LOG     = $(SRC_PATH)/.git/logs/HEAD

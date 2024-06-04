@@ -390,6 +390,7 @@ static const struct TextureFormatEntry {
     { AV_PIX_FMT_YUV420P,        SDL_PIXELFORMAT_IYUV },
     { AV_PIX_FMT_YUYV422,        SDL_PIXELFORMAT_YUY2 },
     { AV_PIX_FMT_UYVY422,        SDL_PIXELFORMAT_UYVY },
+    { AV_PIX_FMT_NV12,           SDL_PIXELFORMAT_NV12},
     { AV_PIX_FMT_NONE,           SDL_PIXELFORMAT_UNKNOWN },
 };
 
@@ -2503,7 +2504,7 @@ static int audio_open(void *opaque, AVChannelLayout *wanted_channel_layout, int 
     }
     while (next_sample_rate_idx && next_sample_rates[next_sample_rate_idx] >= wanted_spec.freq)
         next_sample_rate_idx--;
-    wanted_spec.format = AUDIO_S16SYS;
+    wanted_spec.format = AUDIO_S32SYS;
     wanted_spec.silence = 0;
     wanted_spec.samples = FFMAX(SDL_AUDIO_MIN_BUFFER_SIZE, 2 << av_log2(wanted_spec.freq / SDL_AUDIO_MAX_CALLBACKS_PER_SEC));
     wanted_spec.callback = sdl_audio_callback;
@@ -2524,9 +2525,9 @@ static int audio_open(void *opaque, AVChannelLayout *wanted_channel_layout, int 
         av_channel_layout_default(wanted_channel_layout, wanted_spec.channels);
     }
     if (spec.format != AUDIO_S16SYS) {
-        av_log(NULL, AV_LOG_ERROR,
+        av_log(NULL, AV_LOG_WARNING,
                "SDL advised audio format %d is not supported!\n", spec.format);
-        return -1;
+        //return -1;
     }
     if (spec.channels != wanted_spec.channels) {
         av_channel_layout_uninit(wanted_channel_layout);
@@ -2538,7 +2539,7 @@ static int audio_open(void *opaque, AVChannelLayout *wanted_channel_layout, int 
         }
     }
 
-    audio_hw_params->fmt = AV_SAMPLE_FMT_S16;
+    audio_hw_params->fmt = AV_SAMPLE_FMT_S32;
     audio_hw_params->freq = spec.freq;
     if (av_channel_layout_copy(&audio_hw_params->ch_layout, wanted_channel_layout) < 0)
         return -1;
@@ -3332,6 +3333,7 @@ static void event_loop(VideoState *cur_stream)
                 toggle_audio_display(cur_stream);
 #endif
                 break;
+/*
             case SDLK_PAGEUP:
                 if (cur_stream->ic->nb_chapters <= 1) {
                     incr = 600.0;
@@ -3382,6 +3384,7 @@ static void event_loop(VideoState *cur_stream)
                         stream_seek(cur_stream, (int64_t)(pos * AV_TIME_BASE), (int64_t)(incr * AV_TIME_BASE), 0);
                     }
                 break;
+*/
             default:
                 break;
             }
@@ -3416,6 +3419,7 @@ static void event_loop(VideoState *cur_stream)
                     break;
                 x = event.motion.x;
             }
+            /*
                 if (seek_by_bytes || cur_stream->ic->duration <= 0) {
                     uint64_t size =  avio_size(cur_stream->ic->pb);
                     stream_seek(cur_stream, size*x/cur_stream->width, 0, 1);
@@ -3439,7 +3443,7 @@ static void event_loop(VideoState *cur_stream)
                     if (cur_stream->ic->start_time != AV_NOPTS_VALUE)
                         ts += cur_stream->ic->start_time;
                     stream_seek(cur_stream, ts, 0, 0);
-                }
+                }*/
             break;
         case SDL_WINDOWEVENT:
             switch (event.window.event) {

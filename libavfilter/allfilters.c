@@ -578,6 +578,8 @@ extern  const AVFilter ff_vsink_buffer;
 extern const AVFilter ff_af_afifo;
 extern const AVFilter ff_vf_fifo;
 
+extern const AVFilter ff_vf_convert_es;
+
 #include "libavfilter/filter_list.c"
 
 
