@@ -48,6 +48,9 @@ static const AVOption derain_options[] = {
 #if (CONFIG_LIBTENSORFLOW == 1)
     { "tensorflow",  "tensorflow backend flag",     0,                      AV_OPT_TYPE_CONST,  { .i64 = 1 },    0, 0, FLAGS, "backend" },
 #endif
+#if (CONFIG_ESUMD == 1)
+    { "umd",         "umd backend flag",            0,                      AV_OPT_TYPE_CONST,  { .i64 = 3 },    0, 0, FLAGS, "backend" },
+#endif
     { "model",       "path to model file",          OFFSET(dnnctx.model_filename),   AV_OPT_TYPE_STRING,    { .str = NULL }, 0, 0, FLAGS },
     { "input",       "input name of the model",     OFFSET(dnnctx.model_inputname),  AV_OPT_TYPE_STRING,    { .str = "x" },  0, 0, FLAGS },
     { "output",      "output name of the model",    OFFSET(dnnctx.model_outputnames_string), AV_OPT_TYPE_STRING,    { .str = "y" },  0, 0, FLAGS },

@@ -34,12 +34,16 @@
 #include "internal.h"
 #include "libswscale/swscale.h"
 #include "libavutil/time.h"
+#include "libavutil/hwcontext.h"
 
 typedef struct DnnProcessingContext {
     const AVClass *class;
     DnnContext dnnctx;
     struct SwsContext *sws_uv_scale;
     int sws_uv_height;
+
+    AVBufferRef *hwdevice;
+    AVBufferRef *hwframe;
 } DnnProcessingContext;
 
 #define OFFSET(x) offsetof(DnnProcessingContext, dnnctx.x)
@@ -52,6 +56,9 @@ static const AVOption dnn_processing_options[] = {
 #endif
 #if (CONFIG_LIBOPENVINO == 1)
     { "openvino",    "openvino backend flag",      0,                        AV_OPT_TYPE_CONST,     { .i64 = 2 },    0, 0, FLAGS, "backend" },
+#endif
+#if (CONFIG_ESUMD == 1)
+    { "umd",         "umd backend flag",           0,                        AV_OPT_TYPE_CONST,     { .i64 = 3 },    0, 0, FLAGS, "backend" },
 #endif
     DNN_COMMON_OPTIONS
     { NULL }
@@ -71,6 +78,9 @@ static const enum AVPixelFormat pix_fmts[] = {
     AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P,
     AV_PIX_FMT_YUV444P, AV_PIX_FMT_YUV410P, AV_PIX_FMT_YUV411P,
     AV_PIX_FMT_NV12,
+#if (CONFIG_ESUMD == 1)
+    AV_PIX_FMT_ES, AV_PIX_FMT_B8G8R8I_PLANAR,
+#endif
     AV_PIX_FMT_NONE
 };
 
@@ -101,6 +111,19 @@ static int check_modelinput_inlink(const DNNData *model_input, const AVFilterLin
         avpriv_report_missing_feature(ctx, "data type rather than DNN_FLOAT");
         return AVERROR(EIO);
     }
+
+#if (CONFIG_ESUMD == 1)
+    if(inlink->hw_frames_ctx && fmt == AV_PIX_FMT_ES){
+        AVHWFramesContext *in_hw_frames_ctx  = NULL;
+        in_hw_frames_ctx = (AVHWFramesContext*)inlink->hw_frames_ctx->data;
+        av_log(ctx, AV_LOG_INFO, "now is ES hwaccel mode. fmt:%s\n",av_get_pix_fmt_name(in_hw_frames_ctx->sw_format));
+        return 0;
+    }
+    if(AV_PIX_FMT_B8G8R8I_PLANAR == fmt){
+        av_log(ctx, AV_LOG_INFO, "now is ES NO-hwaccel mode.\n");
+        return 0;
+    }
+#endif
 
     switch (fmt) {
     case AV_PIX_FMT_RGB24:
@@ -190,6 +213,42 @@ static int prepare_uv_scale(AVFilterLink *outlink)
     return 0;
 }
 
+#if (CONFIG_ESUMD == 1)
+static int umd_hw_config_output(DnnProcessingContext *s, AVFilterLink *outlink)
+{
+    AVFilterContext *ctx = outlink->src;
+    AVFilterLink *inlink = ctx->inputs[0];
+
+    AVHWFramesContext *hwframe_ctx;
+    int ret;
+
+    av_log(ctx, AV_LOG_INFO, "%d umd_hw_config_output in\n",__LINE__);
+    av_buffer_unref(&s->hwframe);
+    s->hwframe = av_hwframe_ctx_alloc(s->hwdevice);
+    if (!s->hwframe)
+        return AVERROR(ENOMEM);
+
+    hwframe_ctx            = (AVHWFramesContext*)s->hwframe->data;
+    hwframe_ctx->format    = AV_PIX_FMT_ES;
+    if (inlink->hw_frames_ctx) {
+        AVHWFramesContext *in_hwframe_ctx = (AVHWFramesContext*)inlink->hw_frames_ctx->data;
+        hwframe_ctx->sw_format = in_hwframe_ctx->sw_format;
+    } else {
+        hwframe_ctx->sw_format = inlink->format;
+    }
+    hwframe_ctx->width     = inlink->w;
+    hwframe_ctx->height    = inlink->h;
+
+    ret = av_hwframe_ctx_init(s->hwframe);
+    if (ret < 0)
+        return ret;
+    outlink->hw_frames_ctx = av_buffer_ref(s->hwframe);
+    if (!outlink->hw_frames_ctx)
+        return AVERROR(ENOMEM);
+    return 0;
+}
+#endif
+
 static int config_output(AVFilterLink *outlink)
 {
     AVFilterContext *context = outlink->src;
@@ -203,6 +262,14 @@ static int config_output(AVFilterLink *outlink)
         av_log(ctx, AV_LOG_ERROR, "could not get output from the model\n");
         return result;
     }
+
+#if (CONFIG_ESUMD == 1)
+    AVHWFramesContext *in_frames_ctx = inlink->hw_frames_ctx->data;
+    ctx->hwdevice = in_frames_ctx->device_ref;
+    if(umd_hw_config_output(ctx, outlink) != 0){
+        av_log(ctx, AV_LOG_ERROR, "failed to umd_hw_config_output\n");
+    }
+#endif
 
     prepare_uv_scale(outlink);
 
@@ -340,6 +407,8 @@ static av_cold void uninit(AVFilterContext *ctx)
 {
     DnnProcessingContext *context = ctx->priv;
 
+    av_buffer_unref(&context->hwframe);
+
     sws_freeContext(context->sws_uv_scale);
     ff_dnn_uninit(&context->dnnctx);
 }
@@ -371,4 +440,5 @@ const AVFilter ff_vf_dnn_processing = {
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class    = &dnn_processing_class,
     .activate      = activate,
+    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 };
