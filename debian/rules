@@ -81,8 +81,7 @@ CONFIG := --prefix=/usr \
 	--enable-opengl \
 	--enable-sdl2 \
 	--enable-nonfree \
-	--enable-esvd \
-	--enable-convert_es
+	--enable-esvd
 
 CONFIG += --extra-cflags="-DESW_CALC_PPX_BUF_SIZE -DSUPPORT_DMA_HEAP \
 		-I/usr/include/decoder/software/source/inc \
@@ -90,7 +89,7 @@ CONFIG += --extra-cflags="-DESW_CALC_PPX_BUF_SIZE -DSUPPORT_DMA_HEAP \
 		-I/usr/include/decoder/software/linux/dwl  \
 		-I/usr/include/dma "
 
-CONFIG += --extra-libs="-ldech10p -ldechevc -ldwl -ltbcommon -lcommon -ldecjpeg" 
+CONFIG += --extra-libs="-ldech10p -ldechevc -ldwl -ltbcommon -lcommon -ldecjpeg -les-dma-buf" 
 
 # disable sndio, it's pulled in via libopenal-dev and autodetected
 CONFIG += --disable-sndio
