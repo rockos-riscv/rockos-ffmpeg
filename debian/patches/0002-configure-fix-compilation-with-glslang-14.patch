@@ -1,4 +1,4 @@
-From 5fdbf96a5c50975e79816e3374db09ae76275dd8 Mon Sep 17 00:00:00 2001
+From 03209de8a96456499c6bd63a41f5c783b29b5fea Mon Sep 17 00:00:00 2001
 From: Lynne <dev@lynne.ee>
 Date: Wed, 31 Jan 2024 17:28:56 +0100
 Subject: [PATCH 2/7] configure: fix compilation with glslang 14
@@ -15,7 +15,7 @@ I'm not sure had the complete C API we're using anyway.
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/configure b/configure
-index 2e8eaf963f..7a280d1d96 100755
+index d5b29f4ec0..c04b44727d 100755
 --- a/configure
 +++ b/configure
 @@ -6640,11 +6640,11 @@ enabled libfontconfig     && require_pkg_config libfontconfig fontconfig "fontco
