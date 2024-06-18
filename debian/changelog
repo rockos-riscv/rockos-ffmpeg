@@ -1,3 +1,9 @@
+ffmpeg (8:5.1.2-3rockos3) unstable; urgency=medium
+
+  * Update eswin patch
+
+ -- Han Gao <gaohan@iscas.ac.cn>  Tue, 18 Jun 2024 19:33:16 +0800
+
 ffmpeg (8:5.1.2-3rockos2) unstable; urgency=medium
 
   * enable esvd & convert_es
