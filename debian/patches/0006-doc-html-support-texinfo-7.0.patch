@@ -1,4 +1,4 @@
-From 45f6b4246d54c18f14a16914ba39b696bcd387a8 Mon Sep 17 00:00:00 2001
+From b95574c6b013c3ddd1084895f2449ec793177d6c Mon Sep 17 00:00:00 2001
 From: Frank Plowman <post@frankplowman.com>
 Date: Wed, 8 Nov 2023 07:55:18 +0000
 Subject: [PATCH 6/7] doc/html: support texinfo 7.0

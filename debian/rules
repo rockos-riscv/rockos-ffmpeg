@@ -87,7 +87,7 @@ CONFIG += --extra-cflags="-DESW_CALC_PPX_BUF_SIZE -DSUPPORT_DMA_HEAP \
 		-I/usr/include/decoder/software/source/inc \
 		-I/usr/include/decoder/software/source/common \
 		-I/usr/include/decoder/software/linux/dwl  \
-		-I/usr/include/video-common/ "
+		-I/usr/include/dma/ "
 
 CONFIG += --extra-libs="-ldech10p -ldechevc -ldecjpeg -ldwl -ltbcommon -lcommon -lvideo-common" 
 

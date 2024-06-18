@@ -1,4 +1,4 @@
-From 03209de8a96456499c6bd63a41f5c783b29b5fea Mon Sep 17 00:00:00 2001
+From 4878cf7fefc761e3ef6f010ffb2d964db45b49de Mon Sep 17 00:00:00 2001
 From: Lynne <dev@lynne.ee>
 Date: Wed, 31 Jan 2024 17:28:56 +0100
 Subject: [PATCH 2/7] configure: fix compilation with glslang 14

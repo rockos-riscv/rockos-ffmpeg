@@ -1,4 +1,4 @@
-From b12cc8a689a5b5243d6f10d2cc6931557e93b73d Mon Sep 17 00:00:00 2001
+From 472fcf2d11e2b1ea7521bdcdf93f7c5e1a6aa90f Mon Sep 17 00:00:00 2001
 From: Christopher Degawa <christopher.degawa@intel.com>
 Date: Thu, 20 Oct 2022 22:55:28 -0500
 Subject: [PATCH 5/7] avcodec/libsvtav1: replace vbv_bufsize with

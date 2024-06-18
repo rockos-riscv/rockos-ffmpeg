@@ -1,6 +1,6 @@
-From b05aeb852c398bdd2640689e77816dd1acb68a46 Mon Sep 17 00:00:00 2001
+From 1b192bbd06ca9e04010240c095b8c6f031e3342e Mon Sep 17 00:00:00 2001
 From: Han Gao <gaohan@iscas.ac.cn>
-Date: Thu, 6 Jun 2024 16:10:30 +0800
+Date: Tue, 18 Jun 2024 19:31:13 +0800
 Subject: [PATCH 1/7] sync: sync eswin code
 
 Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
@@ -23,16 +23,16 @@ Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
  libavcodec/es_jpegenc.c           | 2621 ++++++++++++++++++
  libavcodec/es_jpegenc.h           |  412 +++
  libavcodec/esdec_common.c         |  292 ++
- libavcodec/esdec_common.h         |   71 +
- libavcodec/esdec_internal.c       |  968 +++++++
+ libavcodec/esdec_common.h         |   72 +
+ libavcodec/esdec_internal.c       |  962 +++++++
  libavcodec/esdec_internal.h       |   41 +
- libavcodec/esdec_wrapper.c        |  157 ++
+ libavcodec/esdec_wrapper.c        |  155 ++
  libavcodec/esdec_wrapper.h        |   15 +
- libavcodec/esdecapi.c             | 1198 +++++++++
- libavcodec/esdecapi.h             |  106 +
+ libavcodec/esdecapi.c             | 1266 +++++++++
+ libavcodec/esdecapi.h             |  108 +
  libavcodec/esdecbuffer.c          |  731 +++++
  libavcodec/esdecbuffer.h          |  135 +
- libavcodec/esdecode.c             |  449 ++++
+ libavcodec/esdecode.c             |  447 ++++
  libavcodec/esenc_common.c         |  325 +++
  libavcodec/esenc_common.h         |   96 +
  libavcodec/esenc_h26x.c           |  445 ++++
@@ -46,8 +46,8 @@ Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
  libavcodec/esjdecapi.h            |  180 ++
  libavcodec/esjdecode.c            |  383 +++
  libavcodec/eslog.h                |   30 +
- libavcodec/esqueue.c              |  439 +++
- libavcodec/esqueue.h              |   56 +
+ libavcodec/esqueue.c              |  450 ++++
+ libavcodec/esqueue.h              |   59 +
  libavcodec/hwconfig.h             |    2 +
  libavfilter/Makefile              |    1 +
  libavfilter/allfilters.c          |    2 +
@@ -76,7 +76,7 @@ Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
  libavutil/hwcontext_internal.h    |    1 +
  libavutil/pixdesc.c               |  114 +
  libavutil/pixfmt.h                |   14 +
- 71 files changed, 26893 insertions(+), 9 deletions(-)
+ 71 files changed, 26968 insertions(+), 9 deletions(-)
  create mode 100644 fftools/ffmpeg_es.c
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
@@ -8570,10 +8570,10 @@ index 0000000000..7e5485eb06
 \ No newline at end of file
 diff --git a/libavcodec/esdec_common.h b/libavcodec/esdec_common.h
 new file mode 100644
-index 0000000000..a8524c2a75
+index 0000000000..332d988e85
 --- /dev/null
 +++ b/libavcodec/esdec_common.h
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,72 @@
 +#ifndef AVCODEC_ESDEC_COMMON_H__
 +#define AVCODEC_ESDEC_COMMON_H__
 +#include <dectypes.h>
@@ -8626,6 +8626,7 @@ index 0000000000..a8524c2a75
 +    ESDEC_STATE_STARTED,
 +    ESDEC_STATE_STOPPING,
 +    ESDEC_STATE_STOPPED,
++    ESDEC_STATE_FLUSHING,
 +    ESDEC_STATE_FLUSHED,
 +    ESDEC_STATE_CLOSED
 +} ESDecState;
@@ -8648,10 +8649,10 @@ index 0000000000..a8524c2a75
 \ No newline at end of file
 diff --git a/libavcodec/esdec_internal.c b/libavcodec/esdec_internal.c
 new file mode 100644
-index 0000000000..9b26d8a578
+index 0000000000..4cb426d5c9
 --- /dev/null
 +++ b/libavcodec/esdec_internal.c
-@@ -0,0 +1,968 @@
+@@ -0,0 +1,962 @@
 +#define LOG_TAG "esdec_internal"
 +#include <dectypes.h>
 +#include <vcdecapi.h>
@@ -9560,18 +9561,7 @@ index 0000000000..9b26d8a578
 +        return;
 +    }
 +
-+    for (;;) {
-+        ret = esdec_get_consumed_output_buffer(port->consumed_queue, &buffer, 0);
-+        if (ret == SUCCESS) {
-+            memory = esdec_find_memory_by_vir_addr(port, buffer.vir_addr);
-+            if (memory) {
-+                esdec_set_output_buffer_state(memory, OUTPUT_MEMORY_STATE_INITED);
-+            }
-+        } else {
-+            break;
-+        }
-+    }
-+
++    memset(&buffer, 0, sizeof(buffer));
 +    for (int i = 0; i < port->mem_num; i++) {
 +        memory = port->output_mems[i];
 +        if (!memory) {
@@ -9580,11 +9570,16 @@ index 0000000000..9b26d8a578
 +        }
 +        memory->is_added = FALSE;
 +        if (memory->state == OUTPUT_MEMORY_STATE_CONSUMED) {
-+            esdec_set_output_buffer_state(memory, OUTPUT_MEMORY_STATE_INITED);
++            buffer.vir_addr = memory->vir_addr;
++            esdec_set_output_buffer_state(memory, OUTPUT_MEMORY_STATE_CONSUME_QUEUE);
++            es_fifo_queue_push(port->consumed_queue, &buffer, sizeof(buffer));
 +        }
 +
-+        log_info(
-+            NULL, "memory: %d , vir_addr: %p, state: %s\n", i, memory->vir_addr, esdec_str_output_state(memory->state));
++        log_info(NULL,
++                 "reset memory: %d , vir_addr: %p, state: %s\n",
++                 i,
++                 memory->vir_addr,
++                 esdec_str_output_state(memory->state));
 +    }
 +}
 +
@@ -9670,10 +9665,10 @@ index 0000000000..e4833546db
 \ No newline at end of file
 diff --git a/libavcodec/esdec_wrapper.c b/libavcodec/esdec_wrapper.c
 new file mode 100644
-index 0000000000..efd0565481
+index 0000000000..4c414a59c9
 --- /dev/null
 +++ b/libavcodec/esdec_wrapper.c
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,155 @@
 +#define LOG_TAG "vcdec_wrapper"
 +#include <dectypes.h>
 +#include <hevcdecapi.h>
@@ -9690,8 +9685,6 @@ index 0000000000..efd0565481
 +#else
 +    result = TRUE;
 +#endif
-+
-+    log_info(NULL, "is simulation: %d\n", result);
 +    return result;
 +}
 +
@@ -9856,11 +9849,12 @@ index 0000000000..fd5290e394
 \ No newline at end of file
 diff --git a/libavcodec/esdecapi.c b/libavcodec/esdecapi.c
 new file mode 100644
-index 0000000000..cb0810e381
+index 0000000000..73f5d288d5
 --- /dev/null
 +++ b/libavcodec/esdecapi.c
-@@ -0,0 +1,1198 @@
+@@ -0,0 +1,1266 @@
 +#define LOG_TAG "esdecapi"
++#include <sys/prctl.h>
 +#include "avcodec.h"
 +#include <hevcdecapi.h>
 +#include <h264decapi.h>
@@ -9881,6 +9875,7 @@ index 0000000000..cb0810e381
 +#endif
 +
 +static int esdec_get_next_picture(ESVDECContext *dec_ctx);
++static int es_decode_flush_process(ESVDECContext *dec_ctx);
 +
 +static int esdec_reorder_packet_enqueue(ESVDECContext *dec_ctx, ReorderPkt *pkt) {
 +    int ret = FAILURE;
@@ -10003,10 +9998,9 @@ index 0000000000..cb0810e381
 +    config->num_frame_buffers = 0;
 +    config->auxinfo = 0;
 +
-+#ifdef USE_EXTERNAL_BUFFER
++
 +    config->guard_size = dec_ctx->extra_hw_frames;
 +    config->use_adaptive_buffers = 1;
-+#endif
 +    config->dwl_inst = DWLInit(&dwl_params);
 +    if (!config->dwl_inst) {
 +        log_error(dec_ctx, "DWLInit failed\n");
@@ -10304,6 +10298,16 @@ index 0000000000..cb0810e381
 +        log_error(dec_ctx, "es_decode_allocate_input_port failed\n");
 +    }
 +
++    if (ret == SUCCESS) {
++        pthread_condattr_t attr;
++        dec_ctx->inited = TRUE;
++        pthread_condattr_init(&attr);
++        pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
++        pthread_cond_init(&dec_ctx->cond, &attr);
++        pthread_condattr_destroy(&attr);
++        pthread_mutex_init(&dec_ctx->mutex, NULL);
++    }
++
 +    return ret;
 +}
 +
@@ -10473,6 +10477,7 @@ index 0000000000..cb0810e381
 +        // input_param.sei_buffer = dec.sei_buffer; TODO
 +
 +        rv = VCDecDecode(dec_ctx->dec_inst, &dec_out, &input_param);
++        log_info(dec_ctx, "VCDecDecode ret: %d\n", rv);
 +        if (rv == DEC_HDRS_RDY) {
 +            new_hdr = TRUE;
 +            ret = esdec_modify_config_by_sequence_info(dec_ctx);
@@ -10486,6 +10491,7 @@ index 0000000000..cb0810e381
 +            if (!dec_ctx->output_port) {
 +                dec_ctx->output_port = esdec_allocate_output_port(
 +                    dec_ctx->codec, dec_ctx->dec_inst, dec_ctx->dev_mem_fd, dec_ctx->dwl_ref, dec_ctx->pp_count);
++
 +            } else {
 +                ret = esdec_output_port_change(dec_ctx->codec,
 +                                               dec_ctx->output_port,
@@ -10498,11 +10504,13 @@ index 0000000000..cb0810e381
 +                new_hdr = FALSE;
 +            }
 +        } else if (rv == DEC_NO_DECODING_BUFFER) {
-+            ret = esdec_wait_all_pictures_consumed_unitl_timeout(dec_ctx->codec,
-+                                                                 dec_ctx->dec_inst,
-+                                                                 dec_ctx->output_port,
-+                                                                 20 /*ms*/);
-+            if (ret == AVERROR_EXIT) {
++            ret = esdec_wait_all_pictures_consumed_unitl_timeout(
++                dec_ctx->codec, dec_ctx->dec_inst, dec_ctx->output_port, 20 /*ms*/);
++            if (ret < 0 && dec_ctx->state == ESDEC_STATE_FLUSHING) {
++                ret = AVERROR(EAGAIN);
++                *peek_frame = 0;
++                break;
++            } else if (ret == AVERROR_EXIT) {
 +                break;
 +            }
 +        } else if (rv == DEC_ADVANCED_TOOLS && dec_ctx->init_config.mc_cfg.mc_enable) {
@@ -10812,7 +10820,6 @@ index 0000000000..cb0810e381
 +
 +int es_decode_send_packet_receive_frame(ESVDECContext *dec_ctx, AVPacket *pkt, AVFrame *frame) {
 +    int ret;
-+    int loop_count = 0;
 +    if (!dec_ctx || !pkt || !frame) {
 +        log_error(dec_ctx, "error !!! dec_ctx or pkt or frame is null pkt: %p, frame: %p\n", pkt, frame);
 +        return FAILURE;
@@ -10829,12 +10836,6 @@ index 0000000000..cb0810e381
 +            if (ret == SUCCESS) {
 +                log_info(dec_ctx, "get frame data_left: %d\n", pkt->size);
 +                break;
-+            }
-+            else{
-+                loop_count++;
-+                if (loop_count >= 2){
-+                    break;
-+                }
 +            }
 +        }
 +    }
@@ -10912,6 +10913,7 @@ index 0000000000..cb0810e381
 +    int end_stream = FALSE;
 +    int peek_frame;
 +    int abort_request = FALSE;
++    int flushed = FALSE;
 +    InputBuffer buffer;
 +    ESInputPort *input_port;
 +    ESVDECContext *dec_ctx = (ESVDECContext *)ctx;
@@ -10920,11 +10922,26 @@ index 0000000000..cb0810e381
 +        return NULL;
 +    }
 +
++    prctl(PR_SET_NAME, "esvdec");
 +    input_port = dec_ctx->input_port;
 +
 +    while (!abort_request) {
++        if (dec_ctx->state == ESDEC_STATE_FLUSHING) {
++            if (!flushed) {
++                flushed = TRUE;
++                es_decode_flush_process(dec_ctx);
++            } else {
++                usleep(10000);
++            }
++            continue;
++        }
++        if (flushed) {
++            flushed = FALSE;
++        }
 +        ret = esdec_get_input_packet_buffer(input_port->packet_queue, &buffer);
-+        if (ret == AVERROR_EXIT) {
++        if (ret < 0 && dec_ctx->state == ESDEC_STATE_FLUSHING) {
++            continue;
++        } else if (ret == AVERROR_EXIT) {
 +            log_info(dec_ctx, "decode thread will be exit\n");
 +            abort_request = TRUE;
 +            continue;
@@ -10934,7 +10951,9 @@ index 0000000000..cb0810e381
 +
 +        ret = esdec_wait_all_pictures_consumed_unitl_timeout(
 +            dec_ctx->codec, dec_ctx->dec_inst, dec_ctx->output_port, 0 /*without waiting*/);
-+        if (ret == AVERROR_EXIT) {
++        if (ret < 0 && dec_ctx->state == ESDEC_STATE_FLUSHING) {
++            continue;
++        } else if (ret == AVERROR_EXIT) {
 +            abort_request = TRUE;
 +            continue;
 +        }
@@ -11038,32 +11057,74 @@ index 0000000000..cb0810e381
 +
 +    av_buffer_unref(&dec_ctx->dwl_ref);
 +
++    if (dec_ctx->inited) {
++        dec_ctx->inited = FALSE;
++        pthread_mutex_destroy(&dec_ctx->mutex);
++        pthread_cond_destroy(&dec_ctx->cond);
++    }
++
 +    log_info(dec_ctx, "es_decode_close success\n");
 +
 +    return SUCCESS;
 +}
 +
-+int es_decode_flush(ESVDECContext *dec_ctx) {
++static int es_decode_flush_process(ESVDECContext *dec_ctx) {
 +    if (!dec_ctx || !dec_ctx->dec_inst) {
 +        log_error(dec_ctx, "dec_ctx: %p is null\n", dec_ctx);
 +        return FAILURE;
 +    }
-+    log_info(dec_ctx, "flush enter\n");
-+
-+    esdec_clear_input_packets(dec_ctx->input_port);
++    log_info(dec_ctx, "flush process\n");
 +    VCDecAbort(dec_ctx->dec_inst);
++    VCDecAbortAfter(dec_ctx->dec_inst);
++    log_info(dec_ctx, "VCDecAbortAfter\n");
++    esdec_clear_input_packets(dec_ctx->input_port);
 +    esdec_clear_output_frames(dec_ctx->output_port);
++    esdec_reset_output_memorys(dec_ctx->output_port);
++    pthread_mutex_lock(&dec_ctx->mutex);
++    pthread_cond_signal(&dec_ctx->cond);
++    pthread_mutex_unlock(&dec_ctx->mutex);
 +
-+    log_info(dec_ctx, "flush exit\n");
++    return 0;
++}
 +
-+    return SUCCESS;
++int es_decode_flush(ESVDECContext *dec_ctx) {
++    int ret;
++    struct timespec ts;
++    if (!dec_ctx || !dec_ctx->dec_inst || !dec_ctx->inited) {
++        log_error(dec_ctx, "dec_ctx: %p is null\n", dec_ctx);
++        return FAILURE;
++    }
++    if (!dec_ctx->input_port || !dec_ctx->output_port) {
++        log_info(dec_ctx, "decode flush port input: %p, output: %p\n", dec_ctx->input_port, dec_ctx->output_port);
++        return FAILURE;
++    }
++
++    pthread_mutex_lock(&dec_ctx->mutex);
++    dec_ctx->state = ESDEC_STATE_FLUSHING;
++    es_fifo_queue_abort(dec_ctx->output_port->consumed_queue);
++    es_fifo_queue_abort(dec_ctx->input_port->packet_queue);
++
++    get_clock_time_by_timeout(&ts, 3000);
++    ret = pthread_cond_timedwait(&dec_ctx->cond, &dec_ctx->mutex, &ts);
++    es_fifo_queue_start(dec_ctx->output_port->consumed_queue);
++    es_fifo_queue_start(dec_ctx->input_port->packet_queue);
++    dec_ctx->state = ESDEC_STATE_FLUSHED;
++    pthread_mutex_unlock(&dec_ctx->mutex);
++
++    if (ret) {
++        log_warn(dec_ctx, "es_decode_flush timeout\n");
++    } else {
++        log_warn(dec_ctx, "es_decode_flush success\n");
++    }
++
++    return 0;
 +}
 diff --git a/libavcodec/esdecapi.h b/libavcodec/esdecapi.h
 new file mode 100644
-index 0000000000..0fd59fcbee
+index 0000000000..870f3f4966
 --- /dev/null
 +++ b/libavcodec/esdecapi.h
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,108 @@
 +#ifndef AVCODEC_ESDEC_API_H__
 +#define AVCODEC_ESDEC_API_H__
 +
@@ -11090,7 +11151,7 @@ index 0000000000..0fd59fcbee
 +
 +struct ESVDECContext {
 +    const AVClass *class;
-+
++    int inited;
 +    int stride_align;
 +    int target_pp;
 +    int drop_frame_interval;
@@ -11157,6 +11218,8 @@ index 0000000000..0fd59fcbee
 +    int64_t reordered_opaque;
 +
 +    pthread_t tid;
++    pthread_mutex_t mutex;
++    pthread_cond_t cond;
 +};
 +
 +void es_decode_print_version_info(ESVDECContext *dec_ctx);
@@ -11173,7 +11236,7 @@ index 0000000000..0fd59fcbee
 \ No newline at end of file
 diff --git a/libavcodec/esdecbuffer.c b/libavcodec/esdecbuffer.c
 new file mode 100644
-index 0000000000..88f3947a6d
+index 0000000000..20dfda6560
 --- /dev/null
 +++ b/libavcodec/esdecbuffer.c
 @@ -0,0 +1,731 @@
@@ -11476,7 +11539,7 @@ index 0000000000..88f3947a6d
 +            log_error(NULL, "es_fifo_queue_create release_queue failed\n");
 +            break;
 +        }
-+        port->input_mems = av_mallocz_array(sizeof(*port->input_mems), mem_num);
++        port->input_mems = (ESInputMemory **)av_mallocz_array(sizeof(*port->input_mems), mem_num);
 +        if (!port->input_mems) {
 +            log_error(NULL, "av_mallocz_array input_mems failed\n");
 +            break;
@@ -11521,7 +11584,7 @@ index 0000000000..88f3947a6d
 +        return ret;
 +    }
 +
-+    if (size < 0 || size <= port->mem_num) {
++    if (size <= port->mem_num) {
 +        log_error(NULL, "error!!! input port mem_num: %d, enlarge to size: %d\n", port->mem_num, size);
 +        return ret;
 +    }
@@ -11543,9 +11606,9 @@ index 0000000000..88f3947a6d
 +            break;
 +        }
 +
-+        for(int i = 0; i < port->mem_num; i++) {
++        for (int i = 0; i < port->mem_num; i++) {
 +            input_mems_new[i] = port->input_mems[i];
-+            mem_size_new ++;
++            mem_size_new++;
 +        }
 +
 +        for (int i = port->mem_num; i < size; i++) {
@@ -12052,10 +12115,10 @@ index 0000000000..d450f4eefb
 \ No newline at end of file
 diff --git a/libavcodec/esdecode.c b/libavcodec/esdecode.c
 new file mode 100644
-index 0000000000..80578b5f63
+index 0000000000..10acea0d63
 --- /dev/null
 +++ b/libavcodec/esdecode.c
-@@ -0,0 +1,449 @@
+@@ -0,0 +1,447 @@
 +#define LOG_TAG "esdecode"
 +#include <libavutil/log.h>
 +#include "libavutil/pixdesc.h"
@@ -12158,7 +12221,7 @@ index 0000000000..80578b5f63
 +    }
 +
 +    if (dec_ctx->extra_hw_frames <= 0) {
-+        dec_ctx->extra_hw_frames = 2;
++        dec_ctx->extra_hw_frames = 4;
 +    }
 +    log_info(dec_ctx,
 +             "dec_ctx extra_hw_frames: %d, avctx extra_hw_frames: %d\n",
@@ -12181,8 +12244,8 @@ index 0000000000..80578b5f63
 +
 +    ret = es_decode_start(dec_ctx);
 +    if (ret == SUCCESS) {
-+        dec_ctx->state = ESDEC_STATE_FLUSHED;
 +        avctx->apply_cropping = 0;
++        dec_ctx->state = ESDEC_STATE_STARTED;
 +        log_info(dec_ctx, "ff_es_vdec_init success\n");
 +    } else {
 +        log_error(dec_ctx, "ff_es_vdec_init failed\n");
@@ -12254,6 +12317,9 @@ index 0000000000..80578b5f63
 +            log_debug(dec_ctx, "ff_decode_get_packet ret: 0x%x, size: %d, flags: %d\n", ret, avpkt->size, avpkt->flags);
 +            if (ret == SUCCESS) {
 +                dec_ctx->reordered_opaque = avctx->reordered_opaque;
++                if (dec_ctx->state == ESDEC_STATE_FLUSHED) {
++                    dec_ctx->state = ESDEC_STATE_STARTED;
++                }
 +            }
 +        } else {
 +            log_debug(dec_ctx, "use last pkt size: %d\n", avpkt->size);
@@ -12272,10 +12338,6 @@ index 0000000000..80578b5f63
 +        } else if (ret < 0) {
 +            log_error(dec_ctx, "ff_decode_get_packet failed ret: 0x%x\n", ret);
 +            break;
-+        }
-+
-+        if (dec_ctx->state == ESDEC_STATE_FLUSHED) {
-+            dec_ctx->state = ESDEC_STATE_STARTED;
 +        }
 +
 +        ret = es_decode_send_packet_receive_frame(dec_ctx, avpkt, frame);
@@ -12305,12 +12367,11 @@ index 0000000000..80578b5f63
 +        return;
 +    }
 +
-+    dec_ctx = (ESVDECContext *)avctx->priv_data;
 +    if (dec_ctx->state != ESDEC_STATE_UNINIT && dec_ctx->state != ESDEC_STATE_CLOSED
-+        && dec_ctx->state != ESDEC_STATE_FLUSHED) {
++        && dec_ctx->state != ESDEC_STATE_FLUSHING && dec_ctx->state != ESDEC_STATE_FLUSHED) {
 +        dec_ctx = (ESVDECContext *)avctx->priv_data;
++        av_packet_unref(&dec_ctx->pkt);
 +        es_decode_flush(dec_ctx);
-+        dec_ctx->state = ESDEC_STATE_FLUSHED;
 +    }
 +
 +    log_info(avctx, "ff_es_vdec_flush dec_ctx->state: %d\n", dec_ctx->state);
@@ -12376,7 +12437,7 @@ index 0000000000..80578b5f63
 +     "set output pix_fmt",
 +     OFFSET(pp_fmt[1]),
 +     AV_OPT_TYPE_INT,
-+     {.i64 = AV_PIX_FMT_NV12},
++     {.i64 = AV_PIX_FMT_YUV420P},
 +     -1,
 +     INT_MAX,
 +     VD,
@@ -12385,7 +12446,7 @@ index 0000000000..80578b5f63
 +     "set pp0 pix_fmt",
 +     OFFSET(pp_fmt[0]),
 +     AV_OPT_TYPE_INT,
-+     {.i64 = AV_PIX_FMT_NV12},
++     {.i64 = AV_PIX_FMT_YUV420P},
 +     -1,
 +     INT_MAX,
 +     VD,
@@ -12399,7 +12460,7 @@ index 0000000000..80578b5f63
 +     "set pp1 pix_fmt",
 +     OFFSET(pp_fmt[1]),
 +     AV_OPT_TYPE_INT,
-+     {.i64 = AV_PIX_FMT_NV12},
++     {.i64 = AV_PIX_FMT_YUV420P},
 +     -1,
 +     INT_MAX,
 +     VD,
@@ -22907,17 +22968,17 @@ index 0000000000..2141662976
 \ No newline at end of file
 diff --git a/libavcodec/esqueue.c b/libavcodec/esqueue.c
 new file mode 100644
-index 0000000000..4c37bde9e0
+index 0000000000..735ed22253
 --- /dev/null
 +++ b/libavcodec/esqueue.c
-@@ -0,0 +1,439 @@
+@@ -0,0 +1,450 @@
 +#define LOG_TAG "esqueue"
 +#include <sys/time.h>
 +#include "esqueue.h"
 +#include "eslog.h"
 +#include "es_common.h"
 +
-+static int32_t get_clock_time_by_timeout(struct timespec *ts, int32_t timeout_ms) {
++int32_t get_clock_time_by_timeout(struct timespec *ts, int32_t timeout_ms) {
 +    int64_t reltime_sec;
 +    int64_t time_sec;
 +
@@ -23333,7 +23394,7 @@ index 0000000000..4c37bde9e0
 +        }
 +    } else {
 +        ret = FAILURE;
-+        log_info(NULL, "pop failed %s queue abort_request\n", queue->name);
++        log_info(NULL, "pop %s queue abort_request\n", queue->name);
 +    }
 +    pthread_mutex_unlock(&queue->fifo_mutex);
 +
@@ -23350,12 +23411,23 @@ index 0000000000..4c37bde9e0
 +    log_info(NULL, "%s request abort\n", queue->name);
 +    pthread_mutex_unlock(&queue->fifo_mutex);
 +}
++
++void es_fifo_queue_start(ESFifoQueue *queue) {
++    if (!queue) {
++        return;
++    }
++    pthread_mutex_lock(&queue->fifo_mutex);
++    queue->abort_request = FALSE;
++    pthread_cond_broadcast(&queue->fifo_cond);
++    log_info(NULL, "%s request start\n", queue->name);
++    pthread_mutex_unlock(&queue->fifo_mutex);
++}
 diff --git a/libavcodec/esqueue.h b/libavcodec/esqueue.h
 new file mode 100644
-index 0000000000..041c598e7c
+index 0000000000..11c3f7c2f4
 --- /dev/null
 +++ b/libavcodec/esqueue.h
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,59 @@
 +#ifndef AVCODEC_ESQUEUE_H_
 +#define AVCODEC_ESQUEUE_H_
 +#include "libavutil/fifo.h"
@@ -23408,8 +23480,11 @@ index 0000000000..041c598e7c
 +int es_fifo_queue_pop(ESFifoQueue *queue, void *dest, int dest_size);
 +int es_fifo_queue_pop_ignore_abort(ESFifoQueue *queue, void *dest, int dest_size);
 +void es_fifo_queue_abort(ESFifoQueue *queue);
++void es_fifo_queue_start(ESFifoQueue *queue);
 +void es_fifo_queue_deinit(ESFifoQueue **queue);
 +int es_fifo_queue_pop_until_timeout(ESFifoQueue *queue, void *dest, int dest_size, int timeout_ms);
++
++int32_t get_clock_time_by_timeout(struct timespec *ts, int32_t timeout_ms);
 +
 +#endif
 \ No newline at end of file
