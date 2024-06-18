@@ -26,6 +26,7 @@ HEADERS = ac3_parser.h                                                  \
           videotoolbox.h                                                \
           vorbis_parser.h                                               \
           xvmc.h                                                        \
+          es_codec_private.h                                            \
 
 OBJS = ac3_parser.o                                                     \
        adts_parser.o                                                    \
@@ -1062,6 +1063,21 @@ OBJS-$(CONFIG_LIBDAV1D_DECODER)           += libdav1d.o
 OBJS-$(CONFIG_LIBDAVS2_DECODER)           += libdavs2.o
 OBJS-$(CONFIG_LIBFDK_AAC_DECODER)         += libfdk-aacdec.o
 OBJS-$(CONFIG_LIBFDK_AAC_ENCODER)         += libfdk-aacenc.o
+OBJS-$(CONFIG_ES_AAC_DECODER)             += es_audio_dec.o
+OBJS-$(CONFIG_ES_AAC_ENCODER)             += es_audio_enc.o
+OBJS-$(CONFIG_ES_MP3_DECODER)             += es_audio_dec.o
+OBJS-$(CONFIG_ES_AMRNB_DECODER)           += es_audio_dec.o
+OBJS-$(CONFIG_ES_AMRNB_ENCODER)           += es_audio_enc.o
+OBJS-$(CONFIG_ES_AMRWB_DECODER)           += es_audio_dec.o
+OBJS-$(CONFIG_ES_AMRWB_ENCODER)           += es_audio_enc.o
+OBJS-$(CONFIG_ES_G711ALAW_DECODER)        += es_audio_dec.o
+OBJS-$(CONFIG_ES_G711ALAW_ENCODER)        += es_audio_enc.o
+OBJS-$(CONFIG_ES_G711MULAW_DECODER)       += es_audio_dec.o
+OBJS-$(CONFIG_ES_G711MULAW_ENCODER)       += es_audio_enc.o
+OBJS-$(CONFIG_ES_G722_DECODER)            += es_audio_dec.o
+OBJS-$(CONFIG_ES_G722_ENCODER)            += es_audio_enc.o
+OBJS-$(CONFIG_ES_G726_DECODER)            += es_audio_dec.o
+OBJS-$(CONFIG_ES_G726_ENCODER)            += es_audio_enc.o
 OBJS-$(CONFIG_LIBGSM_DECODER)             += libgsmdec.o
 OBJS-$(CONFIG_LIBGSM_ENCODER)             += libgsmenc.o
 OBJS-$(CONFIG_LIBGSM_MS_DECODER)          += libgsmdec.o
@@ -1108,6 +1124,12 @@ OBJS-$(CONFIG_LIBXAVS_ENCODER)            += libxavs.o
 OBJS-$(CONFIG_LIBXAVS2_ENCODER)           += libxavs2.o
 OBJS-$(CONFIG_LIBXVID_ENCODER)            += libxvid.o
 OBJS-$(CONFIG_LIBZVBI_TELETEXT_DECODER)   += libzvbi-teletextdec.o ass.o
+OBJS-$(CONFIG_ES_CODEC)                   += es_common.o esqueue.o
+OBJS-$(CONFIG_ES_DECODE)                  += esdec_common.o esdec_wrapper.o esdecbuffer.o esdec_internal.o
+OBJS-$(CONFIG_ES_VIDEO_DECODER)           += esdecode.o esdecapi.o
+OBJS-$(CONFIG_ESVE)                       += esenc_h26x.o esenc_common.o esenc_vid.o esenc_vid_internal.o esenc_vid_buffer.o
+OBJS-$(CONFIG_JPEG_ES_ENCODER)            += es_jpegenc.o esenc_common.o
+OBJS-$(CONFIG_JPEG_ES_DECODER)            += esjdecode.o esjdecapi.o
 
 # parsers
 OBJS-$(CONFIG_AAC_LATM_PARSER)         += latm_parser.o
