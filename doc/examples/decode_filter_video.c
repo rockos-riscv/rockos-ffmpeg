@@ -28,6 +28,7 @@
  */
 
 #define _XOPEN_SOURCE 600 /* for usleep */
+#define _POSIX_C_SOURCE 200112L /* for usleep */
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
