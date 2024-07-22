@@ -1,0 +1,4588 @@
+From 06ff06380621a6d8c194546d2d5847049e4a6b65 Mon Sep 17 00:00:00 2001
+From: Han Gao <gaohan@iscas.ac.cn>
+Date: Mon, 22 Jul 2024 22:33:27 +0800
+Subject: [PATCH 1/2] sync: sync eswin code
+
+Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
+Signed-off-by: Han Gao <rabenda.cn@gmail.com>
+---
+ configure                      |   87 +++
+ fftools/ffmpeg_demux.c         |    6 +
+ libavcodec/Makefile            |   18 +
+ libavcodec/allcodecs.c         |   22 +
+ libavcodec/es_audio_dec.c      |  285 +++++++++
+ libavcodec/es_audio_enc.c      |  346 +++++++++++
+ libavcodec/esmpp_comm.c        |  264 ++++++++
+ libavcodec/esmpp_comm.h        |   64 ++
+ libavcodec/esmppdec.c          |  790 ++++++++++++++++++++++++
+ libavcodec/esmppdec.h          |  176 ++++++
+ libavcodec/esmppenc.c          | 1052 ++++++++++++++++++++++++++++++++
+ libavcodec/esmppenc.h          |  503 +++++++++++++++
+ libavutil/Makefile             |    2 +
+ libavutil/hwcontext.c          |    4 +
+ libavutil/hwcontext.h          |    1 +
+ libavutil/hwcontext_esmpp.c    |  627 +++++++++++++++++++
+ libavutil/hwcontext_esmpp.h    |   80 +++
+ libavutil/hwcontext_internal.h |    1 +
+ 18 files changed, 4328 insertions(+)
+ create mode 100644 libavcodec/es_audio_dec.c
+ create mode 100644 libavcodec/es_audio_enc.c
+ create mode 100644 libavcodec/esmpp_comm.c
+ create mode 100644 libavcodec/esmpp_comm.h
+ create mode 100644 libavcodec/esmppdec.c
+ create mode 100644 libavcodec/esmppdec.h
+ create mode 100644 libavcodec/esmppenc.c
+ create mode 100644 libavcodec/esmppenc.h
+ create mode 100644 libavutil/hwcontext_esmpp.c
+ create mode 100644 libavutil/hwcontext_esmpp.h
+
+diff --git a/configure b/configure
+index 4f5353f84b..c77e7d6305 100755
+--- a/configure
++++ b/configure
+@@ -230,6 +230,14 @@ External library support:
+   --enable-libdvdnav       enable libdvdnav, needed for DVD demuxing [no]
+   --enable-libdvdread      enable libdvdread, needed for DVD demuxing [no]
+   --enable-libfdk-aac      enable AAC de/encoding via libfdk-aac [no]
++  --enable-es-aac          enable AAC de/encoding via es_codec [no]
++  --enable-es-mp3          enable MP3 de/encoding via es_codec [no]
++  --enable-es-amrnb        enable amrnb de/encoding via es_codec [no]
++  --enable-es-amrwb        enable amrwb de/encoding via es_codec [no]
++  --enable-es-g711alaw     enable amrnb de/encoding via es_codec [no]
++  --enable-es-g711mulaw    enable amrwb de/encoding via es_codec [no]
++  --enable-es-g722         enable amrnb de/encoding via es_codec [no]
++  --enable-es-g726         enable amrwb de/encoding via es_codec [no]
+   --enable-libflite        enable flite (voice synthesis) support via libflite [no]
+   --enable-libfontconfig   enable libfontconfig, useful for drawtext filter [no]
+   --enable-libfreetype     enable libfreetype, needed for drawtext filter [no]
+@@ -333,6 +341,7 @@ External library support:
+   --enable-vapoursynth     enable VapourSynth demuxer [no]
+   --disable-xlib           disable xlib [autodetect]
+   --disable-zlib           disable zlib [autodetect]
++  --enable-esmpp           enable esw mpp code [no]
+ 
+   The following libraries provide various hardware acceleration features:
+   --disable-amf            disable AMF video encoding code [autodetect]
+@@ -1873,7 +1882,16 @@ EXTERNAL_LIBRARY_GPL_LIST="
+ EXTERNAL_LIBRARY_NONFREE_LIST="
+     decklink
+     libfdk_aac
++    es_aac
++    es_mp3
++    es_amrnb
++    es_amrwb
++    es_g711alaw
++    es_g711mulaw
++    es_g722
++    es_g726
+     libtls
++    esmpp
+ "
+ 
+ EXTERNAL_LIBRARY_VERSION3_LIST="
+@@ -3402,6 +3420,16 @@ av1_qsv_encoder_deps="libvpl"
+ av1_amf_encoder_deps="amf"
+ av1_vaapi_encoder_deps="VAEncPictureParameterBufferAV1"
+ av1_vaapi_encoder_select="cbs_av1 vaapi_encode"
++h264_esmpp_encoder_deps="esmpp"
++h264_esmpp_encoder_select="esmpp"
++hevc_esmpp_encoder_deps="esmpp"
++hevc_esmpp_encoder_select="esmpp"
++h264_esmpp_decoder_deps="esmpp"
++h264_esmpp_decoder_select="esmpp"
++hevc_esmpp_decoder_deps="esmpp"
++hevc_esmpp_decoder_select="esmpp"
++mjpeg_esmpp_encoder_deps="esmpp"
++mjpeg_esmpp_encoder_select="esmpp"
+ 
+ # parsers
+ aac_parser_select="adts_header mpeg4audio"
+@@ -3489,6 +3517,36 @@ libdavs2_decoder_deps="libdavs2"
+ libdavs2_decoder_select="avs2_parser"
+ libfdk_aac_decoder_deps="libfdk_aac"
+ libfdk_aac_encoder_deps="libfdk_aac"
++es_aac_decoder_extralibs="-les_codec"
++es_aac_decoder_deps="es_aac"
++es_aac_encoder_extralibs="-les_codec"
++es_aac_encoder_deps="es_aac"
++es_mp3_decoder_extralibs="-les_codec"
++es_mp3_decoder_deps="es_mp3"
++es_amrnb_decoder_extralibs="-les_codec"
++es_amrnb_decoder_deps="es_amrnb"
++es_amrnb_encoder_extralibs="-les_codec"
++es_amrnb_encoder_deps="es_amrwb"
++es_amrwb_decoder_extralibs="-les_codec"
++es_amrwb_decoder_deps="es_amrwb"
++es_amrwb_encoder_extralibs="-les_codec"
++es_amrwb_encoder_deps="es_amrwb"
++es_g711alaw_decoder_extralibs="-les_codec"
++es_g711alaw_decoder_deps="es_g711alaw"
++es_g711alaw_encoder_extralibs="-les_codec"
++es_g711alaw_encoder_deps="es_g711alaw"
++es_g711mulaw_decoder_extralibs="-les_codec"
++es_g711mulaw_decoder_deps="es_g711mulaw"
++es_g711mulaw_encoder_extralibs="-les_codec"
++es_g711mulaw_encoder_deps="es_g711mulaw"
++es_g722_decoder_extralibs="-les_codec"
++es_g722_decoder_deps="es_g722"
++es_g722_encoder_extralibs="-les_codec"
++es_g722_encoder_deps="es_g722"
++es_g726_decoder_extralibs="-les_codec"
++es_g726_decoder_deps="es_g726"
++es_g726_encoder_extralibs="-les_codec"
++es_g726_encoder_deps="es_g726"
+ libfdk_aac_encoder_select="audio_frame_queue"
+ libgme_demuxer_deps="libgme"
+ libgsm_decoder_deps="libgsm"
+@@ -6848,6 +6906,14 @@ enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aace
+                                { require libfdk_aac fdk-aac/aacenc_lib.h aacEncOpen -lfdk-aac &&
+                                  warn "using libfdk without pkg-config"; } }
+ flite_extralibs="-lflite_cmu_time_awb -lflite_cmu_us_awb -lflite_cmu_us_kal -lflite_cmu_us_kal16 -lflite_cmu_us_rms -lflite_cmu_us_slt -lflite_usenglish -lflite_cmulex -lflite"
++enabled es_aac            && require eswin_codec codec_api.h es_aenc_create -les_codec
++enabled es_mp3            && require eswin_codec codec_api.h es_aenc_create -les_codec
++enabled es_amrnb          && require eswin_codec codec_api.h es_aenc_create -les_codec
++enabled es_amrwb          && require eswin_codec codec_api.h es_aenc_create -les_codec
++enabled es_g711alaw       && require eswin_codec codec_api.h es_aenc_create -les_codec
++enabled es_g711mulaw      && require eswin_codec codec_api.h es_aenc_create -les_codec
++enabled es_g722           && require eswin_codec codec_api.h es_aenc_create -les_codec
++enabled es_g726           && require eswin_codec codec_api.h es_aenc_create -les_codec
+ enabled libflite          && require libflite "flite/flite.h" flite_init $flite_extralibs
+ enabled fontconfig        && enable libfontconfig
+ enabled libfontconfig     && require_pkg_config libfontconfig fontconfig "fontconfig/fontconfig.h" FcInit
+@@ -7069,6 +7135,27 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
+                              }
+ enabled vapoursynth       && require_pkg_config vapoursynth "vapoursynth-script >= 42" VSScript.h vsscript_init
+ 
++enabled esmpp               && {
++    enabled h264_esmpp_encoder && {
++        log check_pkg_config h264_esmpp_encoder
++    } || disable h264_esmpp_encoder
++
++    enabled hevc_esmpp_encoder  && {
++        log check_pkg_config hevc_esmpp_encoder
++    } || disable hevc_esmpp_encoder
++
++    enabled h264_esmppvdec && {
++        log check_pkg_config h264_esmppvdec
++    } || disable h264_esmppvdec
++
++    enabled hevc_esmppvdec  && {
++        log check_pkg_config hevc_esmppvdec
++    } || disable hevc_esmppvdec
++
++    if disabled_all h264_esmpp_encoder hevc_esmpp_encoder h264_esmppvdec hevc_esmppvdec; then
++        die "esmpp enabled but no supported codecs found"
++    fi
++}
+ 
+ if enabled gcrypt; then
+     GCRYPT_CONFIG="${cross_prefix}libgcrypt-config"
+diff --git a/fftools/ffmpeg_demux.c b/fftools/ffmpeg_demux.c
+index 47312c9fe1..e75f000f7f 100644
+--- a/fftools/ffmpeg_demux.c
++++ b/fftools/ffmpeg_demux.c
+@@ -1271,6 +1271,12 @@ static int ist_add(const OptionsContext *o, Demuxer *d, AVStream *st)
+                 "with old commandlines. This behaviour is DEPRECATED and will be removed "
+                 "in the future. Please explicitly set \"-hwaccel_output_format qsv\".\n");
+             ds->dec_opts.hwaccel_output_format = AV_PIX_FMT_QSV;
++        } else if (!hwaccel_output_format && hwaccel && !strcmp(hwaccel, "esmpp")) {
++                av_log(NULL, AV_LOG_WARNING,
++                    "WARNING: defaulting hwaccel_output_format to drm prime for compatibility "
++                    "with old commandlines. This behaviour is DEPRECATED and will be removed "
++                    "in the future. Please explicitly set \"-hwaccel_output_format drm prime\".\n");
++                ds->dec_opts.hwaccel_output_format = AV_PIX_FMT_DRM_PRIME;
+         } else if (!hwaccel_output_format && hwaccel && !strcmp(hwaccel, "mediacodec")) {
+             // There is no real AVHWFrameContext implementation. Set
+             // hwaccel_output_format to avoid av_hwframe_transfer_data error.
+diff --git a/libavcodec/Makefile b/libavcodec/Makefile
+index 113adb22d5..34417698c5 100644
+--- a/libavcodec/Makefile
++++ b/libavcodec/Makefile
+@@ -1115,6 +1115,23 @@ OBJS-$(CONFIG_LIBDAV1D_DECODER)           += libdav1d.o av1_parse.o
+ OBJS-$(CONFIG_LIBDAVS2_DECODER)           += libdavs2.o
+ OBJS-$(CONFIG_LIBFDK_AAC_DECODER)         += libfdk-aacdec.o
+ OBJS-$(CONFIG_LIBFDK_AAC_ENCODER)         += libfdk-aacenc.o
++OBJS-$(CONFIG_LIBFDK_AAC_DECODER)         += libfdk-aacdec.o
++OBJS-$(CONFIG_LIBFDK_AAC_ENCODER)         += libfdk-aacenc.o
++OBJS-$(CONFIG_ES_AAC_DECODER)             += es_audio_dec.o
++OBJS-$(CONFIG_ES_AMRNB_DECODER)           += es_audio_dec.o
++OBJS-$(CONFIG_ES_AAC_ENCODER)             += es_audio_enc.o
++OBJS-$(CONFIG_ES_MP3_DECODER)             += es_audio_dec.o
++OBJS-$(CONFIG_ES_AMRNB_ENCODER)           += es_audio_enc.o
++OBJS-$(CONFIG_ES_AMRWB_DECODER)           += es_audio_dec.o
++OBJS-$(CONFIG_ES_AMRWB_ENCODER)           += es_audio_enc.o
++OBJS-$(CONFIG_ES_G711ALAW_DECODER)        += es_audio_dec.o
++OBJS-$(CONFIG_ES_G711ALAW_ENCODER)        += es_audio_enc.o
++OBJS-$(CONFIG_ES_G711MULAW_DECODER)       += es_audio_dec.o
++OBJS-$(CONFIG_ES_G711MULAW_ENCODER)       += es_audio_enc.o
++OBJS-$(CONFIG_ES_G722_DECODER)            += es_audio_dec.o
++OBJS-$(CONFIG_ES_G722_ENCODER)            += es_audio_enc.o
++OBJS-$(CONFIG_ES_G726_DECODER)            += es_audio_dec.o
++OBJS-$(CONFIG_ES_G726_ENCODER)            += es_audio_enc.o
+ OBJS-$(CONFIG_LIBGSM_DECODER)             += libgsmdec.o
+ OBJS-$(CONFIG_LIBGSM_ENCODER)             += libgsmenc.o
+ OBJS-$(CONFIG_LIBGSM_MS_DECODER)          += libgsmdec.o
+@@ -1162,6 +1179,7 @@ OBJS-$(CONFIG_LIBXEVD_DECODER)            += libxevd.o
+ OBJS-$(CONFIG_LIBXEVE_ENCODER)            += libxeve.o
+ OBJS-$(CONFIG_LIBXVID_ENCODER)            += libxvid.o
+ OBJS-$(CONFIG_LIBZVBI_TELETEXT_DECODER)   += libzvbi-teletextdec.o ass.o
++OBJS-$(CONFIG_ESMPP)                      += esmppenc.o esmppdec.o esmpp_comm.o
+ 
+ # parsers
+ OBJS-$(CONFIG_AAC_LATM_PARSER)         += latm_parser.o
+diff --git a/libavcodec/allcodecs.c b/libavcodec/allcodecs.c
+index 2386b450a6..197d416711 100644
+--- a/libavcodec/allcodecs.c
++++ b/libavcodec/allcodecs.c
+@@ -34,6 +34,13 @@
+ #include "codec_id.h"
+ #include "codec_internal.h"
+ 
++
++extern const FFCodec ff_h264_esmpp_encoder;
++extern const FFCodec ff_hevc_esmpp_encoder;
++extern const FFCodec ff_mjpeg_esmpp_encoder;
++extern const FFCodec ff_h264_esmpp_decoder;
++extern const FFCodec ff_hevc_esmpp_decoder;
++
+ extern const FFCodec ff_a64multi_encoder;
+ extern const FFCodec ff_a64multi5_encoder;
+ extern const FFCodec ff_aasc_decoder;
+@@ -768,6 +775,21 @@ extern const FFCodec ff_libdav1d_decoder;
+ extern const FFCodec ff_libdavs2_decoder;
+ extern const FFCodec ff_libfdk_aac_encoder;
+ extern const FFCodec ff_libfdk_aac_decoder;
++extern const FFCodec ff_es_aac_decoder;
++extern const FFCodec ff_es_aac_encoder;
++extern const FFCodec ff_es_mp3_decoder;
++extern const FFCodec ff_es_amrnb_decoder;
++extern const FFCodec ff_es_amrnb_encoder;
++extern const FFCodec ff_es_amrwb_decoder;
++extern const FFCodec ff_es_amrwb_encoder;
++extern const FFCodec ff_es_g711alaw_decoder;
++extern const FFCodec ff_es_g711alaw_encoder;
++extern const FFCodec ff_es_g711mulaw_decoder;
++extern const FFCodec ff_es_g711mulaw_encoder;
++extern const FFCodec ff_es_g722_decoder;
++extern const FFCodec ff_es_g722_encoder;
++extern const FFCodec ff_es_g726_decoder;
++extern const FFCodec ff_es_g726_encoder;
+ extern const FFCodec ff_libgsm_encoder;
+ extern const FFCodec ff_libgsm_decoder;
+ extern const FFCodec ff_libgsm_ms_encoder;
+diff --git a/libavcodec/es_audio_dec.c b/libavcodec/es_audio_dec.c
+new file mode 100644
+index 0000000000..34baabfd82
+--- /dev/null
++++ b/libavcodec/es_audio_dec.c
+@@ -0,0 +1,285 @@
++#include "libavutil/channel_layout.h"
++#include "libavutil/common.h"
++#include "libavutil/opt.h"
++#include "avcodec.h"
++#include "codec_internal.h"
++#include "decode.h"
++#include "internal.h"
++#include "adp_amr.h"
++#include "adp_itut_gxx.h"
++#include "adp_aac.h"
++#include "codec_api.h"
++#include "CodecTypes.h"
++
++#define DEFAULT_G722_BIT_RATE       64000
++#define DEFAULT_G726_BIT_RATE       32000
++#define MAX_BUFFER_SIZE             32768
++#define MAX_STREAM_LEN              2048
++
++typedef struct ESADECContext {
++    const AVClass *class;
++    int chan_id;
++    int bit_rate;
++    char *buffer;
++    int buffer_size;
++    uint8_t stream[MAX_STREAM_LEN * 2];
++    uint32_t offset;
++    AVChannelLayout downmix_layout;
++} ESADECContext;
++
++static es_codec_type convert_codec_id_to_type(enum AVCodecID codec_id)
++{
++    switch (codec_id) {
++        case AV_CODEC_ID_AAC:
++            return AAC;
++        case AV_CODEC_ID_MP3:
++        case AV_CODEC_ID_MP2:
++            return MP3;
++        case AV_CODEC_ID_PCM_ALAW:
++        case AV_CODEC_ID_PCM_MULAW:
++            return G711;
++        case AV_CODEC_ID_ADPCM_G722:
++            return G722;
++        case AV_CODEC_ID_ADPCM_G726:
++            return G726;
++        case AV_CODEC_ID_AMR_NB:
++        case AV_CODEC_ID_AMR_WB:
++            return AMR;
++        default:
++            return UNKNOW;
++    }
++}
++
++static aac_profile convert_aot_to_esprofile(int aot)
++{
++    switch(aot) {
++        case FF_PROFILE_AAC_LOW:
++            return AAC_TYPE_AACLC;
++        case FF_PROFILE_AAC_MAIN:
++            return AAC_TYPE_AACMAIN;
++        case FF_PROFILE_AAC_HE:
++        case FF_PROFILE_AAC_HE_V2:
++            return AAC_TYPE_AACHE;
++        case FF_PROFILE_AAC_LD:
++            return  AAC_TYPE_AACLD;
++        default:
++            return AAC_TYPE_AACLC;
++    }
++}
++
++static void *get_audio_decoder_attr(AVCodecContext *avctx, enum AVCodecID codec_id)
++{
++    void *attr = NULL;
++
++    if (AV_CODEC_ID_AMR_NB == codec_id || AV_CODEC_ID_AMR_WB == codec_id) {
++        audio_amr_decoder_attr *amr_attr = av_mallocz(sizeof(audio_amr_decoder_attr));
++        if (amr_attr) {
++            amr_attr->is_wb = (AV_CODEC_ID_AMR_WB == codec_id) ? 1 : 0;
++            attr = amr_attr;
++        }
++    } else if (AV_CODEC_ID_PCM_ALAW == codec_id || AV_CODEC_ID_PCM_MULAW == codec_id) {
++        audio_g711_attr *g711_attr = av_mallocz(sizeof(audio_g711_attr));
++        if (g711_attr) {
++            g711_attr->type = (AV_CODEC_ID_PCM_ALAW == codec_id) ? ALAW : ULAW;
++            attr = g711_attr;
++        }
++    } else if (AV_CODEC_ID_ADPCM_G722 == codec_id) {
++        audio_g722_attr *g722_attr = av_mallocz(sizeof(audio_g722_attr));
++        if (g722_attr) {
++            g722_attr->bit_rate = (avctx->bit_rate == 0) ? DEFAULT_G722_BIT_RATE : avctx->bit_rate;
++            attr = g722_attr;
++        }
++    } else if (AV_CODEC_ID_ADPCM_G726 == codec_id) {
++        audio_g726_attr *g726_attr = av_mallocz(sizeof(audio_g726_attr));
++        if (g726_attr) {
++            g726_attr->bit_rate = (avctx->bit_rate == 0) ? DEFAULT_G726_BIT_RATE : avctx->bit_rate;
++            attr = g726_attr;
++        }
++    } else if (AV_CODEC_ID_AAC == codec_id) {
++        audio_aacdecoder_attr *aac_attr = av_mallocz(sizeof(audio_aacdecoder_attr));
++        if (aac_attr) {
++            aac_attr->output_format = 1;
++            aac_attr->profile = convert_aot_to_esprofile(avctx->profile);
++            aac_attr->trans_type = AAC_TRANS_TYPE_ADTS;
++            attr = aac_attr;
++        }
++    }
++    return attr;
++}
++
++static av_cold int ff_es_adec_init(AVCodecContext *avctx)
++{
++    static int32_t chan = 1;
++
++    /* get codec type */
++    enum AVCodecID codec_id = avctx->codec_id;
++    es_codec_type codec_type = convert_codec_id_to_type(codec_id);
++    if (codec_type == UNKNOW) {
++        av_log(avctx, AV_LOG_ERROR, "UNKNOW codec_id:0x%x\n", codec_id);
++        return AVERROR_DECODER_NOT_FOUND;
++    }
++
++    /* init audio dec */
++    if(chan == 1) {
++        es_adec_init();
++    }
++
++    /* get codec attr */
++    void *attr = get_audio_decoder_attr(avctx, codec_id);
++    ESADECContext *s = (ESADECContext *)avctx->priv_data;
++
++    int ret = es_adec_create(chan, codec_type, attr);
++    /* free attr, NULL is safe */
++    av_free(attr);
++
++    if(0 != ret) {
++        av_log(avctx, AV_LOG_ERROR, "es_adec_create() failed:%d\n", ret);
++        return AVERROR_UNKNOWN;
++    }
++
++    s->chan_id = chan;
++    chan++;
++    s->buffer_size = MAX_BUFFER_SIZE;
++    s->buffer = av_malloc(s->buffer_size);
++    s->offset = 0;
++
++    return 0;
++}
++
++static av_cold int ff_es_adec_close(AVCodecContext *avctx)
++{
++    ESADECContext *s = avctx->priv_data;
++    es_adec_destroy(s->chan_id);
++    av_free(s->buffer);
++    return 0;
++}
++
++static int get_stream_info(AVCodecContext *avctx, uint8_t *data, uint32_t size, es_frame_info *frame_info)
++{
++    ESADECContext *s = avctx->priv_data;
++    int ret = es_adec_parse_packets(s->chan_id, data, size, frame_info);
++    if (ret < 0) {
++        av_log(avctx, AV_LOG_ERROR, "es_adec_parse_packets failed:%d\n", ret);
++        return AVERROR_UNKNOWN;
++    }
++    // av_log(avctx, AV_LOG_INFO, "sample_rate=%d, frame_size=%d, channels=%d, bit_depth=%d, decoded_size=%d\n",
++    //        frame_info->sample_rate, frame_info->frame_size, frame_info->channels,
++    //        frame_info->bit_depth, frame_info->decoded_size);
++    avctx->sample_rate = frame_info->sample_rate;
++    avctx->frame_size  = frame_info->decoded_size / frame_info->channels / (frame_info->bit_depth / 8);
++
++    av_channel_layout_uninit(&avctx->ch_layout);
++    if (frame_info->channels == 1) {
++        avctx->ch_layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
++    } else {
++        avctx->ch_layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
++    }
++
++    switch (frame_info->bit_depth) {
++    case 8:
++        avctx->sample_fmt = AV_SAMPLE_FMT_U8;
++        break;
++    case 16:
++        avctx->sample_fmt = AV_SAMPLE_FMT_S16;
++        break;
++    case 32:
++        avctx->sample_fmt = AV_SAMPLE_FMT_S32;
++        break;
++    default:
++        avctx->sample_fmt = AV_SAMPLE_FMT_S16;
++        break;
++    }
++    return 0;
++}
++
++static int ff_es_adec_frame(AVCodecContext *avctx, AVFrame *frame,
++                                int *got_frame_ptr, AVPacket *avpkt)
++{
++    int ret;
++    ESADECContext *s = avctx->priv_data;
++    int32_t size = s->buffer_size;
++    es_frame_info frame_info;
++    uint8_t *pkt_data = NULL;
++    uint32_t pkt_size = 0;
++
++    if (AV_CODEC_ID_MP3 == avctx->codec_id) {
++        memcpy(s->stream + s->offset, avpkt->data, avpkt->size);
++        pkt_size = s->offset;
++        pkt_data = s->stream;
++        s->offset = avpkt->size;
++    } else {
++        pkt_data = avpkt->data;
++        pkt_size = avpkt->size;
++    }
++
++    if (pkt_size == 0) {
++        return avpkt->size;
++    }
++
++    if ((ret = get_stream_info(avctx, pkt_data, pkt_size, &frame_info)) < 0) {
++        av_log(s, AV_LOG_ERROR, "get_stream_info failed:%d\n", ret);
++        return ret;
++    }
++
++    ret = es_adec_decode_stream(s->chan_id, pkt_data, pkt_size, s->buffer, &size);
++    if (0 != ret){
++        av_log(s, AV_LOG_ERROR, "es_adec_decode_stream failed: %d\n", ret);
++        return AVERROR_UNKNOWN;
++    }
++
++    if (AV_CODEC_ID_MP3 == avctx->codec_id) {
++        memmove(s->stream, s->stream + pkt_size, avpkt->size);
++    }
++
++    if (size == 0) {
++        return avpkt->size;
++    }
++
++    frame->nb_samples = size / frame_info.channels / (frame_info.bit_depth / 8);
++
++    if ((ret = ff_get_buffer(avctx, frame, 0)) < 0) {
++        av_log(s, AV_LOG_ERROR, "cannot get buffer for decode, ret: %d\n", ret);
++        return ret;
++    }
++
++    memcpy(frame->extended_data[0], s->buffer, size);
++
++    *got_frame_ptr = 1;
++    return avpkt->size;
++}
++
++static av_cold void ff_es_adec_flush(AVCodecContext *avctx)
++{
++
++}
++
++#define ES_AUDIO_DEC(ctype, CTYPE)                                                                  \
++    static const AVClass es_##ctype##_decoder_class = {                                             \
++        .class_name = #ctype "_esadec",                                                             \
++        .item_name = av_default_item_name,                                                          \
++        .version = LIBAVUTIL_VERSION_INT,                                                           \
++    };                                                                                              \
++    const FFCodec ff_es_##ctype##_decoder = {                                                       \
++        .p.name = "es_" #ctype,                                                                     \
++        .p.long_name = NULL_IF_CONFIG_SMALL("Es " #ctype " decoder"),                               \
++        .p.type = AVMEDIA_TYPE_AUDIO,                                                               \
++        .p.id = AV_CODEC_ID_##CTYPE,                                                                \
++        .priv_data_size = sizeof(ESADECContext),                                                    \
++        .p.priv_class = &es_##ctype##_decoder_class,                                                \
++        .init = ff_es_adec_init,                                                                    \
++        .close = ff_es_adec_close,                                                                  \
++        FF_CODEC_DECODE_CB(ff_es_adec_frame),                                                       \
++        .flush = ff_es_adec_flush,                                                                  \
++        .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_CHANNEL_CONF,                             \
++        .p.wrapper_name = "esadec",                                                                 \
++    };
++
++ES_AUDIO_DEC(aac, AAC)
++ES_AUDIO_DEC(mp3, MP3)
++ES_AUDIO_DEC(amrnb, AMR_NB)
++ES_AUDIO_DEC(amrwb, AMR_WB)
++ES_AUDIO_DEC(g711alaw, PCM_ALAW)
++ES_AUDIO_DEC(g711mulaw, PCM_MULAW)
++ES_AUDIO_DEC(g722, ADPCM_G722)
++ES_AUDIO_DEC(g726, ADPCM_G726)
++
+diff --git a/libavcodec/es_audio_enc.c b/libavcodec/es_audio_enc.c
+new file mode 100644
+index 0000000000..31a6ad81c2
+--- /dev/null
++++ b/libavcodec/es_audio_enc.c
+@@ -0,0 +1,346 @@
++#include "libavutil/channel_layout.h"
++#include "libavutil/common.h"
++#include "libavutil/opt.h"
++#include "avcodec.h"
++#include "codec_internal.h"
++#include "encode.h"
++#include "internal.h"
++#include "adp_amr.h"
++#include "adp_itut_gxx.h"
++#include "adp_aac.h"
++#include "codec_api.h"
++
++#define AMR_NB_SAMPLES_PER_FRAME     160
++#define AMR_WB_SAMPLES_PER_FRAME     320
++#define GXX_SAMPLES_PER_FRAME        160
++#define AAC_LC_SAMPLES_PER_FRAME     1024
++
++#define MAX_PACKET_SIZE              16384
++
++#define DEBUG_DUMP 0
++
++typedef struct ESAENCContext {
++    const AVClass *class;
++    int chan_id;
++    int bit_rate;
++    int afterburner;
++    int vbr;
++    int eld_sbr;
++} ESAENCContext;
++
++static const AVOption aac_options[] = {
++    { "afterburner", "Afterburner (improved quality)", offsetof(ESAENCContext, afterburner), AV_OPT_TYPE_INT,
++      { .i64 = 1 }, 0, 1, AV_OPT_FLAG_AUDIO_PARAM | AV_OPT_FLAG_ENCODING_PARAM },
++    { "vbr", "VBR mode (1-5)", offsetof(ESAENCContext, vbr), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 5,
++      AV_OPT_FLAG_AUDIO_PARAM | AV_OPT_FLAG_ENCODING_PARAM },
++    { "eld_sbr", "Enable SBR for ELD (for SBR in other configurations, use the -profile parameter)",
++      offsetof(ESAENCContext, eld_sbr), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1,
++      AV_OPT_FLAG_AUDIO_PARAM | AV_OPT_FLAG_ENCODING_PARAM },
++    { NULL },
++};
++
++static const AVOption amrnb_options[] = { { NULL } };
++
++static const AVOption amrwb_options[] = { { NULL } };
++
++static const AVOption g711alaw_options[] = { { NULL } };
++
++static const AVOption g711mulaw_options[] = { { NULL } };
++
++static const AVOption g722_options[] = { { NULL } };
++
++static const AVOption g726_options[] = { { NULL } };
++
++static es_codec_type convert_codec_id_to_type(enum AVCodecID codec_id);
++static void *get_audio_encoder_attr(AVCodecContext *avctx, enum AVCodecID codec_id);
++
++static es_codec_type convert_codec_id_to_type(enum AVCodecID codec_id)
++{
++    switch (codec_id) {
++        case AV_CODEC_ID_AAC:
++            return AAC;
++        case AV_CODEC_ID_MP3:
++            return MP3;
++        case AV_CODEC_ID_PCM_ALAW:
++        case AV_CODEC_ID_PCM_MULAW:
++            return G711;
++        case AV_CODEC_ID_ADPCM_G722:
++            return G722;
++        case AV_CODEC_ID_ADPCM_G726:
++            return G726;
++        case AV_CODEC_ID_AMR_NB:
++        case AV_CODEC_ID_AMR_WB:
++            return AMR;
++        default:
++            return UNKNOW;
++    }
++}
++
++static void *get_audio_encoder_attr(AVCodecContext *avctx, enum AVCodecID codec_id)
++{
++    ESAENCContext *s = (ESAENCContext *)avctx->priv_data;
++    void *attr = NULL;
++
++    if (AV_CODEC_ID_AMR_NB == codec_id || AV_CODEC_ID_AMR_WB == codec_id) {
++        audio_amr_encoder_attr *amr_attr = av_mallocz(sizeof(audio_amr_encoder_attr));
++        if (amr_attr) {
++            amr_attr->is_wb = (AV_CODEC_ID_AMR_WB == codec_id) ? 1 : 0;
++            amr_attr->bit_rate = avctx->bit_rate;
++            attr = amr_attr;
++        }
++    } else if (AV_CODEC_ID_PCM_ALAW == codec_id || AV_CODEC_ID_PCM_MULAW == codec_id) {
++        audio_g711_attr *g711_attr = av_mallocz(sizeof(audio_g711_attr));
++        if (g711_attr) {
++            g711_attr->type = (AV_CODEC_ID_PCM_ALAW == codec_id) ? ALAW : ULAW;
++            attr = g711_attr;
++        }
++    } else if (AV_CODEC_ID_ADPCM_G722 == codec_id) {
++        audio_g722_attr *g722_attr = av_mallocz(sizeof(audio_g722_attr));
++        if (g722_attr) {
++            g722_attr->bit_rate = avctx->bit_rate;
++            attr = g722_attr;
++        }
++    } else if (AV_CODEC_ID_ADPCM_G726 == codec_id) {
++        audio_g726_attr *g726_attr = av_mallocz(sizeof(audio_g726_attr));
++        if (g726_attr) {
++            g726_attr->bit_rate = avctx->bit_rate;
++            attr = g726_attr;
++        }
++    } else if (AV_CODEC_ID_AAC == codec_id) {
++        audio_aacenc_attr *aac_attr = av_mallocz(sizeof(audio_aacenc_attr));
++        if (aac_attr) {
++            aac_attr->bit_rate = avctx->bit_rate;
++            aac_attr->aot = avctx->profile + 1;
++            aac_attr->sbr = s->eld_sbr;
++            aac_attr->channels = avctx->ch_layout.nb_channels;
++            aac_attr->vbr = s->vbr;
++            aac_attr->sample_rate = avctx->sample_rate;
++            aac_attr->afterburner = s->afterburner;
++            attr = aac_attr;
++        }
++    }
++    return attr;
++}
++
++static int set_frame_size(AVCodecContext *avctx)
++{
++    switch (avctx->codec_id) {
++        case AV_CODEC_ID_AMR_WB:
++            avctx->frame_size = AMR_WB_SAMPLES_PER_FRAME;
++            break;
++        case AV_CODEC_ID_AMR_NB:
++            avctx->frame_size = AMR_NB_SAMPLES_PER_FRAME;
++            break;
++        case AV_CODEC_ID_AAC:{
++            if (FF_PROFILE_AAC_LOW == avctx->profile) {
++                avctx->frame_size = AAC_LC_SAMPLES_PER_FRAME;
++            } else {
++                av_log(avctx, AV_LOG_ERROR, "Not support AAC profile: %d\n", avctx->frame_size);
++            }
++            break;
++        }
++        case AV_CODEC_ID_PCM_ALAW:
++        case AV_CODEC_ID_PCM_MULAW:
++        case AV_CODEC_ID_ADPCM_G722:
++        case AV_CODEC_ID_ADPCM_G726:
++            avctx->frame_size = GXX_SAMPLES_PER_FRAME;
++            break;
++        default:
++            // Handle other codec IDs
++            break;
++    }
++    return 0;
++}
++
++static av_cold int ff_es_aenc_init(AVCodecContext *avctx)
++{
++    static int32_t chan = 1;
++
++    /* get codec type */
++    enum AVCodecID codec_id = avctx->codec_id;
++    es_codec_type codec_type = convert_codec_id_to_type(codec_id);
++    if (codec_type == UNKNOW) {
++        av_log(avctx, AV_LOG_ERROR, "UNKNOW codec_id:0x%x\n", codec_id);
++        return AVERROR_ENCODER_NOT_FOUND;
++    }
++
++    /* init audio dec */
++    if(chan == 1) {
++        es_aenc_init();
++    }
++
++    if (AV_CODEC_ID_AAC == codec_id) {
++        if (FF_PROFILE_AAC_LOW != avctx->profile) {
++            av_log(avctx, AV_LOG_DEBUG, "Only support AAC-LC, use AAC_LOW auto\n");
++            avctx->profile = FF_PROFILE_AAC_LOW;
++        }
++    }
++
++    /* get codec attr */
++    void *attr = get_audio_encoder_attr(avctx, codec_id);
++    ESAENCContext *s = (ESAENCContext *)avctx->priv_data;
++
++    int ret = es_aenc_create(chan, codec_type, attr);
++    /* free attr, NULL is safe */
++    av_free(attr);
++
++    if(0 != ret) {
++        av_log(avctx, AV_LOG_ERROR, "es_aenc_create() failed:%d\n", ret);
++        return AVERROR_UNKNOWN;
++    }
++
++    s->chan_id = chan;
++    chan++;
++
++    set_frame_size(avctx);
++
++    return 0;
++}
++
++static av_cold int ff_es_aenc_close(AVCodecContext *avctx)
++{
++    ESAENCContext *s = avctx->priv_data;
++    es_aenc_destroy(s->chan_id);
++    return 0;
++}
++
++#if DEBUG_DUMP
++static int dump_data(const char *path, const void *buf, size_t bytes)
++{
++    if (!path) {
++        return 0;
++    }
++
++    FILE *fp = fopen(path, "a+");
++    if (fp) {
++        fwrite((char *)buf, 1, bytes, fp);
++        fclose(fp);
++    }
++
++    return 0;
++}
++
++static const char* get_codec_suffix(AVCodecContext *avctx)
++{
++    const char *suffix = "";
++
++    switch (avctx->codec_id) {
++        case AV_CODEC_ID_AAC:
++            suffix = ".aac";
++            break;
++        case AV_CODEC_ID_MP3:
++            suffix = ".mp3";
++            break;
++        case AV_CODEC_ID_AMR_NB:
++        case AV_CODEC_ID_AMR_WB:
++            suffix = ".amr";
++            break;
++        case AV_CODEC_ID_PCM_ALAW:
++        case AV_CODEC_ID_PCM_MULAW:
++            suffix = ".wav";
++            break;
++        case AV_CODEC_ID_ADPCM_G722:
++            suffix = ".g722";
++            break;
++        case AV_CODEC_ID_ADPCM_G726:
++            suffix = ".g726";
++            break;
++        default:
++            break;
++    }
++    return suffix;
++}
++#endif
++
++static int ff_es_aenc_frame(AVCodecContext *avctx, AVPacket *avpkt,
++                               const AVFrame *frame, int *got_packet_ptr)
++{
++    int ret;
++    ESAENCContext *s = avctx->priv_data;
++    int32_t size = 0;
++
++    if ((ret = ff_alloc_packet(avctx, avpkt, MAX_PACKET_SIZE)) < 0) {
++        return ret;
++    }
++
++    ret = es_aenc_encode_frame(s->chan_id, frame->data[0], frame->linesize[0], avpkt->data, &size);
++    if (0 != ret){
++        av_log(s, AV_LOG_ERROR, "es_aenc_encode_frame failed:%d\n", ret);
++        return AVERROR_UNKNOWN;
++    }
++    // av_log(avctx, AV_LOG_INFO, "linesize=%d, size=%d\n", frame->linesize[0], size);
++#if DEBUG_DUMP
++    dump_data("./dump_before_encode.raw", frame->data[0], frame->linesize[0]);
++    char output_filename[256];
++    snprintf(output_filename, sizeof(output_filename), "dump_after_encode%s", get_codec_suffix(avctx));
++    dump_data(output_filename, avpkt->data, size);
++#endif
++
++    avpkt->size = size;
++    *got_packet_ptr = 1;
++    return 0;
++}
++
++static const int amrnb_sample_rates[] = { 8000, 0 };
++
++static const int amrwb_sample_rates[] = { 16000, 0 };
++
++static const int g711alaw_sample_rates[] = { 8000, 0 };
++
++static const int g711mulaw_sample_rates[] = { 8000, 0 };
++
++static const int g722_sample_rates[] = { 16000, 0 };
++
++static const int g726_sample_rates[] = { 8000, 0 };
++
++static const int aac_sample_rates[] = { 48000, 44100, 32000, 24000, 22050, 16000, 8000, 0 };
++
++static const AVChannelLayout amrnb_ch_layouts[2] = { AV_CHANNEL_LAYOUT_MONO, { 0 } };
++
++static const AVChannelLayout amrwb_ch_layouts[2] = { AV_CHANNEL_LAYOUT_MONO, { 0 } };
++
++static const AVChannelLayout g711alaw_ch_layouts[2] = { AV_CHANNEL_LAYOUT_MONO, { 0 } };
++
++static const AVChannelLayout g711mulaw_ch_layouts[2] = { AV_CHANNEL_LAYOUT_MONO, { 0 } };
++
++static const AVChannelLayout g722_ch_layouts[2] = { AV_CHANNEL_LAYOUT_MONO, { 0 } };
++
++static const AVChannelLayout g726_ch_layouts[2] = { AV_CHANNEL_LAYOUT_MONO, { 0 } };
++
++static const AVChannelLayout aac_ch_layouts[3] = {
++    AV_CHANNEL_LAYOUT_MONO,
++    AV_CHANNEL_LAYOUT_STEREO,
++    { 0 },
++};
++
++#define ES_AUDIO_ENC(ctype, CTYPE)                                                                  \
++    static const AVClass es_##ctype##_encoder_class = {                                             \
++        .class_name = #ctype "_esaenc",                                                             \
++        .item_name = av_default_item_name,                                                          \
++        .option = ctype##_options,                                                                          \
++        .version = LIBAVUTIL_VERSION_INT,                                                           \
++    };                                                                                              \
++    const FFCodec ff_es_##ctype##_encoder = {                                                       \
++        .p.name = "es_" #ctype,                                                                     \
++        .p.long_name = NULL_IF_CONFIG_SMALL("Es " #ctype " encoder"),                               \
++        .p.type = AVMEDIA_TYPE_AUDIO,                                                               \
++        .p.id = AV_CODEC_ID_##CTYPE,                                                                \
++        .priv_data_size = sizeof(ESAENCContext),                                                    \
++        .p.priv_class = &es_##ctype##_encoder_class,                                                \
++        .init = ff_es_aenc_init,                                                                    \
++        .close = ff_es_aenc_close,                                                                  \
++        FF_CODEC_ENCODE_CB(ff_es_aenc_frame),                                                       \
++        .p.wrapper_name = "esaenc",                                                                 \
++        .p.sample_fmts = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_NONE },    \
++        .p.ch_layouts = ctype##_ch_layouts,                                                       \
++        .p.supported_samplerates = ctype##_sample_rates,                                          \
++    };
++
++ES_AUDIO_ENC(amrnb, AMR_NB)
++ES_AUDIO_ENC(amrwb, AMR_WB)
++ES_AUDIO_ENC(g711alaw, PCM_ALAW)
++ES_AUDIO_ENC(g711mulaw, PCM_MULAW)
++ES_AUDIO_ENC(g722, ADPCM_G722)
++ES_AUDIO_ENC(g726, ADPCM_G726)
++ES_AUDIO_ENC(aac, AAC)
++
+diff --git a/libavcodec/esmpp_comm.c b/libavcodec/esmpp_comm.c
+new file mode 100644
+index 0000000000..7d352c6f07
+--- /dev/null
++++ b/libavcodec/esmpp_comm.c
+@@ -0,0 +1,264 @@
++#include "esmpp_comm.h"
++#include "avcodec.h"
++
++#include "mpp_log.h"
++
++void esmpp_set_log_level() {
++    int level = av_log_get_level();
++
++    switch (level) {
++        case AV_LOG_PANIC:
++        case AV_LOG_FATAL:
++            mpp_set_log_level(MPP_LOG_FATAL);
++            break;
++        case AV_LOG_ERROR:
++            mpp_set_log_level(MPP_LOG_ERROR);
++            break;
++        case AV_LOG_WARNING:
++            mpp_set_log_level(MPP_LOG_WARN);
++            break;
++        case AV_LOG_INFO:
++            mpp_set_log_level(MPP_LOG_INFO);
++            break;
++        case AV_LOG_DEBUG:
++            mpp_set_log_level(MPP_LOG_DEBUG);
++            break;
++        case AV_LOG_TRACE:
++        case AV_LOG_VERBOSE:
++            mpp_set_log_level(MPP_LOG_VERBOSE);
++            break;
++        case AV_LOG_QUIET:
++            mpp_set_log_level(MPP_LOG_SILENT);
++            break;
++        default:
++            mpp_set_log_level(MPP_LOG_INFO);
++            break;
++    }
++}
++
++const char *esmpp_get_fmt_char(enum AVPixelFormat pix_fmt) {
++    switch (pix_fmt) {
++        case AV_PIX_FMT_YUV420P:
++            return "yuv420p";
++        case AV_PIX_FMT_NV12:
++            return "nv12";
++        case AV_PIX_FMT_NV21:
++            return "nv21";
++        case AV_PIX_FMT_UYVY422:
++            return "uyvy422";
++        case AV_PIX_FMT_YUYV422:
++            return "yuyv422";
++        case AV_PIX_FMT_YUV420P10LE:
++            return "I010";
++        case AV_PIX_FMT_P010LE:
++            return "p010";
++        default:
++            return "unknown";
++    }
++}
++
++#define STRIDE(variable, alignment) ((variable + alignment - 1) & (~(alignment - 1)))
++void esmpp_get_picsize(enum AVPixelFormat pix_fmt,
++                       uint32_t width,
++                       uint32_t height,
++                       uint32_t alignment,
++                       uint32_t *para_luma_size,
++                       uint32_t *para_chroma_size,
++                       uint32_t *para_picture_size) {
++    uint32_t luma_stride = 0, chroma_stride = 0;
++    uint32_t luma_size = 0, chroma_size = 0, picture_size = 0;
++
++    switch (pix_fmt) {
++        case AV_PIX_FMT_YUV420P:
++            luma_stride = STRIDE(width, alignment);
++            chroma_stride = STRIDE(width, alignment) / 2;
++            luma_size = luma_stride * height;
++            chroma_size = chroma_stride * height / 2 * 2;
++            break;
++        case AV_PIX_FMT_NV12:
++        case AV_PIX_FMT_NV21:
++            luma_stride = STRIDE(width, alignment);
++            chroma_stride = STRIDE(width, alignment);
++            luma_size = luma_stride * height;
++            chroma_size = chroma_stride * height / 2;
++            break;
++        case AV_PIX_FMT_UYVY422:
++        case AV_PIX_FMT_YUYV422:
++            luma_stride = STRIDE(width * 2, alignment);
++            chroma_stride = 0;
++            luma_size = luma_stride * height;
++            chroma_size = 0;
++            break;
++        case AV_PIX_FMT_YUV420P10LE:
++            luma_stride = STRIDE(width * 2, alignment);
++            chroma_stride = STRIDE(width / 2 * 2, alignment);
++            luma_size = luma_stride * height;
++            chroma_size = chroma_stride * height / 2 * 2;
++            break;
++        case AV_PIX_FMT_P010LE:
++            luma_stride = STRIDE(width * 2, alignment);
++            chroma_stride = STRIDE(width * 2, alignment);
++            luma_size = luma_stride * height;
++            chroma_size = chroma_stride * height / 2;
++            break;
++
++        default:
++            printf("not support this format\n");
++            chroma_size = luma_size = 0;
++            break;
++    }
++
++    picture_size = luma_size + chroma_size;
++    if (para_luma_size != NULL) *para_luma_size = luma_size;
++    if (para_chroma_size != NULL) *para_chroma_size = chroma_size;
++    if (para_picture_size != NULL) *para_picture_size = picture_size;
++}
++
++DumpHandle *esmpp_codec_dump_file_open(const char *dump_path, int duration, DumpParas *paras) {
++    DumpHandle *dump_handle = NULL;
++    char file_path[PATH_MAX];
++    time_t now;
++    char time_char[128];
++    struct tm *tm;
++    int ret;
++
++    if (!dump_path) {
++        av_log(NULL, AV_LOG_ERROR, "error !!! dump path is null\n");
++        return NULL;
++    }
++
++    if (!paras) {
++        av_log(NULL, AV_LOG_ERROR, "error !!! paras is null\n");
++        return NULL;
++    }
++
++    ret = access(dump_path, 0);
++    if (ret == -1) {
++        av_log(NULL, AV_LOG_INFO, "dump_path: %s does not exist\n", dump_path);
++        if (mkdir(dump_path, 0731) == -1) {
++            av_log(NULL, AV_LOG_ERROR, "create dump_path: %s failed errno: %d\n", dump_path, errno);
++            return NULL;
++        }
++    } else {
++        av_log(NULL, AV_LOG_INFO, "dump_path: %s exist\n", dump_path);
++    }
++
++    if (duration <= 0) {
++        av_log(NULL, AV_LOG_ERROR, "invalid dump_time: %d\n", duration);
++        return NULL;
++    }
++
++    // get local time
++    time(&now);
++    tm = localtime(&now);
++    strftime(time_char, sizeof(time_char), "%y%m%d%H%M%S", tm);
++
++    dump_handle = (DumpHandle *)malloc(sizeof(DumpHandle));
++    if (!dump_handle) {
++        av_log(NULL, AV_LOG_ERROR, "dump_handle malloc failed\n");
++        return NULL;
++    }
++
++    dump_handle->stop_dump_time = av_gettime_relative() + duration * 1000;
++
++    if (!paras->pic_stride && !paras->pic_stride_ch && !paras->fmt) {
++        snprintf(file_path,
++                 sizeof(file_path),
++                 "%s/%s_%s_%dms_%dx%d.%s",
++                 dump_path,
++                 paras->prefix_name,
++                 time_char,
++                 duration,
++                 paras->width,
++                 paras->height,
++                 paras->suffix_name);
++    } else if (!paras->pic_stride && !paras->pic_stride_ch) {
++        snprintf(file_path,
++                 sizeof(file_path),
++                 "%s/%s_%s_%dms_%dx%d_%s.%s",
++                 dump_path,
++                 paras->prefix_name,
++                 time_char,
++                 duration,
++                 paras->width,
++                 paras->height,
++                 paras->fmt,
++                 paras->suffix_name);
++    } else {
++        snprintf(file_path,
++                 sizeof(file_path),
++                 "%s/%s_%s_%s_%dms_%dx%d_%dx%d(stride)_%s.%s",
++                 dump_path,
++                 paras->prefix_name,
++                 paras->ppu_channel,
++                 time_char,
++                 duration,
++                 paras->width,
++                 paras->height,
++                 paras->pic_stride,
++                 paras->pic_stride_ch,
++                 paras->fmt,
++                 paras->suffix_name);
++    }
++
++    dump_handle->fp = fopen(file_path, "ab+");
++    if (dump_handle->fp) {
++        av_log(NULL, AV_LOG_INFO, "open %s success\n", file_path);
++    } else {
++        free(dump_handle);
++        av_log(NULL, AV_LOG_ERROR, "open %s failed\n", file_path);
++        return NULL;
++    }
++
++    return dump_handle;
++}
++
++int esmpp_codec_dump_file_close(DumpHandle **dump_handle) {
++    if (!dump_handle || !(*dump_handle)) {
++        return 0;
++    }
++    fflush((*dump_handle)->fp);
++    fclose((*dump_handle)->fp);
++    (*dump_handle)->fp = NULL;
++    free(*dump_handle);
++    *dump_handle = NULL;
++    return 0;
++}
++
++// if now_time > end_time, return 1
++int esmpp_codec_compara_timeb(int64_t end_time) {
++    int64_t now_time;
++    now_time = av_gettime_relative();
++
++    if ((now_time - end_time) > 0) {
++        return 1;
++    } else {
++        return 0;
++    }
++}
++
++int esmpp_codec_dump_bytes_to_file(void *data, int size, DumpHandle *dump_handle) {
++    int len = 0;
++
++    if (!dump_handle || !dump_handle->fp) {
++        av_log(NULL, AV_LOG_ERROR, " invalid dump_handle\n");
++        return FAILURE;
++    }
++
++    if (!data || size <= 0) {
++        return FAILURE;
++    }
++
++    if (esmpp_codec_compara_timeb(dump_handle->stop_dump_time) > 0) {
++        av_log(NULL, AV_LOG_INFO, "data dump stop\n");
++        return ERR_TIMEOUT;
++    } else {
++        len = fwrite(data, 1, size, dump_handle->fp);
++        fflush(dump_handle->fp);
++        if (len != size) {
++            av_log(NULL, AV_LOG_ERROR, "write data to file error !!! len: %d, data size: %d\n", len, size);
++        }
++    }
++
++    return len;
++}
+diff --git a/libavcodec/esmpp_comm.h b/libavcodec/esmpp_comm.h
+new file mode 100644
+index 0000000000..8888462a34
+--- /dev/null
++++ b/libavcodec/esmpp_comm.h
+@@ -0,0 +1,64 @@
++#ifndef AVCODEC_ESMPP_H
++#define AVCODEC_ESMPP_H
++
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <time.h>
++#include <sys/time.h>
++#include <linux/limits.h>
++
++#include "libavutil/time.h"
++#include <libavutil/frame.h>
++#include <libavutil/pixfmt.h>
++
++#ifndef SUCCESS
++#define SUCCESS (0)
++#endif
++
++#ifndef FAILURE
++#define FAILURE (-1)
++#endif
++
++#ifndef ERR_TIMEOUT
++#define ERR_TIMEOUT (-2)
++#endif
++
++typedef struct {
++    int width;
++    int height;
++    int pic_stride;    /**< picture stride for luma */
++    int pic_stride_ch; /**< picture stride for chroma */
++    char *ppu_channel;
++    const char *prefix_name;
++    const char *suffix_name;
++    const char *fmt;
++} DumpParas;
++
++typedef struct {
++    int64_t stop_dump_time;
++    FILE *fp;
++} DumpHandle;
++
++void esmpp_set_log_level();
++
++const char *esmpp_get_fmt_char(enum AVPixelFormat pix_fmt);
++
++DumpHandle *esmpp_codec_dump_file_open(const char *dump_path, int duration, DumpParas *paras);
++
++int esmpp_codec_compara_timeb(int64_t end_time);
++
++int esmpp_codec_dump_file_close(DumpHandle **dump_handle);
++
++int esmpp_codec_dump_bytes_to_file(void *data, int size, DumpHandle *dump_handle);
++
++void esmpp_get_picsize(enum AVPixelFormat pix_fmt,
++                       uint32_t width,
++                       uint32_t height,
++                       uint32_t alignment,
++                       uint32_t *para_luma_size,
++                       uint32_t *para_chroma_size,
++                       uint32_t *para_picture_size);
++
++#endif
+\ No newline at end of file
+diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
+new file mode 100644
+index 0000000000..0d74185a04
+--- /dev/null
++++ b/libavcodec/esmppdec.c
+@@ -0,0 +1,790 @@
++#include "config.h"
++#include "config_components.h"
++
++#include "esmppdec.h"
++#include "esmpp_comm.h"
++#include <mpp_frame.h>
++#include <mpp_vdec_cfg.h>
++
++typedef struct {
++    enum AVPixelFormat pixfmt;
++    uint32_t drm_format;
++    MppFrameFormat mppfmt;
++} PixToFmt;
++
++/* FIXME : FILLME */
++static const PixToFmt pixtofmttable[] = {{AV_PIX_FMT_NV12, DRM_FORMAT_NV12, MPP_FMT_NV12},
++                                         {AV_PIX_FMT_NV21, DRM_FORMAT_NV21, MPP_FMT_NV21},
++                                         {AV_PIX_FMT_YUV420P, DRM_FORMAT_YUV420, MPP_FMT_I420},
++                                         {AV_PIX_FMT_GRAY8, DRM_FORMAT_C8, MPP_FMT_GRAY8},
++                                         {AV_PIX_FMT_P010LE, DRM_FORMAT_P010, MPP_FMT_P010},
++                                         {AV_PIX_FMT_RGB24, DRM_FORMAT_RGB888, MPP_FMT_R8G8B8},
++                                         {AV_PIX_FMT_BGR24, DRM_FORMAT_BGR888, MPP_FMT_B8G8R8},
++                                         {AV_PIX_FMT_BGRA, DRM_FORMAT_BGRA8888, MPP_FMT_B8G8R8A8},
++                                         {AV_PIX_FMT_RGBA, DRM_FORMAT_RGBA8888, MPP_FMT_R8G8B8A8},
++                                         {AV_PIX_FMT_BGR0, DRM_FORMAT_BGRX8888, MPP_FMT_B8G8R8X8},
++                                         {AV_PIX_FMT_RGB0, DRM_FORMAT_RGBX8888, MPP_FMT_R8G8B8X8}};
++
++static MppFrameFormat ffmpeg_pixfmt_to_mpp_fmt(enum AVPixelFormat pixfmt) {
++    for (int i = 0; i < sizeof(pixtofmttable); i++) {
++        if (pixtofmttable[i].pixfmt == pixfmt) {
++            return pixtofmttable[i].mppfmt;
++        }
++    }
++
++    return MPP_FMT_BUTT;
++}
++
++static enum AVPixelFormat mpp_fmt_to_ffmpeg_pixfmt(MppFrameFormat mppfmt) {
++    for (int i = 0; i < sizeof(pixtofmttable); i++) {
++        if (pixtofmttable[i].mppfmt == mppfmt) {
++            return pixtofmttable[i].pixfmt;
++        }
++    }
++
++    return AV_PIX_FMT_NONE;
++}
++
++static uint32_t mpp_fmt_to_drm_format(MppFrameFormat mpp_fmt) {
++    for (int i = 0; i < sizeof(pixtofmttable); i++) {
++        if (pixtofmttable[i].mppfmt == mpp_fmt) {
++            return pixtofmttable[i].drm_format;
++        }
++    }
++
++    return AV_PIX_FMT_NONE;
++}
++
++static MppCodingType mpp_decode_get_coding_type(AVCodecContext *avctx) {
++    switch (avctx->codec_id) {
++        case AV_CODEC_ID_H264:
++            return MPP_VIDEO_CodingAVC;
++        case AV_CODEC_ID_HEVC:
++            return MPP_VIDEO_CodingHEVC;
++        default:
++            return MPP_VIDEO_CodingUnused;
++    }
++}
++
++static av_cold int mpp_decode_close(AVCodecContext *avctx) {
++    ESMPPDecContext *r = avctx->priv_data;
++
++    r->eof = 0;
++    r->draining = 0;
++    r->info_change = 0;
++    r->errinfo_cnt = 0;
++
++    if (r->mctx) {
++        esmpp_reset(r->mctx);
++        esmpp_close(r->mctx);
++        esmpp_destroy(r->mctx);
++        r->mctx = NULL;
++    }
++
++    if (r->hwframe) {
++        av_buffer_unref(&r->hwframe);
++    }
++    if (r->hwdevice) {
++        av_buffer_unref(&r->hwdevice);
++    }
++
++    if (r->buf_mode == ESMPP_DEC_PURE_EXTERNAL) {
++        av_log(NULL, AV_LOG_INFO, "close esmpp put buf_group: %p\n", r->buf_group);
++        mpp_buffer_group_put(r->buf_group);
++        r->buf_group = NULL;
++    }
++
++    return 0;
++}
++
++static int mpp_decode_get_crop(ESMPPDecContext *mpp_dec_ctx) {
++    if (!mpp_dec_ctx || !mpp_dec_ctx->crop) {
++        return -1;
++    }
++
++    if (sscanf(mpp_dec_ctx->crop,
++               "%dx%dx%dx%d",
++               &mpp_dec_ctx->crop_xoffset,
++               &mpp_dec_ctx->crop_yoffset,
++               &mpp_dec_ctx->crop_width,
++               &mpp_dec_ctx->crop_height)
++        != 4) {
++        return -1;
++    }
++
++    return 0;
++}
++
++static int mpp_decode_get_scale(ESMPPDecContext *mpp_dec_ctx) {
++    if (!mpp_dec_ctx || !mpp_dec_ctx->scale) {
++        return -1;
++    }
++
++    if (strchr(mpp_dec_ctx->scale, ':')) {
++        if (sscanf(mpp_dec_ctx->scale, "%d:%d", &mpp_dec_ctx->scale_width, &mpp_dec_ctx->scale_height) != 2) {
++            return -1;
++        }
++    } else {
++        mpp_dec_ctx->scale_width = mpp_dec_ctx->scale_height = atoi(mpp_dec_ctx->scale);
++    }
++
++    return 0;
++}
++
++static int mpp_decode_set_config(AVCodecContext *avctx) {
++    ES_S32 ret;
++    ES_S32 extra_hw_frames = 4;
++    MppDecCfgPtr dec_cfg;
++    MppFrameFormat mppfmt;
++    ESMPPDecContext *r = avctx->priv_data;
++
++    if ((ret = mpp_dec_cfg_init(&dec_cfg)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to init mpp_dec_cfg_ret: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        return ret;
++    } else {
++        av_log(avctx, AV_LOG_INFO, "success to init mpp_dec_cfg_ret: %d\n", ret);
++    }
++
++    ret = esmpp_control(r->mctx, MPP_DEC_GET_CFG, dec_cfg);
++    if (ret != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "get dec cfg failed ret: %d\n", ret);
++        mpp_dec_cfg_deinit(&dec_cfg);
++        return ret;
++    } else {
++        av_log(avctx, AV_LOG_INFO, "get dec cfg success ret: %d\n", ret);
++    }
++
++    if (avctx->extra_hw_frames > 0) {
++        extra_hw_frames = avctx->extra_hw_frames;
++    }
++    mpp_dec_cfg_set_s32(dec_cfg, "extra_hw_frames", extra_hw_frames);
++
++    mppfmt = ffmpeg_pixfmt_to_mpp_fmt(r->output_fmt);
++    if (mppfmt != MPP_FMT_BUTT) {
++        mpp_dec_cfg_set_s32(dec_cfg, "output_fmt", mppfmt);
++    }
++    if (r->stride_align) {
++        mpp_dec_cfg_set_s32(dec_cfg, "stride_align", r->stride_align);
++    }
++
++    // crop
++    if (!mpp_decode_get_crop(r)) {
++        mpp_dec_cfg_set_s32(dec_cfg, "crop_xoffset", r->crop_xoffset);
++        mpp_dec_cfg_set_s32(dec_cfg, "crop_yoffset", r->crop_yoffset);
++        mpp_dec_cfg_set_s32(dec_cfg, "crop_width", r->crop_width);
++        mpp_dec_cfg_set_s32(dec_cfg, "crop_height", r->crop_height);
++    }
++
++    // scale
++    if (!mpp_decode_get_scale(r)) {
++        mpp_dec_cfg_set_s32(dec_cfg, "scale_width", r->scale_width);
++        mpp_dec_cfg_set_s32(dec_cfg, "scale_height", r->scale_height);
++    }
++
++    ret = esmpp_control(r->mctx, MPP_DEC_SET_CFG, dec_cfg);
++    if (ret != MPP_OK) {
++        av_log(avctx,
++               AV_LOG_ERROR,
++               "mpp dec cfg failed extra_hw_frames: %d, mppfmt: %d\n",
++               avctx->extra_hw_frames,
++               mppfmt);
++    } else {
++        av_log(avctx,
++               AV_LOG_INFO,
++               "mpp dec cfg success extra_hw_frames: %d, mppfmt: %d\n",
++               avctx->extra_hw_frames,
++               mppfmt);
++    }
++    mpp_dec_cfg_deinit(&dec_cfg);
++
++    return ret;
++}
++
++static av_cold int mpp_decode_init(AVCodecContext *avctx) {
++    ESMPPDecContext *r = avctx->priv_data;
++    MppCodingType coding_type = MPP_VIDEO_CodingUnused;
++    const char *opts_env = NULL;
++    int ret;
++    enum AVPixelFormat pix_fmts[3] = {AV_PIX_FMT_DRM_PRIME, AV_PIX_FMT_NV12, AV_PIX_FMT_NONE};
++
++    esmpp_set_log_level();
++
++    opts_env = getenv("FFMPEG_ESMPP_DEC_OPT");
++    if (opts_env && av_set_options_string(r, opts_env, "=", " ") <= 0) {
++        av_log(avctx, AV_LOG_WARNING, "Unable to set decoder options from env opts_env: %s\n", opts_env);
++    }
++
++    av_log(avctx,
++           AV_LOG_INFO,
++           "opts_env: %s, avctx->pix_fmt: %d, buf_mod: %d, buf_cache_mode: %d\n",
++           opts_env,
++           avctx->pix_fmt,
++           r->buf_mode,
++           r->buf_cache_mode);
++
++    if (r->dfd) {
++        avctx->pix_fmt = AV_PIX_FMT_DRM_PRIME;
++    }
++
++    if (avctx->pix_fmt != AV_PIX_FMT_DRM_PRIME) {
++        pix_fmts[1] = r->output_fmt;
++        if ((ret = ff_get_format(avctx, pix_fmts)) < 0) {
++            av_log(
++                avctx, AV_LOG_ERROR, "ff_get_format failed: %d, pixfmt: %s\n", ret, av_get_pix_fmt_name(r->output_fmt));
++            return ret;
++        }
++        avctx->pix_fmt = ret;
++    } else {
++        avctx->sw_pix_fmt = r->output_fmt;
++    }
++
++    if ((coding_type = mpp_decode_get_coding_type(avctx)) == MPP_VIDEO_CodingUnused) {
++        av_log(avctx, AV_LOG_ERROR, "Unknown codec id: %d\n", avctx->codec_id);
++        return AVERROR(ENOSYS);
++    }
++
++    if ((ret = esmpp_create(&r->mctx, MPP_CTX_DEC, coding_type)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to create MPP context and api: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if ((ret = esmpp_init(r->mctx)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to init esmpp ret %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if (avctx->hw_device_ctx) {
++        r->hwdevice = av_buffer_ref(avctx->hw_device_ctx);
++        if (!r->hwdevice) {
++            ret = AVERROR(ENOMEM);
++            goto fail;
++        }
++        av_log(avctx, AV_LOG_VERBOSE, "Picked up an existing ESMPP hardware device\n");
++    } else {
++        int flags = MPP_BUFFER_TYPE_DMA_HEAP;
++        if (avctx->pix_fmt != AV_PIX_FMT_DRM_PRIME) {
++            if (r->buf_cache_mode == ESMPP_DEC_DMA_CACHE) {
++                flags |= MPP_BUFFER_FLAGS_CACHABLE;
++            }
++        }
++        if ((ret = av_hwdevice_ctx_create(&r->hwdevice, AV_HWDEVICE_TYPE_ESMPP, "esmpp", NULL, flags)) < 0) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to create a ESMPP hardware device: %d\n", ret);
++            goto fail;
++        }
++        av_log(avctx, AV_LOG_VERBOSE, "Created a ESMPP hardware device\n");
++    }
++
++    ret = mpp_decode_set_config(avctx);
++    if (ret != MPP_OK) {
++        ret = MPP_OK;
++        av_log(avctx, AV_LOG_WARNING, "mpp_decode_set_config failed\n");
++    }
++
++    if ((ret = esmpp_open(r->mctx)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to esmpp_open: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    return 0;
++
++fail:
++    mpp_decode_close(avctx);
++    return ret;
++}
++
++static int mpp_decode_set_buffer_group(AVCodecContext *avctx, enum AVPixelFormat pix_fmt, MppFramePtr mpp_frame) {
++    int ret;
++    int group_limit;
++    ESMPPDecContext *r = avctx->priv_data;
++    AVHWFramesContext *hwfc = NULL;
++    AVESMPPFramesContext *mppfc;
++
++    if (!r->hwdevice) {
++        return AVERROR(ENOMEM);
++    }
++
++    av_buffer_unref(&r->hwframe);
++
++    r->hwframe = av_hwframe_ctx_alloc(r->hwdevice);
++    if (!r->hwframe) {
++        return AVERROR(ENOMEM);
++    }
++
++    hwfc = (AVHWFramesContext *)r->hwframe->data;
++    hwfc->format = AV_PIX_FMT_DRM_PRIME;
++    hwfc->sw_format = pix_fmt;
++    hwfc->width = mpp_frame_get_width(mpp_frame);
++    hwfc->height = mpp_frame_get_height(mpp_frame);
++    group_limit = mpp_frame_get_group_buf_count(mpp_frame);
++
++    mppfc = hwfc->hwctx;
++    if (r->buf_mode != ESMPP_DEC_PURE_EXTERNAL) {
++        if ((ret = av_hwframe_ctx_init(r->hwframe)) < 0) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to init ESMPP frame pool\n");
++            goto fail;
++        }
++        r->buf_group = mppfc->buf_group;
++        goto attach;
++    } else {
++        mppfc->buf_size = mpp_frame_get_buf_size(mpp_frame);
++    }
++
++    hwfc->initial_pool_size = group_limit;
++    if ((ret = av_hwframe_ctx_init(r->hwframe)) < 0) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to init ESMPP frame pool\n");
++        goto fail;
++    }
++
++    if (r->buf_group) {
++        if ((ret = mpp_buffer_group_clear(r->buf_group)) != MPP_OK) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to clear external buffer group: %d\n", ret);
++            ret = AVERROR_EXTERNAL;
++            goto fail;
++        }
++    } else {
++        if ((ret = mpp_buffer_group_get_external(&r->buf_group, MPP_BUFFER_TYPE_DMA_HEAP)) != MPP_OK) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to get external buffer group: %d\n", ret);
++            ret = AVERROR_EXTERNAL;
++            goto fail;
++        }
++    }
++
++    for (int i = 0; i < hwfc->initial_pool_size; i++) {
++        AVESMPPFramesContext *esmpp_fc = hwfc->hwctx;
++        MppBufferInfo buf_info = {
++            .index = i,
++            .type = MPP_BUFFER_TYPE_DMA_HEAP,
++            .ptr = mpp_buffer_get_ptr(esmpp_fc->frames[i].buffers[0]),
++            .fd = esmpp_fc->frames[i].drm_desc.objects[0].fd,
++            .size = esmpp_fc->frames[i].drm_desc.objects[0].size,
++        };
++
++        if ((ret = mpp_buffer_commit(r->buf_group, &buf_info)) != MPP_OK) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to commit external buffer group: %d\n", ret);
++            ret = AVERROR_EXTERNAL;
++            goto fail;
++        }
++    }
++
++attach:
++    if ((ret = esmpp_control(r->mctx, MPP_DEC_SET_EXT_BUF_GROUP, r->buf_group)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to attach external buffer group: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if (r->buf_mode == ESMPP_DEC_HALF_INTERNAL) {
++        if ((ret = mpp_buffer_group_limit_config(r->buf_group, 0, group_limit)) != MPP_OK)
++            av_log(avctx, AV_LOG_WARNING, "Failed to set buffer group limit: %d\n", ret);
++    }
++
++    return 0;
++
++fail:
++    if (r->buf_group) {
++        mpp_buffer_group_put(r->buf_group);
++        r->buf_group = NULL;
++    }
++    av_buffer_unref(&r->hwframe);
++    return ret;
++}
++
++static void mpp_decode_free_mpp_buffer(void *opaque, uint8_t *data) {
++    MppBufferPtr mpp_buffer = (MppBufferPtr)opaque;
++    mpp_buffer_put(mpp_buffer);
++
++    av_log(NULL, AV_LOG_DEBUG, "free_mpp_buffer mpp_buffer: %p\n", mpp_buffer);
++}
++
++static void esmpp_free_mpp_frame(void *opaque, uint8_t *data) {
++    MppFramePtr mpp_frame = (MppFramePtr)opaque;
++    mpp_frame_deinit(&mpp_frame);
++}
++
++static void esmpp_free_drm_desc(void *opaque, uint8_t *data) {
++    AVESMPPDRMFrameDescriptor *drm_desc = (AVESMPPDRMFrameDescriptor *)opaque;
++    av_free(drm_desc);
++}
++
++static int frame_create_buf(
++    AVFrame *frame, uint8_t *data, int size, void (*free)(void *opaque, uint8_t *data), void *opaque, int flags) {
++    int i;
++
++    for (i = 0; i < AV_NUM_DATA_POINTERS; i++) {
++        if (!frame->buf[i]) {
++            frame->buf[i] = av_buffer_create(data, size, free, opaque, flags);
++            return frame->buf[i] ? 0 : AVERROR(ENOMEM);
++        }
++    }
++    return AVERROR(EINVAL);
++}
++
++static int mpp_decode_export_frame(AVCodecContext *avctx, AVFrame *frame, MppFramePtr mpp_frame) {
++    int ret;
++    ESMPPDecContext *r = avctx->priv_data;
++    MppBufferPtr mpp_buf = NULL;
++    MppFrameFormat mpp_fmt = MPP_FMT_BUTT;
++    int nb_planes, *offset, *stride;
++    AVESMPPDRMFrameDescriptor *desc = NULL;
++    AVDRMLayerDescriptor *layer = NULL;
++    const AVPixFmtDescriptor *pix_desc;
++
++    if (!frame || !mpp_frame) {
++        return AVERROR(ENOMEM);
++    }
++
++    mpp_buf = mpp_frame_get_buffer(mpp_frame);
++    if (!mpp_buf) {
++        return AVERROR(EAGAIN);
++    }
++
++    mpp_fmt = mpp_frame_get_fmt(mpp_frame);
++    nb_planes = mpp_frame_get_nb_planes(mpp_frame);
++    if (nb_planes <= 0) {
++        return AVERROR(EAGAIN);
++    }
++    offset = mpp_frame_get_offset(mpp_frame);
++    stride = mpp_frame_get_stride(mpp_frame);
++    if (!offset || !stride) {
++        return AVERROR(EAGAIN);
++    }
++
++    desc = av_mallocz(sizeof(*desc));
++    if (!desc) {
++        return AVERROR(ENOMEM);
++    }
++    desc->drm_desc.nb_objects = 1;
++    desc->buffers[0] = mpp_buf;
++
++    mpp_buffer_inc_ref(mpp_buf);
++
++    desc->drm_desc.objects[0].fd = mpp_buffer_get_fd(mpp_buf);
++    desc->drm_desc.objects[0].size = mpp_buffer_get_size(mpp_buf);
++
++    desc->drm_desc.nb_layers = 1;
++    layer = &desc->drm_desc.layers[0];
++    layer->planes[0].object_index = 0;
++
++    layer->format = mpp_fmt_to_drm_format(mpp_fmt);
++    layer->nb_planes = nb_planes;
++    for (int i = 0; i < nb_planes; i++) {
++        layer->planes[i].object_index = 0;
++        layer->planes[i].offset = offset[i];
++        layer->planes[i].pitch = stride[i];
++    }
++
++    ret =
++        frame_create_buf(frame, mpp_buf, sizeof(mpp_buf), mpp_decode_free_mpp_buffer, mpp_buf, AV_BUFFER_FLAG_READONLY);
++    if (ret < 0) {
++        return ret;
++    }
++
++    ret = frame_create_buf(frame, (uint8_t *)desc, sizeof(*desc), esmpp_free_drm_desc, desc, AV_BUFFER_FLAG_READONLY);
++    if (ret < 0) {
++        return ret;
++    }
++
++    frame->data[0] = (uint8_t *)desc;
++
++    frame->hw_frames_ctx = av_buffer_ref(r->hwframe);
++    if (!frame->hw_frames_ctx) {
++        return AVERROR(ENOMEM);
++    }
++
++    if ((ret = ff_decode_frame_props(avctx, frame)) < 0) {
++        av_log(avctx, AV_LOG_WARNING, "ff_decode_frame_props failed\n");
++        return ret;
++    }
++
++    frame->format = AV_PIX_FMT_DRM_PRIME;
++    frame->width = mpp_frame_get_width(mpp_frame);
++    frame->height = mpp_frame_get_height(mpp_frame);
++    frame->pts = mpp_frame_get_pts(mpp_frame);
++    frame->pkt_dts = mpp_frame_get_dts(mpp_frame);
++    frame->time_base = avctx->pkt_timebase;
++
++    return 0;
++}
++
++static int mpp_decode_get_frame(AVCodecContext *avctx, AVFrame *frame, int timeout) {
++    int ret;
++    ESMPPDecContext *r = avctx->priv_data;
++    MppFramePtr mpp_frame = NULL;
++    AVFrame *tmp_frame = NULL;
++
++    if (r->eof) {
++        return AVERROR_EOF;
++    }
++
++    ret = esmpp_get_frame(r->mctx, &mpp_frame, timeout);
++    if (ret != MPP_OK && ret != MPP_ERR_TIMEOUT) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to get frame: %d\n", ret);
++        return AVERROR_EXTERNAL;
++    }
++    if (!mpp_frame) {
++        if (timeout != MPP_TIMEOUT_NON_BLOCK) {
++            av_log(avctx, AV_LOG_DEBUG, "Timeout getting decoded frame\n");
++        }
++        return AVERROR(EAGAIN);
++    }
++    av_log(avctx, AV_LOG_DEBUG, "Received mpp_frame: %p\n", mpp_frame);
++    if (mpp_frame_get_eos(mpp_frame)) {
++        av_log(avctx, AV_LOG_INFO, "Received a 'EOS' frame\n");
++        /* EOS frame may contain valid data */
++        if (!mpp_frame_get_buffer(mpp_frame)) {
++            r->eof = 1;
++            ret = AVERROR_EOF;
++            goto exit;
++        }
++    }
++
++    if (mpp_frame_get_errinfo(mpp_frame)) {
++        av_log(avctx, AV_LOG_DEBUG, "Received a 'errinfo' frame\n");
++        ret = (r->errinfo_cnt++ > MAX_ERRINFO_COUNT) ? AVERROR_EXTERNAL : AVERROR(EAGAIN);
++        goto exit;
++    }
++
++    if (r->info_change = mpp_frame_get_info_change(mpp_frame)) {
++        char *opts = NULL;
++        enum AVPixelFormat frame_fmt;
++        const MppFrameFormat mpp_fmt = mpp_frame_get_fmt(mpp_frame);
++
++        av_log(avctx, AV_LOG_VERBOSE, "Noticed an info change\n");
++
++        frame_fmt = mpp_fmt_to_ffmpeg_pixfmt(mpp_fmt & MPP_FRAME_FMT_MASK);
++        if (frame_fmt == AV_PIX_FMT_NONE) {
++            av_log(avctx, AV_LOG_ERROR, "error frame mpp_fmt fmt: %d\n", mpp_fmt);
++            goto exit;
++        }
++
++        if (avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME)
++            avctx->sw_pix_fmt = frame_fmt;
++        else {
++            avctx->pix_fmt = frame_fmt;
++        }
++
++        avctx->width = mpp_frame_get_width(mpp_frame);
++        avctx->height = mpp_frame_get_height(mpp_frame);
++        avctx->coded_width = FFALIGN(avctx->width, r->stride_align);
++        avctx->coded_height = avctx->height;
++
++        av_log(avctx,
++               AV_LOG_DEBUG,
++               "info change, mpp_fmt: %d, frame_fmt: %d, pix_fmt: %d\n",
++               mpp_fmt,
++               frame_fmt,
++               avctx->pix_fmt);
++
++        if (av_opt_serialize(r, 0, 0, &opts, '=', ' ') >= 0) {
++            av_log(avctx, AV_LOG_VERBOSE, "Decoder options: %s\n", opts);
++        }
++
++        av_log(avctx,
++               AV_LOG_VERBOSE,
++               "Configured with size: %dx%d | pix_fmt: %s | sw_pix_fmt: %s\n",
++               avctx->width,
++               avctx->height,
++               av_get_pix_fmt_name(avctx->pix_fmt),
++               av_get_pix_fmt_name(avctx->sw_pix_fmt));
++
++        if ((ret = mpp_decode_set_buffer_group(avctx, frame_fmt, mpp_frame)) < 0) {
++            goto exit;
++        }
++
++        if ((ret = esmpp_control(r->mctx, MPP_DEC_SET_INFO_CHANGE_READY, NULL)) != MPP_OK) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to set info change ready: %d\n", ret);
++            ret = AVERROR_EXTERNAL;
++            goto exit;
++        }
++        goto exit;
++    } else {
++        av_log(avctx, AV_LOG_DEBUG, "Received a frame\n");
++        r->errinfo_cnt = 0;
++
++        if (avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME) {
++            ret = mpp_decode_export_frame(avctx, frame, mpp_frame);
++            if (ret < 0) {
++                goto exit;
++            }
++        } else {
++            tmp_frame = av_frame_alloc();
++            if (!tmp_frame) {
++                ret = AVERROR(ENOMEM);
++                goto exit;
++            }
++            if ((ret = mpp_decode_export_frame(avctx, tmp_frame, mpp_frame)) < 0) {
++                goto exit;
++            }
++            frame->format = avctx->pix_fmt;
++            frame->width = tmp_frame->width;
++            frame->height = tmp_frame->height;
++            if (avctx->get_buffer2 == avcodec_default_get_buffer2) {
++                ret = av_hwframe_map(frame, tmp_frame, AV_HWFRAME_MAP_READ);
++                if (ret < 0) {
++                    av_log(avctx, AV_LOG_ERROR, "av_hwframe_map failed: %d\n", ret);
++                }
++            } else {
++                if ((ret = ff_get_buffer(avctx, frame, 0)) < 0) {
++                    av_log(avctx, AV_LOG_ERROR, "ff_get_buffer failed: %d\n", ret);
++                    goto exit;
++                }
++                if ((ret = av_hwframe_transfer_data(frame, tmp_frame, 0)) < 0) {
++                    av_log(avctx, AV_LOG_ERROR, "av_hwframe_transfer_data failed: %d\n", ret);
++                    goto exit;
++                }
++                if ((ret = av_frame_copy_props(frame, tmp_frame)) < 0) {
++                    av_log(avctx, AV_LOG_ERROR, "av_frame_copy_props failed: %d\n", ret);
++                    goto exit;
++                }
++            }
++        }
++    }
++
++exit:
++    if (mpp_frame) {
++        mpp_frame_deinit(&mpp_frame);
++    }
++    if (tmp_frame) {
++        av_frame_free(&tmp_frame);
++    }
++    return ret;
++}
++
++static int mpp_decode_send_eos(AVCodecContext *avctx) {
++    ESMPPDecContext *r = avctx->priv_data;
++    MppPacketPtr mpp_pkt = NULL;
++    int ret;
++
++    if ((ret = mpp_packet_init(&mpp_pkt, NULL, 0)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to init 'EOS' packet: %d\n", ret);
++        return AVERROR_EXTERNAL;
++    }
++    mpp_packet_set_eos(mpp_pkt);
++
++    ret = esmpp_put_packet(r->mctx, mpp_pkt);
++    if (ret != MPP_OK) {
++        av_log(avctx, AV_LOG_WARNING, "send eos failed ret: %d\n", ret);
++    } else {
++        av_log(avctx, AV_LOG_WARNING, "send eos success\n");
++    }
++    r->draining = 1;
++
++    mpp_packet_deinit(&mpp_pkt);
++    return 0;
++}
++
++static int mpp_decode_send_packet(AVCodecContext *avctx, AVPacket *pkt) {
++    int ret;
++    ESMPPDecContext *r = avctx->priv_data;
++    MppPacketPtr mpp_pkt = NULL;
++
++    /* avoid sending new data after EOS */
++    if (r->draining) {
++        return AVERROR(EOF);
++    }
++
++    if ((ret = mpp_packet_init(&mpp_pkt, pkt->data, pkt->size)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to init packet: %d\n", ret);
++        return AVERROR_EXTERNAL;
++    }
++    mpp_packet_set_pts(mpp_pkt, pkt->pts);
++    mpp_packet_set_dts(mpp_pkt, pkt->dts);
++
++    if ((ret = esmpp_put_packet(r->mctx, mpp_pkt)) != MPP_OK) {
++        av_log(avctx, AV_LOG_DEBUG, "Decoder buffer is full\n");
++        ret = AVERROR(EAGAIN);
++    } else {
++        av_log(avctx, AV_LOG_DEBUG, "Wrote %d bytes to decoder\n", pkt->size);
++    }
++    mpp_packet_deinit(&mpp_pkt);
++
++    return ret;
++}
++
++static int mpp_decode_receive_frame(AVCodecContext *avctx, AVFrame *frame) {
++    ESMPPDecContext *r = avctx->priv_data;
++    AVPacket *pkt = &r->last_pkt;
++    int ret = 0;
++
++    if (r->info_change && !r->buf_group) {
++        return AVERROR_EOF;
++    }
++
++    /* no more frames after EOS */
++    if (r->eof) {
++        return AVERROR_EOF;
++    }
++
++    /* drain remain frames */
++    if (r->draining) {
++        ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_BLOCK);
++        goto exit;
++    }
++
++    while (1) {
++        if (!pkt->size) {
++            ret = ff_decode_get_packet(avctx, pkt);
++            if (ret == AVERROR_EOF) {
++                av_log(avctx, AV_LOG_INFO, "Decoder is at EOF\n");
++                /* send EOS and start draining */
++                mpp_decode_send_eos(avctx);
++                ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_BLOCK);
++                goto exit;
++            } else if (ret == AVERROR(EAGAIN)) {
++                /* not blocking so that we can feed data ASAP */
++                ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_NON_BLOCK);
++                goto exit;
++            } else if (ret < 0) {
++                av_log(avctx, AV_LOG_ERROR, "Decoder failed to get packet: %d\n", ret);
++                goto exit;
++            }
++        }
++
++        /* send pending data to decoder */
++        ret = mpp_decode_send_packet(avctx, pkt);
++        if (ret == AVERROR(EAGAIN)) {
++            /* some streams might need more packets to start returning frames */
++            ret = mpp_decode_get_frame(avctx, frame, 10000);
++            if (ret != AVERROR(EAGAIN)) {
++                goto exit;
++            }
++        } else if (ret < 0) {
++            av_log(avctx, AV_LOG_ERROR, "Decoder failed to send packet: %d\n", ret);
++            goto exit;
++        } else {
++            ret = mpp_decode_get_frame(avctx, frame, 10000);
++            av_packet_unref(pkt);
++            pkt->size = 0;
++            goto exit;
++        }
++    }
++
++exit:
++    if (r->draining && ret == AVERROR(EAGAIN)) {
++        ret = AVERROR_EOF;
++    }
++    return ret;
++}
++
++static void mpp_decode_flush(AVCodecContext *avctx) {
++    ESMPPDecContext *r = avctx->priv_data;
++    int ret;
++
++    av_log(avctx, AV_LOG_INFO, "Decoder flushing\n");
++
++    if ((ret = esmpp_reset(r->mctx)) == MPP_OK) {
++        r->eof = 0;
++        r->draining = 0;
++        r->info_change = 0;
++        r->errinfo_cnt = 0;
++        av_packet_unref(&r->last_pkt);
++    } else
++        av_log(avctx, AV_LOG_ERROR, "Failed to reset MPP context: %d\n", ret);
++}
++
++DEFINE_ESMPP_DECODER(h264, H264, "h264_mp4toannexb")
++DEFINE_ESMPP_DECODER(hevc, HEVC, "hevc_mp4toannexb")
+diff --git a/libavcodec/esmppdec.h b/libavcodec/esmppdec.h
+new file mode 100644
+index 0000000000..94fb3d74d7
+--- /dev/null
++++ b/libavcodec/esmppdec.h
+@@ -0,0 +1,176 @@
++#ifndef AVCODEC_ESMPPDEC_H
++#define AVCODEC_ESMPPDEC_H
++
++#include <es_mpp.h>
++#include <mpp_buffer.h>
++
++#include "codec_internal.h"
++#include "decode.h"
++#include "hwconfig.h"
++#include "internal.h"
++
++#include "libavutil/hwcontext_esmpp.h"
++#include "libavutil/mastering_display_metadata.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++
++#define MAX_ERRINFO_COUNT 100
++
++typedef struct ESMPPDecContext {
++    AVClass *class;
++
++    MppCtxPtr mctx;
++    MppBufferGroupPtr buf_group;
++
++    AVBufferRef *hwdevice;
++    AVBufferRef *hwframe;
++
++    AVPacket last_pkt;
++    int eof;
++    int draining;
++    int info_change;
++    int errinfo_cnt;
++
++    int deint;
++    int buf_mode;
++    int output_fmt;
++    int stride_align;
++    int buf_cache_mode;
++    int dfd;
++    // crop
++    char *crop;
++    int crop_xoffset;
++    int crop_yoffset;
++    int crop_width;
++    int crop_height;
++
++    // scale
++    char *scale;
++    int scale_width;
++    int scale_height;
++} ESMPPDecContext;
++
++enum {
++    ESMPP_DEC_HALF_INTERNAL = 0,
++    ESMPP_DEC_PURE_EXTERNAL = 1,
++};
++
++enum {
++    ESMPP_DEC_DMA_UNCACHE = 0,
++    ESMPP_DEC_DMA_CACHE = 1,
++};
++
++static const AVRational mpp_tb = {1, 1000000};
++
++#define PTS_TO_MPP_PTS(pts, pts_tb) ((pts_tb.num && pts_tb.den) ? av_rescale_q(pts, pts_tb, mpp_tb) : pts)
++
++#define MPP_PTS_TO_PTS(mpp_pts, pts_tb) ((pts_tb.num && pts_tb.den) ? av_rescale_q(mpp_pts, mpp_tb, pts_tb) : mpp_pts)
++
++#define OFFSET(x) offsetof(ESMPPDecContext, x)
++#define VD (AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
++
++static const AVOption options[] = {
++    {"stride_align", "set out stride", OFFSET(stride_align), AV_OPT_TYPE_INT, {.i64 = 64}, 1, 1024, VD},
++    {"buf_mode",
++     "Set the buffer mode for MPP decoder",
++     OFFSET(buf_mode),
++     AV_OPT_TYPE_INT,
++     {.i64 = ESMPP_DEC_HALF_INTERNAL},
++     0,
++     1,
++     VD,
++     "buf_mode"},
++    {"half", "Half internal mode", 0, AV_OPT_TYPE_CONST, {.i64 = ESMPP_DEC_HALF_INTERNAL}, 0, 0, VD, "buf_mode"},
++    {"ext", "Pure external mode", 0, AV_OPT_TYPE_CONST, {.i64 = ESMPP_DEC_PURE_EXTERNAL}, 0, 0, VD, "buf_mode"},
++    {"dec_pixfmt",
++     "set decode output pixfmt",
++     OFFSET(output_fmt),
++     AV_OPT_TYPE_INT,
++     {.i64 = AV_PIX_FMT_YUV420P},
++     0,
++     INT_MAX,
++     VD,
++     "dec_pixfmt"},
++    {"nv12", "nv12", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_NV12}, 0, 0, VD, "dec_pixfmt"},
++    {"nv21", "nv21", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_NV21}, 0, 0, VD, "dec_pixfmt"},
++    {"yuv420p", "yuv420p", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_YUV420P}, 0, 0, VD, "dec_pixfmt"},
++    {"gray", "gray", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_GRAY8}, 0, 0, VD, "dec_pixfmt"},
++    {"p010le", "p010le", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_P010LE}, 0, 0, VD, "dec_pixfmt"},
++    {"rgb", "rgb", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_RGB24}, 0, 0, VD, "dec_pixfmt"},
++    {"bgr", "bgr", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_BGR24}, 0, 0, VD, "dec_pixfmt"},
++    {"bgra", "bgra", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_BGRA}, 0, 0, VD, "dec_pixfmt"},
++    {"rgba", "rgba", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_RGBA}, 0, 0, VD, "dec_pixfmt"},
++    {"bgr0", "bgr0", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_BGR0}, 0, 0, VD, "dec_pixfmt"},
++    {"rgb0", "rgb0", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_RGB0}, 0, 0, VD, "dec_pixfmt"},
++    {"buf_cache_mode",
++     "Set the buffer cache mode for MPP decoder",
++     OFFSET(buf_cache_mode),
++     AV_OPT_TYPE_INT,
++     {.i64 = ESMPP_DEC_DMA_CACHE},
++     0,
++     1,
++     VD,
++     "buf_cache_mode"},
++    {"uncache", "uncache mode", 0, AV_OPT_TYPE_CONST, {.i64 = ESMPP_DEC_DMA_UNCACHE}, 0, 0, VD, "buf_cache_mode"},
++    {"cache", "cache mode", 0, AV_OPT_TYPE_CONST, {.i64 = ESMPP_DEC_DMA_CACHE}, 0, 0, VD, "buf_cache_mode"},
++    {"crop", "crop (xoffset)x(yoffset)x(width)x(height)", OFFSET(crop), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VD},
++    {"scale", "width:height or ratio_x:ratio_y", OFFSET(scale), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VD},
++    {"dfd", "force drm format output", OFFSET(dfd), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VD},
++    {NULL}};
++
++static const enum AVPixelFormat mpp_dec_pix_fmts[] = {
++    AV_PIX_FMT_DRM_PRIME,
++    AV_PIX_FMT_NV12,
++    AV_PIX_FMT_NV21,
++    AV_PIX_FMT_YUV420P,
++    AV_PIX_FMT_GRAY8,
++    AV_PIX_FMT_P010LE,
++    AV_PIX_FMT_RGB24,
++    AV_PIX_FMT_BGR24,
++    AV_PIX_FMT_BGRA,
++    AV_PIX_FMT_RGBA,
++    AV_PIX_FMT_BGR0,
++    AV_PIX_FMT_RGB0,
++    AV_PIX_FMT_NONE,
++};
++
++static const AVCodecHWConfigInternal *const mpp_dec_hw_configs[] = {
++    &(const AVCodecHWConfigInternal){
++        .public =
++            {
++                .pix_fmt = AV_PIX_FMT_DRM_PRIME,
++                .methods = AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX | AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX
++                           | AV_CODEC_HW_CONFIG_METHOD_INTERNAL,
++                .device_type = AV_HWDEVICE_TYPE_ESMPP,
++            },
++        .hwaccel = NULL,
++    },
++    NULL};
++
++#define DEFINE_ESMPP_DECODER(x, X, bsf_name)                                                       \
++    static const AVClass x##_esmpp_decoder_class = {                                               \
++        .class_name = #x "_esmpp_decoder",                                                         \
++        .item_name = av_default_item_name,                                                         \
++        .option = options,                                                                         \
++        .version = LIBAVUTIL_VERSION_INT,                                                          \
++    };                                                                                             \
++    const FFCodec ff_##x##_esmpp_decoder = {                                                       \
++        .p.name = #x "_esmppvdec",                                                                 \
++        .p.long_name = NULL_IF_CONFIG_SMALL("Eswin " #x " video decoder"),                         \
++        .p.type = AVMEDIA_TYPE_VIDEO,                                                              \
++        .p.id = AV_CODEC_ID_##X,                                                                   \
++        .priv_data_size = sizeof(ESMPPDecContext),                                                 \
++        .p.priv_class = &x##_esmpp_decoder_class,                                                  \
++        .init = mpp_decode_init,                                                                   \
++        .close = mpp_decode_close,                                                                 \
++        FF_CODEC_RECEIVE_FRAME_CB(mpp_decode_receive_frame),                                       \
++        .flush = mpp_decode_flush,                                                                 \
++        .bsfs = bsf_name,                                                                          \
++        .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_AVOID_PROBING | AV_CODEC_CAP_HARDWARE, \
++        .caps_internal = FF_CODEC_CAP_NOT_INIT_THREADSAFE | FF_CODEC_CAP_SETS_FRAME_PROPS,         \
++        .p.pix_fmts = mpp_dec_pix_fmts,                                                            \
++        .hw_configs = mpp_dec_hw_configs,                                                          \
++        .p.wrapper_name = "esmpp",                                                                 \
++    };
++
++#endif /* AVCODEC_ESMPPDEC_H */
+diff --git a/libavcodec/esmppenc.c b/libavcodec/esmppenc.c
+new file mode 100644
+index 0000000000..eac38b4a07
+--- /dev/null
++++ b/libavcodec/esmppenc.c
+@@ -0,0 +1,1052 @@
++#include "config_components.h"
++#include "esmppenc.h"
++#include <es_venc_def.h>
++#include <es_comm_video.h>
++
++#include "libavutil/imgutils.h"
++
++static MppCodingType esmpp_get_coding_type(AVCodecContext *avctx) {
++    switch (avctx->codec_id) {
++        case AV_CODEC_ID_H264:
++            return MPP_VIDEO_CodingAVC;
++        case AV_CODEC_ID_HEVC:
++            return MPP_VIDEO_CodingHEVC;
++        case AV_CODEC_ID_MJPEG:
++            return MPP_VIDEO_CodingMJPEG;
++        default:
++            return MPP_VIDEO_CodingUnused;
++    }
++}
++
++static MppFrameFormat esmpp_get_mpp_fmt(enum AVPixelFormat pix_fmt) {
++    switch (pix_fmt) {
++        case AV_PIX_FMT_YUV420P:
++            return MPP_FMT_I420;
++        case AV_PIX_FMT_NV12:
++            return MPP_FMT_NV12;
++        case AV_PIX_FMT_NV21:
++            return MPP_FMT_NV21;
++        case AV_PIX_FMT_YUYV422:
++            return MPP_FMT_YUY2;
++        case AV_PIX_FMT_UYVY422:
++            return MPP_FMT_UYVY;
++        case AV_PIX_FMT_YUV420P10LE:
++            return MPP_FMT_I010;
++        case AV_PIX_FMT_P010LE:
++            return MPP_FMT_P010;
++        // MPP_FMT_YV12 TODO: how about this one?
++        default:
++            return MPP_FMT_BUTT;
++    }
++}
++
++static unsigned get_used_frame_count(MPPEncFrame *list) {
++    unsigned count = 0;
++
++    while (list) {
++        if (list->queued == 1 && (list->frame || list->mpp_frame)) ++count;
++        list = list->next;
++    }
++
++    return count;
++}
++
++static void clear_unused_frames(MPPEncFrame *list) {
++    while (list) {
++        if (list->queued == 1) {
++            MppFramePtr mpp_frame = list->mpp_frame;
++            MppBufferPtr mpp_buf = NULL;
++
++            if (mpp_frame) mpp_buf = mpp_frame_get_buffer(mpp_frame);
++
++            if (mpp_buf && mpp_buffer_get_index(mpp_buf) < 0) {
++                mpp_buffer_put(mpp_buf);
++
++                mpp_frame_deinit(&list->mpp_frame);
++                list->mpp_frame = NULL;
++
++                av_frame_free(&list->frame);
++                list->queued = 0;
++            }
++        }
++        list = list->next;
++    }
++}
++
++static void clear_frame_list(MPPEncFrame **list) {
++    while (*list) {
++        MPPEncFrame *frame = NULL;
++        MppFramePtr mpp_frame = NULL;
++        MppBufferPtr mpp_buf = NULL;
++
++        frame = *list;
++        *list = (*list)->next;
++
++        mpp_frame = frame->mpp_frame;
++        if (mpp_frame) {
++            mpp_buf = mpp_frame_get_buffer(mpp_frame);
++            if (mpp_buf && mpp_buffer_get_index(mpp_buf) >= 0) mpp_buffer_put(mpp_buf);
++
++            mpp_frame_deinit(&frame->mpp_frame);
++            frame->mpp_frame = NULL;
++        }
++
++        av_frame_free(&frame->frame);
++        av_freep(&frame);
++    }
++}
++
++static MPPEncFrame *get_free_frame(MPPEncFrame **list) {
++    MPPEncFrame *out = *list;
++
++    for (; out; out = out->next) {
++        if (!out->queued) {
++            out->queued = 1;
++            break;
++        }
++    }
++
++    if (!out) {
++        out = av_mallocz(sizeof(*out));
++        if (!out) {
++            av_log(NULL, AV_LOG_ERROR, "Cannot alloc new output frame\n");
++            return NULL;
++        }
++        out->queued = 1;
++        out->next = *list;
++        *list = out;
++    }
++
++    return out;
++}
++
++#define CFG_SET_S32(cfg, cfgstr, value)                                            \
++    do {                                                                           \
++        if (mpp_enc_cfg_set_s32(cfg, cfgstr, value)) {                             \
++            av_log(NULL, AV_LOG_ERROR, "%s is set to %d failed\n", cfgstr, value); \
++            return -1;                                                             \
++        }                                                                          \
++        av_log(NULL, AV_LOG_INFO, "%s is set to %d\n", cfgstr, value);             \
++    } while (0)
++
++#define CFG_SET_U32(cfg, cfgstr, value)                                            \
++    do {                                                                           \
++        if (mpp_enc_cfg_set_u32(cfg, cfgstr, value)) {                             \
++            av_log(NULL, AV_LOG_ERROR, "%s is set to %d failed\n", cfgstr, value); \
++            return -1;                                                             \
++        }                                                                          \
++        av_log(NULL, AV_LOG_INFO, "%s is set to %u\n", cfgstr, value);             \
++    } while (0)
++
++#define CFG_SET_S32_IF_USER_SET(cfg, cfgstr, value, unset_value)                       \
++    do {                                                                               \
++        if (value != unset_value) {                                                    \
++            if (mpp_enc_cfg_set_s32(cfg, cfgstr, value)) {                             \
++                av_log(NULL, AV_LOG_ERROR, "%s is set to %d failed\n", cfgstr, value); \
++                return -1;                                                             \
++            }                                                                          \
++            av_log(NULL, AV_LOG_INFO, "%s is set to %d\n", cfgstr, value);             \
++        }                                                                              \
++    } while (0)
++
++#define CFG_SET_U32_IF_USER_SET(cfg, cfgstr, value, unset_value)                       \
++    do {                                                                               \
++        if (value != unset_value) {                                                    \
++            if (mpp_enc_cfg_set_u32(cfg, cfgstr, value)) {                             \
++                av_log(NULL, AV_LOG_ERROR, "%s is set to %d failed\n", cfgstr, value); \
++                return -1;                                                             \
++            }                                                                          \
++            av_log(NULL, AV_LOG_INFO, "%s is set to %u\n", cfgstr, value);             \
++        }                                                                              \
++    } while (0)
++
++static int encoder_set_venc(MppEncCfgPtr cfg, AVCodecContext *avctx) {
++    ESMPPEncContext *r = avctx->priv_data;
++
++    CFG_SET_S32(cfg, "venc:width", avctx->width);
++    CFG_SET_S32(cfg, "venc:height", avctx->height);
++    CFG_SET_U32(cfg, "venc:pixel_format", esmpp_get_mpp_fmt(r->pix_fmt));
++    CFG_SET_S32_IF_USER_SET(cfg, "venc:align", r->stride_align, -1);
++
++    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
++        avctx->profile = r->profile;
++        avctx->level = r->level;
++        CFG_SET_S32(cfg, "venc:profile", avctx->profile);
++        CFG_SET_S32(cfg, "venc:level", avctx->level);
++        if (avctx->codec_id == AV_CODEC_ID_HEVC) {
++            CFG_SET_S32_IF_USER_SET(cfg, "venc:tier", r->tier, -1);
++        }
++        CFG_SET_S32_IF_USER_SET(cfg, "venc:bit_depth", r->bitdepth, -1);
++    }
++
++    return 0;
++}
++
++// only for h264/hevc
++static int encoder_set_venc_gop(MppEncCfgPtr cfg, AVCodecContext *avctx) {
++    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
++        ESMPPEncContext *r = avctx->priv_data;
++
++        CFG_SET_S32_IF_USER_SET(cfg, "gop:gop_mode", r->gop_mode, VENC_GOPMODE_BUTT);
++        switch (r->gop_mode) {
++            case VENC_GOPMODE_NORMALP: {
++                CFG_SET_S32(cfg, "normalp:ip_qp_delta", r->ip_qp_delta);
++                break;
++            }
++            case VENC_GOPMODE_DUALREF: {
++                CFG_SET_S32(cfg, "dualp:sb_interval", r->sb_interval);
++                CFG_SET_S32(cfg, "dualp:sp_qp_delta", r->sp_qp_delta);
++                CFG_SET_S32(cfg, "dualp:ip_qp_delta", r->ip_qp_delta);
++                break;
++            }
++            case VENC_GOPMODE_SMARTREF: {
++                CFG_SET_S32(
++                    cfg, "smart:bg_interval", (r->bg_interval > 1) ? r->bg_interval : FFMAX(avctx->gop_size, 1));
++                CFG_SET_S32(cfg, "smart:bg_qp_delta", r->bg_qp_delta);
++                CFG_SET_S32(cfg, "smart:vi_qp_delta", r->vi_qp_delta);
++                break;
++            }
++            case VENC_GOPMODE_ADVSMARTREF: {
++                CFG_SET_S32(
++                    cfg, "advance:bg_interval", (r->bg_interval > 1) ? r->bg_interval : FFMAX(avctx->gop_size, 1) + 1);
++                CFG_SET_S32(cfg, "advance:bg_qp_delta", r->bg_qp_delta);
++                CFG_SET_S32(cfg, "advance:vi_qp_delta", r->vi_qp_delta);
++                break;
++            }
++            case VENC_GOPMODE_BIPREDB: {
++                CFG_SET_S32(cfg, "bipredb:b_frm_num", r->b_frm_num);
++                CFG_SET_S32(cfg, "bipredb:b_qp_delta", r->b_qp_delta);
++                CFG_SET_S32(cfg, "bipredb:ip_qp_delta", r->ip_qp_delta);
++                break;
++            }
++            case VENC_GOPMODE_LOWDELAYB: {
++                CFG_SET_S32(cfg, "lowdelayb:b_frm_num", r->b_frm_num);
++                CFG_SET_S32(cfg, "lowdelayb:i_qp_delta", r->i_qp_delta);
++                break;
++            }
++            default:
++                av_log(avctx, AV_LOG_ERROR, "gop_mode is set to %d\n", r->gop_mode);
++                break;
++        }
++    }
++
++    return 0;
++}
++
++static VENC_RC_MODE_E encoder_get_venc_rc_mode(int rc_mode, enum AVCodecID codec_id) {
++    VENC_RC_MODE_E mode = VENC_RC_MODE_BUTT;
++    switch (rc_mode) {
++        case 0: {
++            if (codec_id == AV_CODEC_ID_H264) {
++                mode = VENC_RC_MODE_H264CBR;
++            } else if (codec_id == AV_CODEC_ID_H265) {
++                mode = VENC_RC_MODE_H265CBR;
++            } else if (codec_id == AV_CODEC_ID_MJPEG) {
++                mode = VENC_RC_MODE_MJPEGCBR;
++            }
++            break;
++        }
++        case 1: {
++            if (codec_id == AV_CODEC_ID_H264) {
++                mode = VENC_RC_MODE_H264VBR;
++            } else if (codec_id == AV_CODEC_ID_H265) {
++                mode = VENC_RC_MODE_H265VBR;
++            } else if (codec_id == AV_CODEC_ID_MJPEG) {
++                mode = VENC_RC_MODE_MJPEGVBR;
++            }
++            break;
++        }
++        case 2: {
++            if (codec_id == AV_CODEC_ID_H264) {
++                mode = VENC_RC_MODE_H264FIXQP;
++            } else if (codec_id == AV_CODEC_ID_H265) {
++                mode = VENC_RC_MODE_H265FIXQP;
++            } else if (codec_id == AV_CODEC_ID_MJPEG) {
++                mode = VENC_RC_MODE_MJPEGFIXQP;
++            }
++            break;
++        }
++        case 3: {
++            if (codec_id == AV_CODEC_ID_H264) {
++                mode = VENC_RC_MODE_H264QPMAP;
++            } else if (codec_id == AV_CODEC_ID_H265) {
++                mode = VENC_RC_MODE_H265QPMAP;
++            }
++            break;
++        }
++        default:
++            break;
++    }
++
++    return mode;
++}
++
++static unsigned int encoder_get_framerate(AVRational av_framerate) {
++    unsigned int framerate_den, framerate_num, framerate;
++    if (av_framerate.den <= 0 || av_framerate.num <= 0) {
++        return -1;
++    }
++    framerate_den = (unsigned int)av_framerate.den;  // high 16 bits
++    framerate_num = (unsigned int)av_framerate.num;  // low 16 bits
++
++    if (framerate_den > 1) {
++        framerate_den = framerate_den << 16;
++        framerate = framerate_den | framerate_num;
++    } else {
++        framerate = framerate_num / framerate_den;
++    }
++
++    av_log(NULL, AV_LOG_DEBUG, "get_framerate num:%d den:%d rate:%u\n", av_framerate.num, av_framerate.den, framerate);
++    return framerate;
++}
++
++static int encoder_set_venc_rc(MppEncCfgPtr cfg, AVCodecContext *avctx) {
++    ESMPPEncContext *r = avctx->priv_data;
++    VENC_RC_MODE_E rc_mode;
++    unsigned int bitrate;
++
++    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
++        CFG_SET_U32(cfg, "rc:gop", FFMAX(avctx->gop_size, 1));
++        CFG_SET_U32_IF_USER_SET(cfg, "rc:dst_frame_rate", encoder_get_framerate(avctx->framerate), -1);
++    }
++
++    rc_mode = encoder_get_venc_rc_mode(r->rc_mode, avctx->codec_id);
++    if (rc_mode < VENC_RC_MODE_H264CBR || rc_mode >= VENC_RC_MODE_BUTT) {
++        av_log(avctx, AV_LOG_WARNING, "unsupported rc:mode %d\n", rc_mode);
++        return -1;
++    }
++
++    CFG_SET_S32(cfg, "rc:mode", rc_mode);
++    switch (rc_mode) {
++        case VENC_RC_MODE_H264CBR:
++        case VENC_RC_MODE_H265CBR: {
++            bitrate = (unsigned int)(avctx->bit_rate / 1000);
++            CFG_SET_U32(cfg, "cbr:bitrate", bitrate);
++            if (r->cpb_size == -1) {
++                r->cpb_size = bitrate * 1.25;
++            }
++            CFG_SET_U32(cfg, "cbr:cpb_size", (unsigned int)r->cpb_size);
++            CFG_SET_U32(cfg, "rc:stat_time", r->stat_time);
++
++            CFG_SET_U32_IF_USER_SET(cfg, "cbr_adv:iprop", r->iprop, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "cbr_adv:max_qp", r->qp_max, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "cbr_adv:min_qp", r->qp_min, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "cbr_adv:max_iqp", r->qp_max_i, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "cbr_adv:min_iqp", r->qp_min_i, -1);
++            break;
++        }
++        case VENC_RC_MODE_H264VBR:
++        case VENC_RC_MODE_H265VBR: {
++            bitrate = (unsigned int)(avctx->bit_rate / 1000);
++            CFG_SET_U32(cfg, "vbr:max_bitrate", bitrate);
++            CFG_SET_U32(cfg, "rc:stat_time", r->stat_time);
++
++            CFG_SET_U32_IF_USER_SET(cfg, "vbr_adv:iprop", r->iprop, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "vbr_adv:max_qp", r->qp_max, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "vbr_adv:min_qp", r->qp_min, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "vbr_adv:max_iqp", r->qp_max_i, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "vbr_adv:min_iqp", r->qp_min_i, -1);
++            break;
++        }
++        case VENC_RC_MODE_H264FIXQP:
++        case VENC_RC_MODE_H265FIXQP: {
++            CFG_SET_U32(cfg, "fixqp:iqp", r->iqp);
++            CFG_SET_U32(cfg, "fixqp:pqp", r->pqp);
++            CFG_SET_U32(cfg, "fixqp:bqp", r->bqp);
++            break;
++        }
++        case VENC_RC_MODE_MJPEGCBR: {
++            bitrate = (unsigned int)(avctx->bit_rate / 1000);
++            CFG_SET_U32(cfg, "cbr:bitrate", bitrate);
++            CFG_SET_U32(cfg, "rc:stat_time", r->stat_time);
++            CFG_SET_U32_IF_USER_SET(cfg, "cbr_adv:max_qfactor", r->qfactor_max, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "cbr_adv:min_qfactor", r->qfactor_min, -1);
++            break;
++        }
++        case VENC_RC_MODE_MJPEGVBR: {
++            bitrate = (unsigned int)(avctx->bit_rate / 1000);
++            CFG_SET_U32(cfg, "vbr:max_bitrate", bitrate);
++            CFG_SET_U32(cfg, "rc:stat_time", r->stat_time);
++            CFG_SET_U32_IF_USER_SET(cfg, "vbr_adv:max_qfactor", r->qfactor_max, -1);
++            CFG_SET_U32_IF_USER_SET(cfg, "vbr_adv:min_qfactor", r->qfactor_min, -1);
++            break;
++        }
++        case VENC_RC_MODE_MJPEGFIXQP: {
++            CFG_SET_U32_IF_USER_SET(cfg, "fixqp:qfactor", r->qfactor, -1);
++            break;
++        }
++
++        default:
++            av_log(avctx, AV_LOG_ERROR, "rc_mode is set to %d\n", r->rc_mode);
++            return -1;
++    }
++
++    return 0;
++}
++
++/* parse crop str*/
++static int encoder_get_crop(char *str, RECT_S *rect) {
++    char *p;
++
++    if (!str || !rect) {
++        return -1;
++    }
++    if (((p = strstr(str, "cx")) == NULL) && ((p = strstr(str, "cy")) == NULL) && ((p = strstr(str, "cw")) == NULL)
++        && ((p = strstr(str, "ch")) == NULL)) {
++        return 0;
++    }
++
++    if ((p = strstr(str, "cx")) != NULL) {
++        rect->x = atoi(p + 3);
++    } else {
++        return -1;
++    }
++
++    if ((p = strstr(str, "cy")) != NULL) {
++        rect->y = atoi(p + 3);
++    } else {
++        return -1;
++    }
++
++    if ((p = strstr(str, "cw")) != NULL) {
++        rect->width = atoi(p + 3);
++    } else {
++        return -1;
++    }
++
++    if ((p = strstr(str, "ch")) != NULL) {
++        rect->height = atoi(p + 3);
++    } else {
++        return -1;
++    }
++
++    return 0;
++}
++
++static ROTATION_E encoder_get_rotation(int ratation) {
++    switch (ratation) {
++        case 0:
++            return ROTATION_0;
++        case 1:
++            return ROTATION_90;
++        case 2:
++            return ROTATION_180;
++        case 3:
++            return ROTATION_270;
++    }
++    return ROTATION_BUTT;
++}
++
++static int encoder_set_venc_prp(MppEncCfgPtr cfg, AVCodecContext *avctx) {
++    ESMPPEncContext *r = avctx->priv_data;
++
++    if (r->rotation >= 0) {
++        CFG_SET_S32(cfg, "pp:rotation", encoder_get_rotation(r->rotation));
++    }
++    if (r->crop_str) {
++        RECT_S rect;
++        if (encoder_get_crop(r->crop_str, &rect)) {
++            av_log(avctx, AV_LOG_ERROR, "Crop params error %s\n", r->crop_str);
++        } else {
++            mpp_enc_cfg_set_s32(cfg, "pp:enable", 1);
++            if (mpp_enc_cfg_set_st(cfg, "pp:rect", (void *)&rect)) {
++                av_log(NULL, AV_LOG_ERROR, "Crop rect is set to %s failed\n", r->crop_str);
++                return -1;
++            }
++            av_log(avctx, AV_LOG_INFO, "Crop rect is set to %s\n", r->crop_str);
++        }
++    }
++
++    return 0;
++}
++
++static int encoder_set_venc_protocal(MppEncCfgPtr cfg, AVCodecContext *avctx) {
++    ESMPPEncContext *r = avctx->priv_data;
++
++    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
++        if (r->enable_deblocking > -1) {
++            CFG_SET_U32(cfg, "dblk:dblk_disable", (r->enable_deblocking == 0) ? 1 : 0);
++        }
++
++        if (avctx->color_range > AVCOL_RANGE_UNSPECIFIED && avctx->color_range < MPP_FRAME_RANGE_NB) {
++            mpp_enc_cfg_set_s32(
++                cfg,
++                "vui:colorrange",
++                (avctx->color_range == AVCOL_RANGE_MPEG) ? MPP_FRAME_RANGE_LIMITED : MPP_FRAME_RANGE_FULL);
++        }
++        mpp_enc_cfg_set_s32(cfg, "vui:colorspace", avctx->colorspace);
++        mpp_enc_cfg_set_s32(cfg, "vui:colorprim", avctx->color_primaries);
++        mpp_enc_cfg_set_s32(cfg, "vui:colortrc", avctx->color_trc);
++
++        if (avctx->codec_id == AV_CODEC_ID_H264) {
++            CFG_SET_U32_IF_USER_SET(cfg, "h264:cabac", r->enable_cabac, -1);
++        }
++    }
++
++    return 0;
++}
++
++static int esmpp_set_enc_cfg(AVCodecContext *avctx) {
++    ESMPPEncContext *r = avctx->priv_data;
++    MppEncCfgPtr cfg = r->mcfg;
++    int ret = MPP_OK;
++
++    if ((ret = esmpp_control(r->mctx, MPP_ENC_GET_CFG, cfg)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to get encoder config: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        return -1;
++    }
++
++    // common attrs
++    if (encoder_set_venc(cfg, avctx)) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to set_venc config\n");
++        return -1;
++    }
++
++    // prp attrs
++    if (encoder_set_venc_prp(cfg, avctx)) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to set_venc_prp config\n");
++        return -1;
++    }
++
++    // rc attrs
++    if (encoder_set_venc_rc(cfg, avctx)) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to set_venc_rc config\n");
++        return -1;
++    }
++
++    // gop attrs
++    if (encoder_set_venc_gop(cfg, avctx)) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to set_venc_gop config\n");
++        return -1;
++    }
++
++    // video protocal
++    if (encoder_set_venc_protocal(cfg, avctx)) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to set_venc_rc config\n");
++        return -1;
++    }
++
++    if (esmpp_control(r->mctx, MPP_ENC_SET_CFG, cfg)) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to set config\n");
++        return -1;
++    }
++    return 0;
++}
++
++static int esmpp_send_frame(AVCodecContext *avctx, MPPEncFrame *mpp_enc_frame) {
++    ESMPPEncContext *r = avctx->priv_data;
++    MppFramePtr mpp_frame = NULL;
++    int ret;
++
++    if (mpp_enc_frame) {
++        mpp_frame = mpp_enc_frame->mpp_frame;
++    }
++
++    if ((ret = esmpp_put_frame(r->mctx, mpp_frame)) != MPP_OK) {
++        int log_level = (ret == MPP_ERR_INPUT_FULL) ? AV_LOG_DEBUG : AV_LOG_ERROR;
++        ret = (ret == MPP_ERR_INPUT_FULL) ? AVERROR(EAGAIN) : AVERROR_EXTERNAL;
++        av_log(avctx, log_level, "Failed to put frame to encoder input queue: %d\n", ret);
++        goto exit;
++    } else {
++        av_log(avctx, AV_LOG_DEBUG, "Wrote %ld bytes to encoder\n", mpp_frame ? mpp_frame_get_buf_size(mpp_frame) : 0);
++    }
++
++exit:
++    return ret;
++}
++
++static void esmpp_free_packet_buf(void *opaque, uint8_t *data) {
++    MppPacketPtr mpp_pkt = opaque;
++    mpp_packet_deinit(&mpp_pkt);
++}
++
++static int esmpp_get_packet_internal(AVCodecContext *avctx, AVPacket *packet, int timeout) {
++    ESMPPEncContext *r = avctx->priv_data;
++    MppPacketPtr mpp_pkt = NULL;
++    MppMetaPtr mpp_meta = NULL;
++    MppFramePtr mpp_frame = NULL;
++    MppBufferPtr mpp_buf = NULL;
++    int ret;
++
++    if ((ret = esmpp_get_packet(r->mctx, &mpp_pkt, timeout)) != MPP_OK) {
++        int log_level = (ret == MPP_ERR_TIMEOUT) ? AV_LOG_DEBUG : AV_LOG_ERROR;
++        ret = (ret == MPP_ERR_TIMEOUT) ? AVERROR(EAGAIN) : AVERROR_EXTERNAL;
++        av_log(avctx,
++               log_level,
++               "Failed to get packet from encoder output queue:%s, timeout:%d\n",
++               ret == AVERROR(EAGAIN) ? "EAGAIN" : "AVERROR_EXTERNAL",
++               timeout);
++        return ret;
++    }
++    if (!mpp_pkt) return AVERROR(ENOMEM);
++
++    if (mpp_packet_get_eos(mpp_pkt)) {
++        av_log(avctx, AV_LOG_INFO, "Received an EOS packet\n");
++        ret = AVERROR_EOF;
++        goto exit;
++    }
++
++    packet->data = mpp_packet_get_data(mpp_pkt);
++    packet->size = mpp_packet_get_length(mpp_pkt);
++    packet->buf = av_buffer_create(packet->data, packet->size, esmpp_free_packet_buf, mpp_pkt, AV_BUFFER_FLAG_READONLY);
++    if (!packet->buf) {
++        ret = AVERROR(ENOMEM);
++        av_log(avctx, AV_LOG_ERROR, "Failed to create av buf, no mem\n");
++        goto exit;
++    }
++
++    packet->time_base.num = avctx->time_base.num;
++    packet->time_base.den = avctx->time_base.den;
++    packet->pts = MPP_PTS_TO_PTS(mpp_packet_get_pts(mpp_pkt), avctx->time_base);
++    packet->dts = mpp_packet_get_dts(mpp_pkt);
++
++    if (mpp_packet_has_meta(mpp_pkt)) {
++        mpp_meta = mpp_packet_get_meta(mpp_pkt);
++    }
++
++    if (!mpp_meta) {
++        av_log(avctx, AV_LOG_WARNING, "Failed to get packet meta\n");
++    } else {
++        if ((ret = mpp_meta_get_frame(mpp_meta, KEY_INPUT_FRAME, &mpp_frame)) != MPP_OK) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to get key input frame from packet meta: %d\n", ret);
++            ret = AVERROR_EXTERNAL;
++            goto exit;
++        }
++
++        mpp_buf = mpp_frame_get_buffer(mpp_frame);
++        if (!mpp_buf) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to get buf frame mpp frame: %d\n", ret);
++            return AVERROR(ENOMEM);
++        }
++        /* mark buffer as unused (idx < 0) */
++        mpp_buffer_set_index(mpp_buf, -1);
++        clear_unused_frames(r->frame_list);
++    }
++
++    // dump packet
++    if (r->dump_pkt_enable) {
++        int ret = 0;
++        ret = esmpp_codec_dump_bytes_to_file(packet->data, packet->size, r->dump_pkt_hnd);
++        if (ret == ERR_TIMEOUT) {
++            av_log(NULL, AV_LOG_INFO, "pkt dump timeout\n");
++            esmpp_codec_dump_file_close(&r->dump_pkt_hnd);
++            r->dump_pkt_enable = 0;
++            av_log(NULL, AV_LOG_INFO, "closed dump packet handle\n");
++        } else if (ret < 0) {
++            av_log(NULL, AV_LOG_ERROR, "write packet into file failed\n");
++        }
++        // av_log(NULL, AV_LOG_INFO, "dump packet: data %p size %d\n", packet->data, packet->size);
++    }
++
++    return 0;
++exit:
++    if (mpp_pkt) mpp_packet_deinit(&mpp_pkt);
++    return ret;
++}
++
++static int is_hevc_still_pic_profile(enum AVCodecID codec_id, int profile) {
++    return codec_id == AV_CODEC_ID_HEVC && profile == PROFILE_H265_MAIN_STILL_PICTURE;
++}
++
++static MPPEncFrame *esmpp_submit_frame(AVCodecContext *avctx, AVFrame *frame) {
++    ESMPPEncContext *r = avctx->priv_data;
++    MppFramePtr mpp_frame = NULL;
++    MppBufferPtr mpp_buf = NULL;
++    AVFrame *es_frame = NULL;
++    int ret, nb_planes, offset = 0;
++
++    MPPEncFrame *mpp_enc_frame = NULL;
++
++    clear_unused_frames(r->frame_list);
++
++    mpp_enc_frame = get_free_frame(&r->frame_list);
++    if (!mpp_enc_frame) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to get free frame\n");
++        return NULL;
++    }
++
++    if (!frame
++        || (is_hevc_still_pic_profile(avctx->codec_id, r->profile) && r->sent_frm_cnt >= 1)) {  // eos send null data
++        av_log(avctx, AV_LOG_DEBUG, "End of stream\n");
++        mpp_enc_frame->mpp_frame = mpp_frame;
++        return mpp_enc_frame;
++    }
++
++    if ((ret = mpp_frame_init(&mpp_frame)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to init MPP frame: %d\n", ret);
++        goto exit;
++    }
++    mpp_enc_frame->mpp_frame = mpp_frame;
++
++    if (avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME) {
++        es_frame = frame;
++        mpp_enc_frame->frame = av_frame_clone(es_frame);
++        if (es_frame->buf[0]) {
++            mpp_buf = (MppBufferPtr)es_frame->buf[0]->data;
++            if (!mpp_buf) {
++                av_log(avctx, AV_LOG_ERROR, "mpp buf is NULL\n");
++                return NULL;
++            }
++            mpp_buffer_inc_ref(mpp_buf);
++        } else {
++            av_log(avctx, AV_LOG_WARNING, "frame buf is NULL\n");
++            return NULL;
++        }
++    } else {
++        uint32_t lumaSize = 0, chromaSize = 0, pictureSize = 0;
++
++        es_frame = frame;
++        mpp_enc_frame->frame = av_frame_clone(es_frame);
++
++        esmpp_get_picsize(avctx->pix_fmt,
++                          avctx->width,
++                          avctx->height,
++                          (r->stride_align > 0) ? r->stride_align : 1,
++                          &lumaSize,
++                          &chromaSize,
++                          &pictureSize);
++        ret = mpp_buffer_get(r->frame_grp, &mpp_buf, pictureSize);
++        if (MPP_OK != ret) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to get buf\n");
++            return NULL;
++        }
++        void *vir_addr = NULL;
++        vir_addr = mpp_buffer_get_ptr(mpp_buf);
++        if (!vir_addr) {
++            mpp_buffer_put(mpp_buf);
++            ret = 1;
++            av_log(avctx, AV_LOG_ERROR, "Failed to get buf ptr\n");
++            return NULL;
++        }
++
++        memcpy(vir_addr, frame->data[0], pictureSize);
++        av_log(avctx, AV_LOG_INFO, "Data copy framesize:%d, data size:%d\n", pictureSize, sizeof(frame->data));
++    }
++
++    mpp_frame_set_pts(mpp_frame, PTS_TO_MPP_PTS(es_frame->pts, avctx->time_base));
++    mpp_frame_set_width(mpp_frame, es_frame->width);
++    mpp_frame_set_height(mpp_frame, es_frame->height);
++
++    mpp_frame_set_colorspace(mpp_frame, avctx->colorspace);
++    mpp_frame_set_color_primaries(mpp_frame, avctx->color_primaries);
++    mpp_frame_set_color_trc(mpp_frame, avctx->color_trc);
++    if (avctx->color_range > AVCOL_RANGE_UNSPECIFIED && avctx->color_range < MPP_FRAME_RANGE_NB) {
++        mpp_frame_set_color_range(
++            mpp_frame, (avctx->color_range == AVCOL_RANGE_MPEG) ? MPP_FRAME_RANGE_LIMITED : MPP_FRAME_RANGE_FULL);
++    }
++
++    mpp_buffer_set_index(mpp_buf, mpp_buffer_get_fd(mpp_buf));
++    mpp_frame_set_buffer(mpp_frame, mpp_buf);
++
++    // dump yuv
++    if (r->dump_frame_enable) {
++        int ret = 0;
++        uint32_t lumaSize = 0, chromaSize = 0, pictureSize = 0;
++        esmpp_get_picsize((avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME) ? avctx->sw_pix_fmt : avctx->pix_fmt,
++                          avctx->width,
++                          avctx->height,
++                          (r->stride_align > 0) ? r->stride_align : 1,
++                          &lumaSize,
++                          &chromaSize,
++                          &pictureSize);
++        if (r->dump_frame_hnd) {
++            void *paddr = mpp_buffer_get_ptr(mpp_buf);
++            ret = esmpp_codec_dump_bytes_to_file(paddr, pictureSize, r->dump_frame_hnd);
++            if (ret == ERR_TIMEOUT) {
++                av_log(NULL, AV_LOG_INFO, "frame dump timeout\n");
++                esmpp_codec_dump_file_close(&r->dump_frame_hnd);
++                r->dump_frame_enable = 0;
++            } else if (ret < 0) {
++                av_log(NULL, AV_LOG_ERROR, "write file error\n");
++            }
++            // av_log(NULL, AV_LOG_INFO, "dump frame: data %p size %d\n", paddr, pictureSize);
++        } else {
++            av_log(NULL, AV_LOG_ERROR, "fp is not inited\n");
++        }
++    }
++
++    r->sent_frm_cnt++;
++    return mpp_enc_frame;
++
++exit:
++    if (es_frame && avctx->pix_fmt != AV_PIX_FMT_DRM_PRIME) av_frame_free(&es_frame);
++
++    return NULL;
++}
++
++static int esmpp_encode_frame(AVCodecContext *avctx, AVPacket *packet, const AVFrame *frame, int *got_packet) {
++    ESMPPEncContext *r = avctx->priv_data;
++    MPPEncFrame *mpp_enc_frame = NULL;
++    int ret;
++
++    int timeout = (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC
++                   || avctx->codec_id == AV_CODEC_ID_MJPEG)
++                          && !(avctx->flags & AV_CODEC_FLAG_LOW_DELAY)
++                      ? MPP_TIMEOUT_NON_BLOCK
++                      : MPP_TIMEOUT_BLOCK;
++    if (get_used_frame_count(r->frame_list) > r->async_frames) {
++        av_log(avctx,
++               AV_LOG_INFO,
++               "get_used_frame_count(r->frame_list) %d > r->async_frames %d\n",
++               get_used_frame_count(r->frame_list),
++               r->async_frames);
++        goto get;
++    }
++
++    mpp_enc_frame = esmpp_submit_frame(avctx, (AVFrame *)frame);
++    if (!mpp_enc_frame) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to submit frame on input\n");
++        return AVERROR(ENOMEM);
++    }
++
++send:
++    ret = esmpp_send_frame(avctx, mpp_enc_frame);
++    av_log(avctx, AV_LOG_INFO, "send_frame ret:%d, sent frm cnt:%d\n", ret, r->sent_frm_cnt);
++    if (ret == AVERROR(EAGAIN)) {
++        av_usleep(10 * 1000);
++        goto send;
++    } else if (ret) {
++        return ret;
++    }
++
++get:
++    ret = esmpp_get_packet_internal(avctx, packet, timeout);
++    if (ret == AVERROR(EAGAIN)) {
++        if (is_hevc_still_pic_profile(avctx->codec_id, r->profile)) {
++            if (r->sent_frm_cnt == 1 && r->got_pkt_cnt < 1) {
++                av_log(avctx, AV_LOG_INFO, "still pic frame is %p, ret %d\n", frame, ret);
++                av_usleep(10 * 1000);
++                goto get;
++            }
++        } else if (!frame) {  // sent all the frame we must get left packet
++            av_log(avctx, AV_LOG_INFO, "frame is %p, ret %d\n", frame, ret);
++            av_usleep(10 * 1000);
++            goto get;
++        }
++    }
++
++    if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) {
++        *got_packet = 0;
++        av_log(avctx,
++               AV_LOG_INFO,
++               "get_packet len %d ret:%d %s\n",
++               packet->size,
++               ret,
++               ret == AVERROR(EAGAIN) ? "EAGAIN" : "AVERROR_EOF");
++    } else if (ret) {
++        av_log(avctx, AV_LOG_INFO, "get_packet len %d ret:%d\n", packet->size, ret);
++        return ret;
++    } else {
++        av_log(avctx,
++               AV_LOG_INFO,
++               "get_packet len %d ret:%d pts:%ld dts:%ld, got pktcnt:%d\n",
++               packet->size,
++               ret,
++               packet->pts,
++               packet->dts,
++               ++r->got_pkt_cnt);
++        *got_packet = 1;
++    }
++
++    return 0;
++}
++
++static int esmpp_encode_close(AVCodecContext *avctx) {
++    ESMPPEncContext *r = avctx->priv_data;
++    int ret = 0;
++
++    r->cfg_init = 0;
++    r->async_frames = 0;
++    if (r->mcfg) {
++        mpp_enc_cfg_deinit(r->mcfg);
++    }
++    if (r->frame_grp) {
++        mpp_buffer_group_put(r->frame_grp);
++    }
++    if (r->mctx) {
++        // r->mapi->reset(r->mctx);
++
++        esmpp_close(r->mctx);
++        esmpp_deinit(r->mctx);
++        esmpp_destroy(r->mctx);
++        r->mctx = NULL;
++    }
++
++    if (r->dump_frame_hnd) esmpp_codec_dump_file_close(&r->dump_frame_hnd);
++    if (r->dump_pkt_hnd) esmpp_codec_dump_file_close(&r->dump_pkt_hnd);
++
++    clear_frame_list(&r->frame_list);
++
++    return 0;
++}
++
++static int esmpp_encode_init(AVCodecContext *avctx) {
++    ESMPPEncContext *r = avctx->priv_data;
++    enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE;
++    MppFrameFormat mpp_fmt = MPP_FMT_BUTT;
++    MppCodingType coding_type = MPP_VIDEO_CodingUnused;
++    MppPacketPtr mpp_pkt = NULL;
++    int ret = 0;
++
++    esmpp_set_log_level();
++
++    ret = mpp_buffer_group_get_internal(&r->frame_grp, MPP_BUFFER_TYPE_DMA_HEAP);
++    if (ret) {
++        av_log(avctx, AV_LOG_ERROR, "get frame group failed %d\n", ret);
++        return MPP_NOK;
++    }
++    uint32_t lumaSize = 0, chromaSize = 0, pictureSize = 0;
++    esmpp_get_picsize(avctx->pix_fmt,
++                      avctx->width,
++                      avctx->height,
++                      (r->stride_align > 0) ? r->stride_align : 1,
++                      &lumaSize,
++                      &chromaSize,
++                      &pictureSize);
++    mpp_buffer_group_limit_config(r->frame_grp, pictureSize, 10);
++
++    r->cfg_init = 0;
++    r->async_frames = 0;
++    r->sent_frm_cnt = 0;
++    r->got_pkt_cnt = 0;
++
++    if ((coding_type = esmpp_get_coding_type(avctx)) == MPP_VIDEO_CodingUnused) {
++        av_log(avctx, AV_LOG_ERROR, "Unknown codec id: %d\n", avctx->codec_id);
++        return AVERROR(ENOSYS);
++    }
++
++    pix_fmt = avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME ? avctx->sw_pix_fmt : avctx->pix_fmt;
++    mpp_fmt = avctx->codec_id == esmpp_get_mpp_fmt(pix_fmt);
++    mpp_fmt &= MPP_FRAME_FMT_MASK;
++
++    if (mpp_fmt == MPP_FMT_BUTT) {
++        av_log(avctx, AV_LOG_ERROR, "Unsupported input pixel format '%s'\n", av_get_pix_fmt_name(pix_fmt));
++        return AVERROR(ENOSYS);
++    }
++    r->pix_fmt = pix_fmt;
++    r->mpp_fmt = mpp_fmt;
++
++    if ((ret = esmpp_create(&r->mctx, MPP_CTX_ENC, coding_type)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to create MPP context and api: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++    av_log(avctx,
++           AV_LOG_INFO,
++           "esmpp_create success pix_fmt %d, mpp_fmt %d, coding_type %d\n",
++           r->pix_fmt,
++           r->mpp_fmt,
++           coding_type);
++
++    if ((ret = esmpp_init(r->mctx)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to init MPP context: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if ((ret = mpp_enc_cfg_init(&r->mcfg)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to init encoder config: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if ((ret = esmpp_set_enc_cfg(avctx)) < 0) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to set encoder config: %d\n", ret);
++        goto fail;
++    }
++
++    if ((ret = esmpp_open(r->mctx)) != MPP_OK) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to open esmpp: %d\n", ret);
++        goto fail;
++    }
++
++    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC)
++        r->async_frames = H26X_ASYNC_FRAMES;
++    else if (avctx->codec_id == AV_CODEC_ID_MJPEG)
++        r->async_frames = MJPEG_ASYNC_FRAMES;
++
++    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
++        ES_U8 enc_hdr_buf[H26X_HEADER_SIZE];
++        size_t pkt_len = 0;
++        void *pkt_pos = NULL;
++
++        memset(enc_hdr_buf, 0, H26X_HEADER_SIZE);
++
++        if ((ret = mpp_packet_init(&mpp_pkt, (void *)enc_hdr_buf, H26X_HEADER_SIZE)) != MPP_OK || !mpp_pkt) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to init extra info packet: %d\n", ret);
++            ret = AVERROR_EXTERNAL;
++            goto fail;
++        }
++
++        mpp_packet_set_length(mpp_pkt, 0);
++        if ((ret = esmpp_control(r->mctx, MPP_ENC_GET_HDR_SYNC, mpp_pkt)) != MPP_OK) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to get header sync: %d\n", ret);
++            ret = AVERROR_EXTERNAL;
++            goto fail;
++        }
++
++        pkt_pos = mpp_packet_get_pos(mpp_pkt);
++        pkt_len = mpp_packet_get_length(mpp_pkt);
++
++        if (avctx->extradata) {
++            av_free(avctx->extradata);
++            avctx->extradata = NULL;
++        }
++        avctx->extradata = av_malloc(pkt_len + AV_INPUT_BUFFER_PADDING_SIZE);
++        if (!avctx->extradata) {
++            ret = AVERROR(ENOMEM);
++            goto fail;
++        }
++        avctx->extradata_size = pkt_len + AV_INPUT_BUFFER_PADDING_SIZE;
++        memcpy(avctx->extradata, pkt_pos, pkt_len);
++        memset(avctx->extradata + pkt_len, 0, AV_INPUT_BUFFER_PADDING_SIZE);
++        mpp_packet_deinit(&mpp_pkt);
++
++        if (avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME) {
++            return 0;
++        }
++    }
++
++    // dump
++    // init packet dump handle
++    if (r->dump_pkt_enable && !r->dump_pkt_hnd) {
++        DumpParas paras;
++        paras.width = avctx->width;    // r->lum_width_src;
++        paras.height = avctx->height;  // r->lum_height_src;
++        paras.pic_stride = 0;
++        paras.pic_stride_ch = 0;
++        paras.prefix_name = "venc";
++        if (avctx->codec_id == AV_CODEC_ID_H264)
++            paras.suffix_name = "h264";
++        else if (avctx->codec_id == AV_CODEC_ID_H265)
++            paras.suffix_name = "h265";
++        paras.fmt = NULL;
++        r->dump_pkt_hnd = esmpp_codec_dump_file_open(r->dump_path, r->dump_pkt_time, &paras);
++    }
++    if (r->dump_frame_enable && !r->dump_frame_hnd) {
++        DumpParas paras;
++        paras.width = avctx->width;
++        paras.height = avctx->height;
++        paras.pic_stride = 0;
++        paras.pic_stride_ch = 0;
++        paras.prefix_name = "venc";
++        paras.suffix_name = "yuv";
++        paras.fmt = esmpp_get_fmt_char(avctx->pix_fmt);
++        r->dump_frame_hnd = esmpp_codec_dump_file_open(r->dump_path, r->dump_frame_time, &paras);
++    }
++
++    return 0;
++
++fail:
++    if (mpp_pkt) {
++        mpp_packet_deinit(&mpp_pkt);
++    }
++
++    esmpp_encode_close(avctx);
++    return ret;
++}
++
++DEFINE_ESMPP_ENCODER(h264, H264, h26x)
++DEFINE_ESMPP_ENCODER(hevc, HEVC, h26x)
++DEFINE_ESMPP_ENCODER(mjpeg, MJPEG, mjpeg)
+diff --git a/libavcodec/esmppenc.h b/libavcodec/esmppenc.h
+new file mode 100644
+index 0000000000..a1caf2f5de
+--- /dev/null
++++ b/libavcodec/esmppenc.h
+@@ -0,0 +1,503 @@
++#ifndef AVCODEC_ESMPPENC_H
++#define AVCODEC_ESMPPENC_H
++
++#include <es_mpp.h>
++#include <mpp_venc_cfg.h>
++#include <mpp_frame.h>
++#include <es_venc_def.h>
++#include <es_comm_rc.h>
++
++#include "esmpp_comm.h"
++
++#include "codec_internal.h"
++#include "encode.h"
++#include "hwconfig.h"
++#include "internal.h"
++
++#include "libavutil/hwcontext_esmpp.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++
++// for new version this has been defined
++#define FF_CODEC_CAP_NOT_INIT_THREADSAFE (1 << 0)
++#define CODEC_LONG_NAME(str) .p.long_name = str
++// end
++
++#define H26X_HEADER_SIZE 1024
++#define H26X_ASYNC_FRAMES 8  // 4
++#define MJPEG_ASYNC_FRAMES 8
++#define ALIGN_DOWN(a, b) ((a) & ~((b)-1))
++
++typedef struct MPPEncFrame {
++    AVFrame *frame;
++    MppFramePtr mpp_frame;
++    struct MPPEncFrame *next;
++    int queued;
++} MPPEncFrame;
++
++typedef struct ESMPPEncContext {
++    AVClass *class;
++
++    MppCtxPtr mctx;
++
++    MppEncCfgPtr mcfg;
++    int cfg_init;
++    MppFrameFormat mpp_fmt;
++    enum AVPixelFormat pix_fmt;
++
++    MPPEncFrame *frame_list;
++    int async_frames;  // cache
++    int sent_frm_cnt;
++    int got_pkt_cnt;
++
++    // common setting
++    int profile;
++    int tier;
++    int level;
++    int coder;
++    int stride_align;
++    int bitdepth;
++    int enable_cabac;
++
++    // preprocessing setting
++    int rotation;
++    char *crop_str;
++
++    // rc setting
++    int rc_mode;
++    int stat_time;  // [1, 60]; the rate statistic time,  unit is sec
++    int cpb_size;
++    int iqp;
++    int pqp;
++    int bqp;
++
++    int iprop;
++    int qp_max;
++    int qp_min;
++    int qp_max_i;
++    int qp_min_i;
++    // mjpeg
++    int qfactor;
++    int qfactor_max;
++    int qfactor_min;
++
++    // gop setting
++    int gop_mode;
++    int ip_qp_delta;
++    int sb_interval;
++    int sp_qp_delta;
++    int bg_interval;
++    int bg_qp_delta;
++    int vi_qp_delta;
++    int b_frm_num;
++    int b_qp_delta;
++    int i_qp_delta;
++
++    // protocal
++    int enable_deblocking;
++
++    // dump
++    char *dump_path;
++    int32_t dump_frame_enable;
++    int32_t dump_frame_time;
++    DumpHandle *dump_frame_hnd;
++    int32_t dump_frame_count;
++    int32_t dump_pkt_enable;
++    int32_t dump_pkt_time;
++    DumpHandle *dump_pkt_hnd;
++    int32_t dump_pkt_count;
++    time_t dump_start_time;
++
++    MppBufferGroupPtr frame_grp;
++} ESMPPEncContext;
++
++static const AVRational mpp_tb = {1, 1000000};
++
++#define PTS_TO_MPP_PTS(pts, pts_tb) ((pts_tb.num && pts_tb.den) ? av_rescale_q(pts, pts_tb, mpp_tb) : pts)
++
++#define MPP_PTS_TO_PTS(mpp_pts, pts_tb) ((pts_tb.num && pts_tb.den) ? av_rescale_q(mpp_pts, mpp_tb, pts_tb) : mpp_pts)
++
++#define OFFSET(x) offsetof(ESMPPEncContext, x)
++#define VE (AV_OPT_FLAG_ENCODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
++
++#define ESMPP_ENC_COMMON_OPTS                                                                                         \
++    {"stride_align",                                                                                                  \
++     "set the stride alignment of input frame, multiple of 16",                                                       \
++     OFFSET(stride_align),                                                                                            \
++     AV_OPT_TYPE_INT,                                                                                                 \
++     {.i64 = -1},                                                                                                     \
++     -1,                                                                                                              \
++     4096,                                                                                                            \
++     VE},                                                                                                             \
++        {"rotation",                                                                                                  \
++         "Rotation. 0:0 1:90° 2:180° 3:270°.",                                                                        \
++         OFFSET(rotation),                                                                                            \
++         AV_OPT_TYPE_INT,                                                                                             \
++         {.i64 = -1},                                                                                                 \
++         -1,                                                                                                          \
++         3,                                                                                                           \
++         VE,                                                                                                          \
++         "rotation"},                                                                                                 \
++        {"crop",                                                                                                      \
++         "crop 'cx:N,cy:N,cw:N,ch:N',mean crop xoffset,yoffset,out_width,out_heigh",                                  \
++         OFFSET(crop_str),                                                                                            \
++         AV_OPT_TYPE_STRING,                                                                                          \
++         {.str = NULL},                                                                                               \
++         0,                                                                                                           \
++         0,                                                                                                           \
++         VE,                                                                                                          \
++         "crop"},                                                                                                     \
++        {"rc_mode",                                                                                                   \
++         "Set rc mode, 0:VBR, 1:CBR, 2:CQP",                                                                          \
++         OFFSET(rc_mode),                                                                                             \
++         AV_OPT_TYPE_INT,                                                                                             \
++         {.i64 = 0},                                                                                                  \
++         0,                                                                                                           \
++         2,                                                                                                           \
++         VE,                                                                                                          \
++         "rc_mode"},                                                                                                  \
++        {"VBR", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, 0, 0, VE, "rc_mode"},                                         \
++        {"CBR", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, 0, 0, VE, "rc_mode"},                                         \
++        {"CQP", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, 0, 0, VE, "rc_mode"},                                         \
++        {"dump_path", "dump directory", OFFSET(dump_path), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},              \
++        {"frame_dump", "frame dump enable", OFFSET(dump_frame_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VE},        \
++        {"packet_dump", "packet dump enable", OFFSET(dump_pkt_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VE},        \
++        {"frame_dump_time",                                                                                           \
++         "the time length of dumpping frame",                                                                         \
++         OFFSET(dump_frame_time),                                                                                     \
++         AV_OPT_TYPE_INT,                                                                                             \
++         {.i64 = 0},                                                                                                  \
++         0,                                                                                                           \
++         INT_MAX,                                                                                                     \
++         VE},                                                                                                         \
++    {                                                                                                                 \
++        "packet_dump_time", "the time length of dumpping packet", OFFSET(dump_pkt_time), AV_OPT_TYPE_INT, {.i64 = 0}, \
++            0, INT_MAX, VE                                                                                            \
++    }
++
++#define ESMPP_ENC_VIDEO_COMMON_OPTS                                                                                   \
++    {"bitdepth",                                                                                                      \
++     "Bitdepth. 8=8-bit, 10=10-bit.",                                                                                 \
++     OFFSET(bitdepth),                                                                                                \
++     AV_OPT_TYPE_INT,                                                                                                 \
++     {.i64 = -1},                                                                                                     \
++     -1,                                                                                                              \
++     BIT_DEPTH_10BIT,                                                                                                 \
++     VE,                                                                                                              \
++     "bitdepth"},                                                                                                     \
++    {                                                                                                                 \
++        "enable_deblock", "Enable deblock filter", OFFSET(enable_deblocking), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 1, VE \
++    }
++
++#define ESMPP_ENC_VIDEO_GOP_OPTS                                                                                           \
++    {"gop_mode",                                                                                                     \
++     "normalP, dualP, smartref, advsmartref, bipredB, lowdelayB",                                                    \
++     OFFSET(gop_mode),                                                                                               \
++     AV_OPT_TYPE_INT,                                                                                                \
++     {.i64 = VENC_GOPMODE_NORMALP},                                                                                  \
++     VENC_GOPMODE_NORMALP,                                                                                           \
++     VENC_GOPMODE_BUTT,                                                                                              \
++     VE,                                                                                                             \
++     "gop_mode"},                                                                                                    \
++        {"ip_qp_delta",                                                                                              \
++         "[-51,51]; QP variance between P frame and I frame.",                                                       \
++         OFFSET(ip_qp_delta),                                                                                        \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = 2},                                                                                                 \
++         -51,                                                                                                        \
++         51,                                                                                                         \
++         VE,                                                                                                         \
++         "ip_qp_delta"},                                                                                             \
++        {"sb_interval",                                                                                              \
++         "[0, 65536]; Interval of the special B frames.",                                                            \
++         OFFSET(sb_interval),                                                                                        \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = 0},                                                                                                 \
++         0,                                                                                                          \
++         65536,                                                                                                      \
++         VE,                                                                                                         \
++         "sb_interval"},                                                                                             \
++        {"sp_qp_delta",                                                                                              \
++         "[-51,51]; QP variance between general P/B frame and special B frame.",                                     \
++         OFFSET(sp_qp_delta),                                                                                        \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = 0},                                                                                                 \
++         -51,                                                                                                        \
++         51,                                                                                                         \
++         VE,                                                                                                         \
++         "sp_qp_delta"},                                                                                             \
++        {"bg_interval",                                                                                              \
++         "Interval of the long-term reference frame, can not be less than gop.",                                     \
++         OFFSET(bg_interval),                                                                                        \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = -1},                                                                                                \
++         -1,                                                                                                         \
++         65536,                                                                                                      \
++         VE,                                                                                                         \
++         "bg_interval"},                                                                                             \
++        {"bg_qp_delta",                                                                                              \
++         "[-51,51]; QP variance between P frame and Bg frame.",                                                      \
++         OFFSET(bg_qp_delta),                                                                                        \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = 5},                                                                                                 \
++         -51,                                                                                                        \
++         51,                                                                                                         \
++         VE,                                                                                                         \
++         "bg_qp_delta"},                                                                                             \
++        {"vi_qp_delta",                                                                                              \
++         "[-51,51]; QP variance between P frame and virtual I frame.",                                               \
++         OFFSET(vi_qp_delta),                                                                                        \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = 3},                                                                                                 \
++         -51,                                                                                                        \
++         51,                                                                                                         \
++         VE,                                                                                                         \
++         "vi_qp_delta"},                                                                                             \
++        {"b_frm_num",                                                                                                \
++         "[1,3]; Number of B frames.",                                                                               \
++         OFFSET(b_frm_num),                                                                                          \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = 2},                                                                                                 \
++         1,                                                                                                          \
++         3,                                                                                                          \
++         VE,                                                                                                         \
++         "b_frm_num"},                                                                                               \
++        {"b_qp_delta",                                                                                               \
++         "[-51,51]; QP variance between P frame and B frame.",                                                       \
++         OFFSET(b_qp_delta),                                                                                         \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = 0},                                                                                                 \
++         -51,                                                                                                        \
++         51,                                                                                                         \
++         VE,                                                                                                         \
++         "b_qp_delta"},                                                                                              \
++    {                                                                                                                \
++        "i_qp_delta", "[-51,51]; QP variance between other frame and I frame.", OFFSET(i_qp_delta), AV_OPT_TYPE_INT, \
++            {.i64 = 2}, -51, 51, VE, "i_qp_delta"                                                                    \
++    }
++
++#define ESMPP_ENC_VIDEO_RC_OPTS                                                                                     \
++    {"stat_time", "[1, 60]", OFFSET(stat_time), AV_OPT_TYPE_INT, {.i64 = 1}, 1, 60, VE, "stat_time"},                \
++        {"cpb_size", "[10, 800000]", OFFSET(cpb_size), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 800000, VE, "cpb_size"},    \
++        {"iqp", "[0, 51]", OFFSET(iqp), AV_OPT_TYPE_INT, {.i64 = 30}, 0, 51, VE, "iqp"},                             \
++        {"pqp", "[0, 51]", OFFSET(pqp), AV_OPT_TYPE_INT, {.i64 = 32}, 0, 51, VE, "pqp"},                             \
++        {"bqp", "[0, 51]", OFFSET(bqp), AV_OPT_TYPE_INT, {.i64 = 32}, 0, 51, VE, "bqp"},                             \
++        {"iprop",                                                                                                    \
++         "[50, 100]: Set ratio of I-frames to P-frames",                                                             \
++         OFFSET(iprop),                                                                                              \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = -1},                                                                                                \
++         -1,                                                                                                         \
++         100,                                                                                                        \
++         VE,                                                                                                         \
++         "iprop"},                                                                                                   \
++        {"qp_max",                                                                                                   \
++         "[0, 51]: Set the max QP value for P and B frame",                                                          \
++         OFFSET(qp_max),                                                                                             \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = -1},                                                                                                \
++         -1,                                                                                                         \
++         51,                                                                                                         \
++         VE,                                                                                                         \
++         "qp_max"},                                                                                                  \
++        {"qp_min",                                                                                                   \
++         "[0, 51]:Set the min QP value for P and B frame",                                                           \
++         OFFSET(qp_min),                                                                                             \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = -1},                                                                                                \
++         -1,                                                                                                         \
++         51,                                                                                                         \
++         VE,                                                                                                         \
++         "qp_min"},                                                                                                  \
++        {"qp_max_i",                                                                                                 \
++         "[0, 51]: Set the max QP value for I frame",                                                                \
++         OFFSET(qp_max_i),                                                                                           \
++         AV_OPT_TYPE_INT,                                                                                            \
++         {.i64 = -1},                                                                                                \
++         -1,                                                                                                         \
++         51,                                                                                                         \
++         VE,                                                                                                         \
++         "qp_max_i"},                                                                                                \
++    {                                                                                                                \
++        "qp_min_i", "[0, 51]: Set the min QP value for I frame", OFFSET(qp_min_i), AV_OPT_TYPE_INT, {.i64 = -1}, -1, \
++            51, VE, "qp_min_i"                                                                                       \
++    }
++
++static const AVOption h264_options[] = {
++    ESMPP_ENC_VIDEO_RC_OPTS,
++    ESMPP_ENC_VIDEO_GOP_OPTS,
++    ESMPP_ENC_COMMON_OPTS,
++    ESMPP_ENC_VIDEO_COMMON_OPTS,
++    {"profile",
++     "Set the encoding profile",
++     OFFSET(profile),
++     AV_OPT_TYPE_INT,
++     {.i64 = PROFILE_H264_HIGH},
++     -1,
++     PROFILE_H264_HIGH10,
++     VE,
++     "profile"},
++    {"baseline", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = PROFILE_H264_BASELINE}, INT_MIN, INT_MAX, VE, "profile"},
++    {"main", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = PROFILE_H264_MAIN}, INT_MIN, INT_MAX, VE, "profile"},
++    {"high", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = PROFILE_H264_HIGH}, INT_MIN, INT_MAX, VE, "profile"},
++    {"high10", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = PROFILE_H264_HIGH10}, INT_MIN, INT_MAX, VE, "profile"},
++    {"level",
++     "Set the encoding level",
++     OFFSET(level),
++     AV_OPT_TYPE_INT,
++     {.i64 = ES_H264_LEVEL_5_1},
++     ES_LEVEL_UNKNOWN,
++     ES_H264_LEVEL_6_2,
++     VE,
++     "level"},
++    {"1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_1}, 0, 0, VE, "level"},
++    {"1.b", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_1_b}, 0, 0, VE, "level"},
++    {"1.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_1_1}, 0, 0, VE, "level"},
++    {"1.2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_1_2}, 0, 0, VE, "level"},
++    {"1.3", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_1_3}, 0, 0, VE, "level"},
++    {"2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_2}, 0, 0, VE, "level"},
++    {"2.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_2_1}, 0, 0, VE, "level"},
++    {"2.2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_2_2}, 0, 0, VE, "level"},
++    {"3", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_3}, 0, 0, VE, "level"},
++    {"3.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_3_1}, 0, 0, VE, "level"},
++    {"3.2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_3_2}, 0, 0, VE, "level"},
++    {"4", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_4}, 0, 0, VE, "level"},
++    {"4.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_4_1}, 0, 0, VE, "level"},
++    {"4.2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_4_2}, 0, 0, VE, "level"},
++    {"5", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_5}, 0, 0, VE, "level"},
++    {"5.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_5_1}, 0, 0, VE, "level"},
++    {"5.2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_5_2}, 0, 0, VE, "level"},
++    {"6", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_6}, 0, 0, VE, "level"},
++    {"6.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_6_1}, 0, 0, VE, "level"},
++    {"6.2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_H264_LEVEL_6_2}, 0, 0, VE, "level"},
++    {"enable_cabac", "entropy enable cabac", OFFSET(enable_cabac), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 1, VE, "cabac"},
++    {NULL}};
++
++static const AVOption hevc_options[] = {
++    ESMPP_ENC_VIDEO_RC_OPTS,
++    ESMPP_ENC_VIDEO_GOP_OPTS,
++    ESMPP_ENC_COMMON_OPTS,
++    ESMPP_ENC_VIDEO_COMMON_OPTS,
++    {"profile",
++     "Set the encoding profile",
++     OFFSET(profile),
++     AV_OPT_TYPE_INT,
++     {.i64 = FF_PROFILE_HEVC_MAIN},
++     PROFILE_H265_MAIN,
++     PROFILE_H265_MAIN_STILL_PICTURE,
++     VE,
++     "profile"},
++    {"main", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = PROFILE_H265_MAIN}, INT_MIN, INT_MAX, VE, "profile"},
++    {"main10", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = PROFILE_H265_MAIN10}, INT_MIN, INT_MAX, VE, "profile"},
++    {"main_still",
++     NULL,
++     0,
++     AV_OPT_TYPE_CONST,
++     {.i64 = PROFILE_H265_MAIN_STILL_PICTURE},
++     INT_MIN,
++     INT_MAX,
++     VE,
++     "profile"},
++    {"tier", "Set the encoding profile tier", OFFSET(tier), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 1, VE, "tier"},
++    {"main", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, INT_MIN, INT_MAX, VE, "tier"},
++    {"high", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, INT_MIN, INT_MAX, VE, "tier"},
++    {"level",
++     "Set the encoding level",
++     OFFSET(level),
++     AV_OPT_TYPE_INT,
++     {.i64 = ES_HEVC_LEVEL_6},
++     ES_LEVEL_UNKNOWN,
++     ES_HEVC_LEVEL_6_2,
++     VE,
++     "level"},
++    {"1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_1}, 0, 0, VE, "level"},
++    {"2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_2}, 0, 0, VE, "level"},
++    {"2.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_2_1}, 0, 0, VE, "level"},
++    {"3", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_3}, 0, 0, VE, "level"},
++    {"3.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_3_1}, 0, 0, VE, "level"},
++    {"4", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_4}, 0, 0, VE, "level"},
++    {"4.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_4_1}, 0, 0, VE, "level"},
++    {"5", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_5}, 0, 0, VE, "level"},
++    {"5.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_5_1}, 0, 0, VE, "level"},
++    {"5.2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_5_2}, 0, 0, VE, "level"},
++    {"6", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_6}, 0, 0, VE, "level"},
++    {"6.1", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_6_1}, 0, 0, VE, "level"},
++    {"6.2", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = ES_HEVC_LEVEL_6_2}, 0, 0, VE, "level"},
++    {NULL}};
++
++static const AVOption mjpeg_options[] = {ESMPP_ENC_COMMON_OPTS,
++                                         {"qfactor",
++                                          "Set the value of a quantization factor [1, 99]",
++                                          OFFSET(qfactor),
++                                          AV_OPT_TYPE_INT,
++                                          {.i64 = -1},
++                                          -1,
++                                          99,
++                                          VE,
++                                          "qfactor"},
++                                         {"qfactor_max",
++                                          "Set the max Q_Factor value [1, 99]",
++                                          OFFSET(qfactor_max),
++                                          AV_OPT_TYPE_INT,
++                                          {.i64 = -1},
++                                          -1,
++                                          99,
++                                          VE,
++                                          "qfactor_max"},
++                                         {"qfactor_min",
++                                          "Set the min Q_Factor value [1, 99], less than qfactor_max",
++                                          OFFSET(qfactor_min),
++                                          AV_OPT_TYPE_INT,
++                                          {.i64 = -1},
++                                          -1,
++                                          99,
++                                          VE,
++                                          "qfactor_min"},
++                                         {NULL}};
++
++static const enum AVPixelFormat esmpp_enc_pix_fmts[] = {
++    AV_PIX_FMT_YUV420P,
++    AV_PIX_FMT_NV12,
++    AV_PIX_FMT_NV21,
++    AV_PIX_FMT_YUYV422,
++    AV_PIX_FMT_UYVY422,
++    AV_PIX_FMT_YUV420P10LE,
++    AV_PIX_FMT_P010LE,
++    AV_PIX_FMT_DRM_PRIME,
++    AV_PIX_FMT_NONE,
++};
++
++static const AVCodecHWConfigInternal *const esmpp_enc_hw_configs[] = {
++    HW_CONFIG_ENCODER_DEVICE(DRM_PRIME, ESMPP),
++    HW_CONFIG_ENCODER_FRAMES(DRM_PRIME, ESMPP),
++    NULL,
++};
++
++static const FFCodecDefault esmpp_enc_defaults[] = {{"b", "2M"}, {"g", "75"}, {NULL}};
++
++#define DEFINE_ESMPP_ENCODER(x, X, xx)                                                 \
++    static const AVClass x##_esmpp_encoder_class = {                                   \
++        .class_name = #x "_esmpp_encoder",                                             \
++        .item_name = av_default_item_name,                                             \
++        .option = x##_options,                                                         \
++        .version = LIBAVUTIL_VERSION_INT,                                              \
++    };                                                                                 \
++    const FFCodec ff_##x##_esmpp_encoder = {                                           \
++        .p.name = #x "_esmpp_encoder",                                                 \
++        CODEC_LONG_NAME("ESW MPP (Media Process Platform) " #X " encoder"),            \
++        .p.type = AVMEDIA_TYPE_VIDEO,                                                  \
++        .p.id = AV_CODEC_ID_##X,                                                       \
++        .priv_data_size = sizeof(ESMPPEncContext),                                     \
++        .p.priv_class = &x##_esmpp_encoder_class,                                      \
++        .init = esmpp_encode_init,                                                     \
++        .close = esmpp_encode_close,                                                   \
++        FF_CODEC_ENCODE_CB(esmpp_encode_frame),                                        \
++        .p.capabilities = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_HARDWARE,                  \
++        .caps_internal = FF_CODEC_CAP_NOT_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP, \
++        .p.pix_fmts = esmpp_enc_pix_fmts,                                              \
++        .hw_configs = esmpp_enc_hw_configs,                                            \
++        .defaults = esmpp_enc_defaults,                                                \
++        .p.wrapper_name = "esmpp",                                                     \
++    };
++
++#endif /* AVCODEC_ESMPPENC_H */
+diff --git a/libavutil/Makefile b/libavutil/Makefile
+index 6e6fa8d800..7fcb0fd9e8 100644
+--- a/libavutil/Makefile
++++ b/libavutil/Makefile
+@@ -205,6 +205,7 @@ OBJS-$(CONFIG_VAAPI)                    += hwcontext_vaapi.o
+ OBJS-$(CONFIG_VIDEOTOOLBOX)             += hwcontext_videotoolbox.o
+ OBJS-$(CONFIG_VDPAU)                    += hwcontext_vdpau.o
+ OBJS-$(CONFIG_VULKAN)                   += hwcontext_vulkan.o vulkan.o
++OBJS-$(CONFIG_ESMPP)                    += hwcontext_esmpp.o
+ 
+ OBJS-$(!CONFIG_VULKAN)                  += hwcontext_stub.o
+ 
+@@ -228,6 +229,7 @@ SKIPHEADERS-$(CONFIG_VDPAU)            += hwcontext_vdpau.h
+ SKIPHEADERS-$(CONFIG_VULKAN)           += hwcontext_vulkan.h vulkan.h   \
+                                           vulkan_functions.h            \
+                                           vulkan_loader.h
++SKIPHEADERS-$(CONFIG_ESMPP)            += hwcontext_esmpp.h
+ 
+ TESTPROGS = adler32                                                     \
+             aes                                                         \
+diff --git a/libavutil/hwcontext.c b/libavutil/hwcontext.c
+index fa99a0d8a4..0e12aa1236 100644
+--- a/libavutil/hwcontext.c
++++ b/libavutil/hwcontext.c
+@@ -65,6 +65,9 @@ static const HWContextType * const hw_table[] = {
+ #endif
+ #if CONFIG_VULKAN
+     &ff_hwcontext_type_vulkan,
++#endif
++#if CONFIG_ESMPP
++    &ff_hwcontext_type_esmpp,
+ #endif
+     NULL,
+ };
+@@ -82,6 +85,7 @@ static const char *const hw_type_names[] = {
+     [AV_HWDEVICE_TYPE_VIDEOTOOLBOX] = "videotoolbox",
+     [AV_HWDEVICE_TYPE_MEDIACODEC] = "mediacodec",
+     [AV_HWDEVICE_TYPE_VULKAN] = "vulkan",
++    [AV_HWDEVICE_TYPE_ESMPP] = "esmpp",
+ };
+ 
+ typedef struct FFHWDeviceContext {
+diff --git a/libavutil/hwcontext.h b/libavutil/hwcontext.h
+index bac30debae..24f8e2eba9 100644
+--- a/libavutil/hwcontext.h
++++ b/libavutil/hwcontext.h
+@@ -38,6 +38,7 @@ enum AVHWDeviceType {
+     AV_HWDEVICE_TYPE_MEDIACODEC,
+     AV_HWDEVICE_TYPE_VULKAN,
+     AV_HWDEVICE_TYPE_D3D12VA,
++    AV_HWDEVICE_TYPE_ESMPP,
+ };
+ 
+ /**
+diff --git a/libavutil/hwcontext_esmpp.c b/libavutil/hwcontext_esmpp.c
+new file mode 100644
+index 0000000000..91037de0dc
+--- /dev/null
++++ b/libavutil/hwcontext_esmpp.c
+@@ -0,0 +1,627 @@
++/*
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include "config.h"
++
++#define _GNU_SOURCE
++#include <fcntl.h>
++#include <sys/mman.h>
++#include <unistd.h>
++
++#include "avassert.h"
++#include "hwcontext.h"
++#include "hwcontext_esmpp.h"
++#include "hwcontext_internal.h"
++#include "imgutils.h"
++
++static const struct {
++    enum AVPixelFormat pixfmt;
++    uint32_t drm_format;
++} supported_formats[] = {
++    /* grayscale */
++    {AV_PIX_FMT_GRAY8, DRM_FORMAT_R8},
++    /* fully-planar YUV */
++    {
++        AV_PIX_FMT_YUV420P,
++        DRM_FORMAT_YUV420,
++    },
++    {
++        AV_PIX_FMT_YUV422P,
++        DRM_FORMAT_YUV422,
++    },
++    {
++        AV_PIX_FMT_YUV444P,
++        DRM_FORMAT_YUV444,
++    },
++    /* semi-planar YUV */
++    {
++        AV_PIX_FMT_NV12,
++        DRM_FORMAT_NV12,
++    },
++    {
++        AV_PIX_FMT_NV21,
++        DRM_FORMAT_NV21,
++    },
++    {
++        AV_PIX_FMT_NV16,
++        DRM_FORMAT_NV16,
++    },
++    {
++        AV_PIX_FMT_NV24,
++        DRM_FORMAT_NV24,
++    },
++    /* semi-planar YUV 10-bit */
++    {
++        AV_PIX_FMT_P010,
++        DRM_FORMAT_P010,
++    },
++    {
++        AV_PIX_FMT_P210,
++        DRM_FORMAT_P210,
++    },
++    /* packed YUV */
++    {
++        AV_PIX_FMT_YUYV422,
++        DRM_FORMAT_YUYV,
++    },
++    {
++        AV_PIX_FMT_YVYU422,
++        DRM_FORMAT_YVYU,
++    },
++    {
++        AV_PIX_FMT_UYVY422,
++        DRM_FORMAT_UYVY,
++    },
++    /* packed RGB */
++    {
++        AV_PIX_FMT_RGB444LE,
++        DRM_FORMAT_XRGB4444,
++    },
++    {
++        AV_PIX_FMT_RGB444BE,
++        DRM_FORMAT_XRGB4444 | DRM_FORMAT_BIG_ENDIAN,
++    },
++    {
++        AV_PIX_FMT_BGR444LE,
++        DRM_FORMAT_XBGR4444,
++    },
++    {
++        AV_PIX_FMT_BGR444BE,
++        DRM_FORMAT_XBGR4444 | DRM_FORMAT_BIG_ENDIAN,
++    },
++    {
++        AV_PIX_FMT_RGB555LE,
++        DRM_FORMAT_XRGB1555,
++    },
++    {
++        AV_PIX_FMT_RGB555BE,
++        DRM_FORMAT_XRGB1555 | DRM_FORMAT_BIG_ENDIAN,
++    },
++    {
++        AV_PIX_FMT_BGR555LE,
++        DRM_FORMAT_XBGR1555,
++    },
++    {
++        AV_PIX_FMT_BGR555BE,
++        DRM_FORMAT_XBGR1555 | DRM_FORMAT_BIG_ENDIAN,
++    },
++    {
++        AV_PIX_FMT_RGB565LE,
++        DRM_FORMAT_RGB565,
++    },
++    {
++        AV_PIX_FMT_RGB565BE,
++        DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN,
++    },
++    {
++        AV_PIX_FMT_BGR565LE,
++        DRM_FORMAT_BGR565,
++    },
++    {
++        AV_PIX_FMT_BGR565BE,
++        DRM_FORMAT_BGR565 | DRM_FORMAT_BIG_ENDIAN,
++    },
++    {
++        AV_PIX_FMT_RGB24,
++        DRM_FORMAT_RGB888,
++    },
++    {
++        AV_PIX_FMT_BGR24,
++        DRM_FORMAT_BGR888,
++    },
++    {
++        AV_PIX_FMT_RGBA,
++        DRM_FORMAT_ABGR8888,
++    },
++    {
++        AV_PIX_FMT_RGB0,
++        DRM_FORMAT_XBGR8888,
++    },
++    {
++        AV_PIX_FMT_BGRA,
++        DRM_FORMAT_ARGB8888,
++    },
++    {
++        AV_PIX_FMT_BGR0,
++        DRM_FORMAT_XRGB8888,
++    },
++    {
++        AV_PIX_FMT_ARGB,
++        DRM_FORMAT_BGRA8888,
++    },
++    {
++        AV_PIX_FMT_0RGB,
++        DRM_FORMAT_BGRX8888,
++    },
++    {
++        AV_PIX_FMT_ABGR,
++        DRM_FORMAT_RGBA8888,
++    },
++    {
++        AV_PIX_FMT_0BGR,
++        DRM_FORMAT_RGBX8888,
++    },
++    {
++        AV_PIX_FMT_X2RGB10LE,
++        DRM_FORMAT_XRGB2101010,
++    },
++    {
++        AV_PIX_FMT_X2RGB10BE,
++        DRM_FORMAT_XRGB2101010 | DRM_FORMAT_BIG_ENDIAN,
++    },
++    {
++        AV_PIX_FMT_X2BGR10LE,
++        DRM_FORMAT_XBGR2101010,
++    },
++    {
++        AV_PIX_FMT_X2BGR10BE,
++        DRM_FORMAT_XBGR2101010 | DRM_FORMAT_BIG_ENDIAN,
++    },
++};
++
++static int esmpp_device_create(AVHWDeviceContext *hwdev, const char *device, AVDictionary *opts, int flags) {
++    AVESMPPDeviceContext *hwctx = hwdev->hwctx;
++    AVDictionaryEntry *opt_d = NULL;
++
++    hwctx->flags = flags;
++
++    opt_d = av_dict_get(opts, "dma32", NULL, 0);
++    if (opt_d && !strtol(opt_d->value, NULL, 10)) hwctx->flags &= ~MPP_BUFFER_FLAGS_DMA32;
++
++    opt_d = av_dict_get(opts, "cacheable", NULL, 0);
++    if (opt_d && !strtol(opt_d->value, NULL, 10)) hwctx->flags &= ~MPP_BUFFER_FLAGS_CACHABLE;
++
++    if (device) {
++        av_log(hwdev, AV_LOG_INFO, "device(%s), flags: 0x%x\n", device, hwctx->flags);
++    } else {
++        av_log(hwdev, AV_LOG_WARNING, "device null flags: 0x%x\n", hwctx->flags);
++    }
++
++    return 0;
++}
++
++static int esmpp_frames_get_constraints(AVHWDeviceContext *hwdev,
++                                        const void *hwconfig,
++                                        AVHWFramesConstraints *constraints) {
++    int i;
++
++    constraints->min_width = 16;
++    constraints->min_height = 16;
++
++    constraints->valid_hw_formats = av_malloc_array(2, sizeof(enum AVPixelFormat));
++    if (!constraints->valid_hw_formats) return AVERROR(ENOMEM);
++    constraints->valid_hw_formats[0] = AV_PIX_FMT_DRM_PRIME;
++    constraints->valid_hw_formats[1] = AV_PIX_FMT_NONE;
++
++    constraints->valid_sw_formats = av_malloc_array(FF_ARRAY_ELEMS(supported_formats) + 1, sizeof(enum AVPixelFormat));
++    if (!constraints->valid_sw_formats) return AVERROR(ENOMEM);
++    for (i = 0; i < FF_ARRAY_ELEMS(supported_formats); i++)
++        constraints->valid_sw_formats[i] = supported_formats[i].pixfmt;
++    constraints->valid_sw_formats[i] = AV_PIX_FMT_NONE;
++    return 0;
++}
++
++static void esmpp_free_drm_frame_descriptor(void *opaque, uint8_t *data) {
++    MppBufferPtr mpp_buf = opaque;
++    AVESMPPDRMFrameDescriptor *desc = (AVESMPPDRMFrameDescriptor *)data;
++    int ret;
++
++    if (!desc) return;
++
++    if (mpp_buf) {
++        ret = mpp_buffer_put(mpp_buf);
++        if (ret != MPP_OK) av_log(NULL, AV_LOG_WARNING, "Failed to put MPP buffer: %d\n", ret);
++    }
++
++    memset(desc, 0, sizeof(*desc));
++    av_free(desc);
++}
++
++static int esmpp_get_aligned_linesize(enum AVPixelFormat pix_fmt, int width, int plane) {
++    const AVPixFmtDescriptor *pixdesc = av_pix_fmt_desc_get(pix_fmt);
++    const int is_rgb = pixdesc->flags & AV_PIX_FMT_FLAG_RGB;
++    const int is_yuv = !is_rgb && pixdesc->nb_components >= 2;
++    const int is_planar = pixdesc->flags & AV_PIX_FMT_FLAG_PLANAR;
++    const int is_packed_fmt = is_rgb || (!is_rgb && !is_planar);
++    const int is_fully_planar = is_planar && pixdesc->comp[1].plane != pixdesc->comp[2].plane;
++    int linesize;
++
++#if 0
++    if (pix_fmt == AV_PIX_FMT_NV15 ||
++        pix_fmt == AV_PIX_FMT_NV20) {
++        const int log2_chroma_w = plane == 1 ? 1 : 0;
++        const int width_align_256_odds = FFALIGN(width << log2_chroma_w, 256) | 256;
++        return FFALIGN(width_align_256_odds * 10 / 8, 64);
++    }
++#endif
++
++    linesize = av_image_get_linesize(pix_fmt, width, plane);
++
++    if (is_packed_fmt) {
++        const int pixel_width = av_get_padded_bits_per_pixel(pixdesc) / 8;
++        linesize = FFALIGN(linesize / pixel_width, 8) * pixel_width;
++    } else if (is_yuv && is_fully_planar) {
++        linesize = FFALIGN(linesize, 8);
++    } else
++        linesize = FFALIGN(linesize, 64);
++
++    return linesize;
++}
++
++static AVBufferRef *esmpp_drm_pool_alloc(void *opaque, size_t size) {
++    int ret;
++    AVHWFramesContext *hwfc = opaque;
++    AVESMPPFramesContext *avfc = hwfc->hwctx;
++    AVESMPPDeviceContext *hwctx = hwfc->device_ctx->hwctx;
++    AVESMPPDRMFrameDescriptor *desc;
++    AVDRMLayerDescriptor *layer;
++    AVBufferRef *ref;
++    size_t mpp_buf_size;
++
++    int i;
++    const AVPixFmtDescriptor *pixdesc = av_pix_fmt_desc_get(hwfc->sw_format);
++    const int bits_pp = av_get_padded_bits_per_pixel(pixdesc);
++    const int aligned_w = FFALIGN(hwfc->width * 5 / 4, 64);
++    const int aligned_h = FFALIGN(hwfc->height * 5 / 4, 64);
++
++    MppBufferPtr mpp_buf = NULL;
++    if (!avfc->buf_size) {
++        mpp_buf_size = aligned_w * aligned_h * bits_pp / 8;
++    }
++
++    if (hwfc->initial_pool_size > 0 && avfc->nb_frames >= hwfc->initial_pool_size) {
++        return NULL;
++    }
++
++    desc = av_mallocz(sizeof(*desc));
++    if (!desc) return NULL;
++
++    desc->drm_desc.nb_objects = 1;
++    desc->drm_desc.nb_layers = 1;
++
++    ret = mpp_buffer_get(avfc->buf_group, &mpp_buf, mpp_buf_size);
++    if (ret != MPP_OK || !mpp_buf) {
++        av_log(hwctx, AV_LOG_ERROR, "Failed to get MPP buffer: %d\n", ret);
++        ret = AVERROR(ENOMEM);
++        goto fail;
++    }
++    desc->buffers[0] = mpp_buf;
++
++    desc->drm_desc.objects[0].fd = mpp_buffer_get_fd(mpp_buf);
++    desc->drm_desc.objects[0].size = mpp_buffer_get_size(mpp_buf);
++
++    layer = &desc->drm_desc.layers[0];
++    for (i = 0; i < FF_ARRAY_ELEMS(supported_formats); i++) {
++        if (supported_formats[i].pixfmt == hwfc->sw_format) {
++            layer->format = supported_formats[i].drm_format;
++            break;
++        }
++    }
++    layer->nb_planes = av_pix_fmt_count_planes(hwfc->sw_format);
++    layer->planes[0].object_index = 0;
++    layer->planes[0].offset = 0;
++    layer->planes[0].pitch = esmpp_get_aligned_linesize(hwfc->sw_format, hwfc->width, 0);
++
++    for (i = 1; i < layer->nb_planes; i++) {
++        layer->planes[i].object_index = 0;
++        layer->planes[i].offset =
++            layer->planes[i - 1].offset
++            + layer->planes[i - 1].pitch * (FFALIGN(hwfc->height, 2) >> (i > 1 ? pixdesc->log2_chroma_h : 0));
++        layer->planes[i].pitch = esmpp_get_aligned_linesize(hwfc->sw_format, hwfc->width, i);
++    }
++
++    ref = av_buffer_create((uint8_t *)desc, sizeof(*desc), esmpp_free_drm_frame_descriptor, mpp_buf, 0);
++    if (!ref) {
++        av_log(hwfc, AV_LOG_ERROR, "Failed to create ESMPP buffer.\n");
++        goto fail;
++    }
++
++    if (hwfc->initial_pool_size > 0) {
++        av_assert0(avfc->nb_frames < hwfc->initial_pool_size);
++        memcpy(&avfc->frames[avfc->nb_frames], desc, sizeof(*desc));
++        ++avfc->nb_frames;
++    }
++
++    return ref;
++
++fail:
++    esmpp_free_drm_frame_descriptor(mpp_buf, (uint8_t *)desc);
++    return NULL;
++}
++
++static int esmpp_frames_init(AVHWFramesContext *hwfc) {
++    AVESMPPFramesContext *avfc = hwfc->hwctx;
++    AVESMPPDeviceContext *hwctx = hwfc->device_ctx->hwctx;
++    int i, ret;
++
++    if (hwfc->pool) return 0;
++
++    for (i = 0; i < FF_ARRAY_ELEMS(supported_formats); i++)
++        if (supported_formats[i].pixfmt == hwfc->sw_format) break;
++    if (i >= FF_ARRAY_ELEMS(supported_formats)) {
++        av_log(hwfc, AV_LOG_ERROR, "Unsupported format: %s.\n", av_get_pix_fmt_name(hwfc->sw_format));
++        return AVERROR(EINVAL);
++    }
++
++    avfc->nb_frames = 0;
++    avfc->frames = NULL;
++    if (hwfc->initial_pool_size > 0) {
++        avfc->frames = av_malloc(hwfc->initial_pool_size * sizeof(*avfc->frames));
++        if (!avfc->frames) {
++            av_log(hwfc, AV_LOG_ERROR, "alloc frames failed initial_pool_size: %d\n", hwfc->initial_pool_size);
++            return AVERROR(ENOMEM);
++        }
++    }
++
++    ret = mpp_buffer_group_get_internal(&avfc->buf_group, MPP_BUFFER_TYPE_DMA_HEAP | hwctx->flags);
++    if (ret != MPP_OK) {
++        av_log(hwfc, AV_LOG_ERROR, "Failed to get MPP internal buffer group: %d\n", ret);
++        return AVERROR_EXTERNAL;
++    }
++
++    ffhwframesctx(hwfc)->pool_internal =
++        av_buffer_pool_init2(sizeof(AVESMPPDRMFrameDescriptor), hwfc, esmpp_drm_pool_alloc, NULL);
++    if (!ffhwframesctx(hwfc)->pool_internal) {
++        av_log(hwfc, AV_LOG_ERROR, "Failed to create ESMPP buffer pool.\n");
++        return AVERROR(ENOMEM);
++    }
++
++    return 0;
++}
++
++static void esmpp_frames_uninit(AVHWFramesContext *hwfc) {
++    AVESMPPFramesContext *avfc = hwfc->hwctx;
++
++    av_freep(&avfc->frames);
++
++    if (avfc->buf_group) {
++        mpp_buffer_group_put(avfc->buf_group);
++        avfc->buf_group = NULL;
++    }
++}
++
++static int esmpp_get_buffer(AVHWFramesContext *hwfc, AVFrame *frame) {
++    frame->buf[0] = av_buffer_pool_get(hwfc->pool);
++    if (!frame->buf[0]) return AVERROR(ENOMEM);
++
++    frame->format = AV_PIX_FMT_DRM_PRIME;
++    frame->width = hwfc->width;
++    frame->height = hwfc->height;
++    frame->data[0] = (uint8_t *)frame->buf[0]->data;
++
++    return 0;
++}
++
++typedef struct ESMPPDRMMapping {
++    // Address and length of each mmap()ed region.
++    int nb_regions;
++    int sync_flags;
++    int object[AV_DRM_MAX_PLANES];
++    void *address[AV_DRM_MAX_PLANES];
++    size_t length[AV_DRM_MAX_PLANES];
++    int unmap[AV_DRM_MAX_PLANES];
++} ESMPPDRMMapping;
++
++static void esmpp_unmap_frame(AVHWFramesContext *hwfc, HWMapDescriptor *hwmap) {
++    AVESMPPDeviceContext *hwctx = hwfc->device_ctx->hwctx;
++    ESMPPDRMMapping *map = hwmap->priv;
++
++    for (int i = 0; i < map->nb_regions; i++) {
++        if (map->address[i] && map->unmap[i]) munmap(map->address[i], map->length[i]);
++    }
++
++    av_free(map);
++}
++
++static int esmpp_map_frame(AVHWFramesContext *hwfc, AVFrame *dst, const AVFrame *src, int flags) {
++    AVESMPPDeviceContext *hwctx = hwfc->device_ctx->hwctx;
++    const AVESMPPDRMFrameDescriptor *desc = (AVESMPPDRMFrameDescriptor *)src->data[0];
++    ESMPPDRMMapping *map;
++    int err, i, p, plane;
++    int mmap_prot;
++    void *addr;
++
++    map = av_mallocz(sizeof(*map));
++    if (!map) return AVERROR(ENOMEM);
++
++    mmap_prot = 0;
++    if (flags & AV_HWFRAME_MAP_READ) mmap_prot |= PROT_READ;
++    if (flags & AV_HWFRAME_MAP_WRITE) mmap_prot |= PROT_WRITE;
++
++    if (desc->drm_desc.objects[0].format_modifier != DRM_FORMAT_MOD_LINEAR) {
++        av_log(hwfc, AV_LOG_ERROR, "Transfer non-linear DRM_PRIME frame is not supported!\n");
++        return AVERROR(ENOSYS);
++    }
++
++    av_assert0(desc->drm_desc.nb_objects <= AV_DRM_MAX_PLANES);
++    for (i = 0; i < desc->drm_desc.nb_objects; i++) {
++        addr = NULL;
++        if (desc->buffers[i]) addr = mpp_buffer_get_ptr(desc->buffers[i]);
++        if (addr) {
++            map->unmap[i] = 0;
++        } else {
++            addr = mmap(NULL, desc->drm_desc.objects[i].size, mmap_prot, MAP_SHARED, desc->drm_desc.objects[i].fd, 0);
++            if (addr == MAP_FAILED) {
++                err = AVERROR(errno);
++                av_log(hwfc,
++                       AV_LOG_ERROR,
++                       "Failed to map ESMPP object %d to "
++                       "memory: %d.\n",
++                       desc->drm_desc.objects[i].fd,
++                       errno);
++                goto fail;
++            }
++            map->unmap[i] = 1;
++        }
++
++        map->address[i] = addr;
++        map->length[i] = desc->drm_desc.objects[i].size;
++        map->object[i] = desc->drm_desc.objects[i].fd;
++    }
++    map->nb_regions = i;
++
++    plane = 0;
++    for (i = 0; i < desc->drm_desc.nb_layers; i++) {
++        const AVDRMLayerDescriptor *layer = &desc->drm_desc.layers[i];
++        for (p = 0; p < layer->nb_planes; p++) {
++            dst->data[plane] = (uint8_t *)map->address[layer->planes[p].object_index] + layer->planes[p].offset;
++            dst->linesize[plane] = layer->planes[p].pitch;
++            ++plane;
++        }
++    }
++    av_assert0(plane <= AV_DRM_MAX_PLANES);
++
++    dst->width = src->width;
++    dst->height = src->height;
++
++    err = ff_hwframe_map_create(src->hw_frames_ctx, dst, src, &esmpp_unmap_frame, map);
++    if (err < 0) goto fail;
++
++    return 0;
++
++fail:
++    for (i = 0; i < desc->drm_desc.nb_objects; i++) {
++        if (map->address[i] && map->unmap[i]) munmap(map->address[i], map->length[i]);
++    }
++    av_free(map);
++    return err;
++}
++
++static int esmpp_transfer_get_formats(AVHWFramesContext *ctx,
++                                      enum AVHWFrameTransferDirection dir,
++                                      enum AVPixelFormat **formats) {
++    enum AVPixelFormat *pix_fmts;
++
++    pix_fmts = av_malloc_array(2, sizeof(*pix_fmts));
++    if (!pix_fmts) return AVERROR(ENOMEM);
++
++    pix_fmts[0] = ctx->sw_format;
++    pix_fmts[1] = AV_PIX_FMT_NONE;
++
++    *formats = pix_fmts;
++
++    return 0;
++}
++
++static int esmpp_transfer_data_from(AVHWFramesContext *hwfc, AVFrame *dst, const AVFrame *src) {
++    AVFrame *map;
++    int err;
++
++    if (dst->width > hwfc->width || dst->height > hwfc->height) return AVERROR(EINVAL);
++
++    map = av_frame_alloc();
++    if (!map) return AVERROR(ENOMEM);
++    map->format = dst->format;
++
++    err = esmpp_map_frame(hwfc, map, src, AV_HWFRAME_MAP_READ);
++    if (err) goto fail;
++
++    map->width = dst->width;
++    map->height = dst->height;
++
++    err = av_frame_copy(dst, map);
++    if (err) goto fail;
++
++    err = 0;
++fail:
++    av_frame_free(&map);
++
++    return err;
++}
++
++static int esmpp_transfer_data_to(AVHWFramesContext *hwfc, AVFrame *dst, const AVFrame *src) {
++    AVFrame *map;
++    int err;
++
++    if (src->width > hwfc->width || src->height > hwfc->height) return AVERROR(EINVAL);
++
++    map = av_frame_alloc();
++    if (!map) return AVERROR(ENOMEM);
++    map->format = src->format;
++
++    err = esmpp_map_frame(hwfc, map, dst, AV_HWFRAME_MAP_WRITE | AV_HWFRAME_MAP_OVERWRITE);
++    if (err) goto fail;
++
++    map->width = src->width;
++    map->height = src->height;
++
++    err = av_frame_copy(map, src);
++    if (err) goto fail;
++
++    err = 0;
++fail:
++    av_frame_free(&map);
++
++    return err;
++}
++
++static int esmpp_map_from(AVHWFramesContext *hwfc, AVFrame *dst, const AVFrame *src, int flags) {
++    int err;
++
++    if (hwfc->sw_format != dst->format) return AVERROR(ENOSYS);
++
++    err = esmpp_map_frame(hwfc, dst, src, flags);
++    if (err) return err;
++
++    err = av_frame_copy_props(dst, src);
++    if (err) return err;
++
++    return 0;
++}
++
++const HWContextType ff_hwcontext_type_esmpp = {
++    .type = AV_HWDEVICE_TYPE_ESMPP,
++    .name = "ESMPP",
++
++    .device_hwctx_size = sizeof(AVESMPPDeviceContext),
++    .frames_hwctx_size = sizeof(AVESMPPFramesContext),
++
++    .device_create = &esmpp_device_create,
++
++    .frames_get_constraints = &esmpp_frames_get_constraints,
++
++    .frames_get_buffer = &esmpp_get_buffer,
++    .frames_init = &esmpp_frames_init,
++    .frames_uninit = &esmpp_frames_uninit,
++    .transfer_get_formats = &esmpp_transfer_get_formats,
++    .transfer_data_to = &esmpp_transfer_data_to,
++    .transfer_data_from = &esmpp_transfer_data_from,
++    .map_from = &esmpp_map_from,
++
++    .pix_fmts = (const enum AVPixelFormat[]){AV_PIX_FMT_DRM_PRIME, AV_PIX_FMT_NONE},
++};
+diff --git a/libavutil/hwcontext_esmpp.h b/libavutil/hwcontext_esmpp.h
+new file mode 100644
+index 0000000000..e23a288916
+--- /dev/null
++++ b/libavutil/hwcontext_esmpp.h
+@@ -0,0 +1,80 @@
++/*
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#ifndef AVUTIL_HWCONTEXT_ESMPP_H
++#define AVUTIL_HWCONTEXT_ESMPP_H
++
++#include <stddef.h>
++#include <stdint.h>
++#include <drm/drm_fourcc.h>
++#include <es_mpp.h>
++#include <mpp_buffer.h>
++
++#include "hwcontext_drm.h"
++
++
++/**
++ * DRM Prime Frame descriptor for ESMPP HWDevice.
++ */
++typedef struct AVESMPPDRMFrameDescriptor {
++    /**
++     * Backwards compatibility with AVDRMFrameDescriptor.
++     */
++    AVDRMFrameDescriptor drm_desc;
++
++    /**
++     * References to MppBuffer instances which are used
++     * on each drm frame index.
++     */
++    MppBufferPtr buffers[AV_DRM_MAX_PLANES];
++} AVESMPPDRMFrameDescriptor;
++
++/**
++ * ESMPP-specific data associated with a frame pool.
++ *
++ * Allocated as AVHWFramesContext.hwctx.
++ */
++typedef struct AVESMPPFramesContext {
++    /**
++     * MPP buffer group.
++     */
++    MppBufferGroupPtr buf_group;
++
++    /**
++     * The descriptors of all frames in the pool after creation.
++     * Only valid if AVHWFramesContext.initial_pool_size was positive.
++     * These are intended to be used as the buffer of ESMPP decoder.
++     */
++    AVESMPPDRMFrameDescriptor *frames;
++    int nb_frames;
++    size_t buf_size;
++} AVESMPPFramesContext;
++
++/**
++ * ESMPP device details.
++ *
++ * Allocated as AVHWDeviceContext.hwctx
++ */
++typedef struct AVESMPPDeviceContext {
++    /**
++     * MPP buffer allocation flags.
++     */
++    int flags;
++} AVESMPPDeviceContext;
++
++#endif /* AVUTIL_HWCONTEXT_ESMPP_H */
+diff --git a/libavutil/hwcontext_internal.h b/libavutil/hwcontext_internal.h
+index e32b786238..2f0780c708 100644
+--- a/libavutil/hwcontext_internal.h
++++ b/libavutil/hwcontext_internal.h
+@@ -163,5 +163,6 @@ extern const HWContextType ff_hwcontext_type_vdpau;
+ extern const HWContextType ff_hwcontext_type_videotoolbox;
+ extern const HWContextType ff_hwcontext_type_mediacodec;
+ extern const HWContextType ff_hwcontext_type_vulkan;
++extern const HWContextType ff_hwcontext_type_esmpp;
+ 
+ #endif /* AVUTIL_HWCONTEXT_INTERNAL_H */
+-- 
+2.40.1
+
