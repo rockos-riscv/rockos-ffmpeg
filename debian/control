@@ -203,7 +203,8 @@ Build-Depends:
 # assembler optimizations
  nasm,
 # autodetected zlib
- zlib1g-dev
+ zlib1g-dev,
+ rockos-extra-mpp
 
 Package: ffmpeg
 Architecture: any
@@ -249,7 +250,8 @@ Section: libs
 Multi-Arch: same
 Depends:
  ${shlibs:Depends},
- ${misc:Depends}
+ ${misc:Depends},
+ rockos-extra-mpp
 Suggests:
  libcuda1 [amd64 arm64 i386],
  libnvcuvid1 [amd64 arm64 i386],
@@ -279,7 +281,8 @@ Conflicts: libavcodec61
 Provides: libavcodec61 (= ${binary:Version})
 Depends:
  ${shlibs:Depends},
- ${misc:Depends}
+ ${misc:Depends},
+ rockos-extra-mpp
 Suggests:
  libcuda1 [amd64 arm64 i386],
  libnvcuvid1 [amd64 arm64 i386],

@@ -71,7 +71,11 @@ CONFIG := --prefix=/usr \
 	--enable-libzimg \
 	--enable-openal \
 	--enable-opencl \
-	--enable-opengl
+	--enable-opengl \
+	--enable-nonfree \
+	--enable-esmpp
+
+CONFIG += --extra-libs="-les_mpp -lvideo-common"
 
 # disable sndio, it's pulled in via libopenal-dev and autodetected
 CONFIG += --disable-sndio
@@ -313,8 +317,10 @@ build_%: prebuild_%
 
 # Set the library path for the dynamic linker, because the tests otherwise don't find the libraries.
 override_dh_auto_test-arch:
+ifneq (riscv64,$(DEB_HOST_ARCH))
 	export LD_LIBRARY_PATH="libavcodec:libavdevice:libavfilter:libavformat:libavutil:libpostproc:libswresample:libswscale"; \
 		dh_auto_test -a --sourcedirectory=debian/standard -- -k
+endif
 
 # No tests for indep build.
 override_dh_auto_test-indep:
