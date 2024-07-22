@@ -34,6 +34,13 @@
 #include "codec_id.h"
 #include "codec_internal.h"
 
+
+extern const FFCodec ff_h264_esmpp_encoder;
+extern const FFCodec ff_hevc_esmpp_encoder;
+extern const FFCodec ff_mjpeg_esmpp_encoder;
+extern const FFCodec ff_h264_esmpp_decoder;
+extern const FFCodec ff_hevc_esmpp_decoder;
+
 extern const FFCodec ff_a64multi_encoder;
 extern const FFCodec ff_a64multi5_encoder;
 extern const FFCodec ff_aasc_decoder;
@@ -768,6 +775,21 @@ extern const FFCodec ff_libdav1d_decoder;
 extern const FFCodec ff_libdavs2_decoder;
 extern const FFCodec ff_libfdk_aac_encoder;
 extern const FFCodec ff_libfdk_aac_decoder;
+extern const FFCodec ff_es_aac_decoder;
+extern const FFCodec ff_es_aac_encoder;
+extern const FFCodec ff_es_mp3_decoder;
+extern const FFCodec ff_es_amrnb_decoder;
+extern const FFCodec ff_es_amrnb_encoder;
+extern const FFCodec ff_es_amrwb_decoder;
+extern const FFCodec ff_es_amrwb_encoder;
+extern const FFCodec ff_es_g711alaw_decoder;
+extern const FFCodec ff_es_g711alaw_encoder;
+extern const FFCodec ff_es_g711mulaw_decoder;
+extern const FFCodec ff_es_g711mulaw_encoder;
+extern const FFCodec ff_es_g722_decoder;
+extern const FFCodec ff_es_g722_encoder;
+extern const FFCodec ff_es_g726_decoder;
+extern const FFCodec ff_es_g726_encoder;
 extern const FFCodec ff_libgsm_encoder;
 extern const FFCodec ff_libgsm_decoder;
 extern const FFCodec ff_libgsm_ms_encoder;
