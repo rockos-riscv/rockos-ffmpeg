@@ -1,3 +1,9 @@
+ffmpeg (7:7.0.1-2rockos3) unstable; urgency=medium
+
+  * Update eswin patchset 20240805
+
+ -- Han Gao <gaohan@iscas.ac.cn>  Mon, 05 Aug 2024 21:17:05 +0800
+
 ffmpeg (7:7.0.1-2rockos2) unstable; urgency=medium
 
   * Update eswin patchset 20240723
