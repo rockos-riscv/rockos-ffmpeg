@@ -1,7 +1,7 @@
-From 7b4336f785cc6e231a5e836071db80ee4dface8a Mon Sep 17 00:00:00 2001
+From 2fe715c2ae6fbed9d655ff892a603b0efefc7127 Mon Sep 17 00:00:00 2001
 From: Han Gao <gaohan@iscas.ac.cn>
-Date: Wed, 24 Jul 2024 14:48:57 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20240723
+Date: Mon, 5 Aug 2024 21:13:08 +0800
+Subject: [PATCH 1/2] sync: sync eswin code 20240805
 
 Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
 Signed-off-by: Han Gao <rabenda.cn@gmail.com>
@@ -14,17 +14,17 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  libavcodec/es_audio_enc.c      |  352 ++++++++++
  libavcodec/esmpp_comm.c        |  382 +++++++++++
  libavcodec/esmpp_comm.h        |   74 +++
- libavcodec/esmppdec.c          |  801 +++++++++++++++++++++++
+ libavcodec/esmppdec.c          |  819 ++++++++++++++++++++++++
  libavcodec/esmppdec.h          |  199 ++++++
- libavcodec/esmppenc.c          | 1093 ++++++++++++++++++++++++++++++++
+ libavcodec/esmppenc.c          | 1103 ++++++++++++++++++++++++++++++++
  libavcodec/esmppenc.h          |  505 +++++++++++++++
  libavutil/Makefile             |    2 +
  libavutil/hwcontext.c          |    4 +
  libavutil/hwcontext.h          |    1 +
- libavutil/hwcontext_esmpp.c    |  635 +++++++++++++++++++
+ libavutil/hwcontext_esmpp.c    |  635 ++++++++++++++++++
  libavutil/hwcontext_esmpp.h    |   80 +++
  libavutil/hwcontext_internal.h |    1 +
- 18 files changed, 4556 insertions(+)
+ 18 files changed, 4584 insertions(+)
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
  create mode 100644 libavcodec/esmpp_comm.c
@@ -1392,10 +1392,10 @@ index 0000000000..692a3f1c04
 \ No newline at end of file
 diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
 new file mode 100644
-index 0000000000..f36b8f58aa
+index 0000000000..9ee9ab2567
 --- /dev/null
 +++ b/libavcodec/esmppdec.c
-@@ -0,0 +1,801 @@
+@@ -0,0 +1,819 @@
 +#include "config.h"
 +#include "config_components.h"
 +
@@ -1403,6 +1403,8 @@ index 0000000000..f36b8f58aa
 +#include "esmpp_comm.h"
 +#include <mpp_frame.h>
 +#include <mpp_vdec_cfg.h>
++
++#define ESMPP_DEC_WAIT_TIME 10000  // us
 +
 +typedef struct {
 +    enum AVPixelFormat pixfmt;
@@ -1830,11 +1832,13 @@ index 0000000000..f36b8f58aa
 +    enum AVPixelFormat actual_pixfmt = AV_PIX_FMT_NONE;
 +
 +    if (!frame || !mpp_frame) {
++        av_log(NULL, AV_LOG_ERROR, "mpp_decode_export_frame !frame || !mpp_frame\n");
 +        return AVERROR(ENOMEM);
 +    }
 +
 +    mpp_buf = mpp_frame_get_buffer(mpp_frame);
 +    if (!mpp_buf) {
++        av_log(NULL, AV_LOG_WARNING, "mpp_decode_export_frame mpp_buf is null\n");
 +        return AVERROR(EAGAIN);
 +    }
 +
@@ -1853,11 +1857,13 @@ index 0000000000..f36b8f58aa
 +
 +    nb_planes = mpp_frame_get_nb_planes(mpp_frame);
 +    if (nb_planes <= 0) {
++        av_log(NULL, AV_LOG_WARNING, "mpp_decode_export_frame nb_planes <= 0\n");
 +        return AVERROR(EAGAIN);
 +    }
 +    offset = mpp_frame_get_offset(mpp_frame);
 +    stride = mpp_frame_get_stride(mpp_frame);
 +    if (!offset || !stride) {
++        av_log(NULL, AV_LOG_WARNING, "mpp_decode_export_frame !offset || !stride\n");
 +        return AVERROR(EAGAIN);
 +    }
 +
@@ -2008,6 +2014,9 @@ index 0000000000..f36b8f58aa
 +            ret = AVERROR_EXTERNAL;
 +            goto exit;
 +        }
++
++        // for info change frame only, should notify uplayer eagain.
++        ret = AVERROR(EAGAIN);
 +        goto exit;
 +    } else {
 +        av_log(avctx, AV_LOG_DEBUG, "Received a frame\n");
@@ -2140,7 +2149,10 @@ index 0000000000..f36b8f58aa
 +                av_log(avctx, AV_LOG_INFO, "Decoder is at EOF\n");
 +                /* send EOS and start draining */
 +                mpp_decode_send_eos(avctx);
-+                ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_BLOCK);
++                // may return for info change or ffmpeg will close
++                do {
++                    ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_BLOCK);
++                } while (ret == AVERROR(EAGAIN));
 +                goto exit;
 +            } else if (ret == AVERROR(EAGAIN)) {
 +                /* not blocking so that we can feed data ASAP */
@@ -2156,7 +2168,7 @@ index 0000000000..f36b8f58aa
 +        ret = mpp_decode_send_packet(avctx, pkt);
 +        if (ret == AVERROR(EAGAIN)) {
 +            /* some streams might need more packets to start returning frames */
-+            ret = mpp_decode_get_frame(avctx, frame, 10000);
++            ret = mpp_decode_get_frame(avctx, frame, ESMPP_DEC_WAIT_TIME);
 +            if (ret != AVERROR(EAGAIN)) {
 +                goto exit;
 +            }
@@ -2164,7 +2176,13 @@ index 0000000000..f36b8f58aa
 +            av_log(avctx, AV_LOG_ERROR, "Decoder failed to send packet: %d\n", ret);
 +            goto exit;
 +        } else {
-+            ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_NON_BLOCK);
++            if (avctx->codec_id == AV_CODEC_ID_MJPEG) {
++                // it is workaround for jpeg as it must wait for info change
++                ret = mpp_decode_get_frame(avctx, frame, ESMPP_DEC_WAIT_TIME);
++            } else {
++                ret = mpp_decode_get_frame(avctx, frame, ESMPP_DEC_WAIT_TIME);  //MPP_TIMEOUT_NON_BLOCK
++            }
++
 +            av_packet_unref(pkt);
 +            pkt->size = 0;
 +            goto exit;
@@ -2404,10 +2422,10 @@ index 0000000000..676555a7ca
 +#endif /* AVCODEC_ESMPPDEC_H */
 diff --git a/libavcodec/esmppenc.c b/libavcodec/esmppenc.c
 new file mode 100644
-index 0000000000..25b8ecde07
+index 0000000000..8c9e494a41
 --- /dev/null
 +++ b/libavcodec/esmppenc.c
-@@ -0,0 +1,1093 @@
+@@ -0,0 +1,1103 @@
 +#include "esmppenc.h"
 +#include <es_venc_def.h>
 +#include <es_mpp_video.h>
@@ -2733,18 +2751,28 @@ index 0000000000..25b8ecde07
 +    VENC_RC_MODE_E rc_mode;
 +    unsigned int bitrate;
 +
-+    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
-+        CFG_SET_U32(cfg, "rc:gop", FFMAX(avctx->gop_size, 1));
-+        CFG_SET_U32_IF_USER_SET(cfg, "rc:dst_frame_rate", encoder_get_framerate(avctx->framerate), -1);
-+    }
-+
 +    rc_mode = encoder_get_venc_rc_mode(cxt->rc_mode, avctx->codec_id);
 +    if (rc_mode < VENC_RC_MODE_H264CBR || rc_mode >= VENC_RC_MODE_BUTT) {
 +        av_log(avctx, AV_LOG_WARNING, "unsupported rc:mode %d\n", rc_mode);
 +        return -1;
 +    }
-+
 +    CFG_SET_S32(cfg, "rc:mode", rc_mode);
++    // for get rc releted params
++    if (esmpp_control(cxt->mctx, MPP_ENC_SET_CFG, cfg)) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to set config\n");
++        return -1;
++    }
++    if (esmpp_control(cxt->mctx, MPP_ENC_GET_CFG, cfg)) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to get config\n");
++        return -1;
++    }
++
++    CFG_SET_U32(cfg, "rc:dst_frame_rate", encoder_get_framerate(avctx->framerate));
++
++    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
++        CFG_SET_U32(cfg, "rc:gop", FFMAX(avctx->gop_size, 1));
++    }
++
 +    switch (rc_mode) {
 +        case VENC_RC_MODE_H264CBR:
 +        case VENC_RC_MODE_H265CBR: {
@@ -3503,7 +3531,7 @@ index 0000000000..25b8ecde07
 +DEFINE_ESMPP_ENCODER(mjpeg, MJPEG, mjpeg)
 diff --git a/libavcodec/esmppenc.h b/libavcodec/esmppenc.h
 new file mode 100644
-index 0000000000..815e0eeaec
+index 0000000000..f49f0379b7
 --- /dev/null
 +++ b/libavcodec/esmppenc.h
 @@ -0,0 +1,505 @@
@@ -3670,6 +3698,7 @@ index 0000000000..815e0eeaec
 +        {"CBR", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, 0, 0, VE, "rc_mode"},                                         \
 +        {"VBR", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, 0, 0, VE, "rc_mode"},                                         \
 +        {"CQP", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, 0, 0, VE, "rc_mode"},                                         \
++        {"stat_time", "[1, 60]", OFFSET(stat_time), AV_OPT_TYPE_INT, {.i64 = 1}, 1, 60, VE, "stat_time"},             \
 +        {"dump_path", "dump directory", OFFSET(dump_path), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},              \
 +        {"frame_dump", "frame dump enable", OFFSET(dump_frame_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VE},        \
 +        {"packet_dump", "packet dump enable", OFFSET(dump_pkt_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VE},        \
@@ -3788,7 +3817,6 @@ index 0000000000..815e0eeaec
 +    }
 +
 +#define ESMPP_ENC_VIDEO_RC_OPTS                                                                                      \
-+    {"stat_time", "[1, 60]", OFFSET(stat_time), AV_OPT_TYPE_INT, {.i64 = 1}, 1, 60, VE, "stat_time"},                \
 +        {"cpb_size", "[10, 800000]", OFFSET(cpb_size), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 800000, VE, "cpb_size"},    \
 +        {"iqp", "[0, 51]", OFFSET(iqp), AV_OPT_TYPE_INT, {.i64 = 30}, 0, 51, VE, "iqp"},                             \
 +        {"pqp", "[0, 51]", OFFSET(pqp), AV_OPT_TYPE_INT, {.i64 = 32}, 0, 51, VE, "pqp"},                             \
