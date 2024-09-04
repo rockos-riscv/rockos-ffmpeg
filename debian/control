@@ -204,7 +204,11 @@ Build-Depends:
  nasm,
 # autodetected zlib
  zlib1g-dev,
- rockos-extra-mpp, rockos-extra-codec
+# rockos-extra-mpp, rockos-extra-codec
+ es-video-common,
+ es-hae,
+ es-mpp,
+ es-sdk-audio-codec,
 
 Package: ffmpeg
 Architecture: any
@@ -251,7 +255,13 @@ Multi-Arch: same
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
- rockos-extra-mpp, rockos-extra-codec
+ es-video-common,
+ es-hae,
+ es-mpp,
+ es-sdk-audio-codec,
+Conflicts:
+ rockos-extra-mpp, 
+ rockos-extra-codec,
 Suggests:
  libcuda1 [amd64 arm64 i386],
  libnvcuvid1 [amd64 arm64 i386],
@@ -277,12 +287,18 @@ Build-Profiles: <!pkg.ffmpeg.noextra>
 Architecture: any
 Section: libs
 Multi-Arch: same
-Conflicts: libavcodec61
+Conflicts: 
+ libavcodec61,
+ rockos-extra-mpp,
+ rockos-extra-codec,
 Provides: libavcodec61 (= ${binary:Version})
 Depends:
  ${shlibs:Depends},
  ${misc:Depends},
- rockos-extra-mpp, rockos-extra-codec
+ es-video-common,
+ es-hae,
+ es-mpp,
+ es-sdk-audio-codec,
 Suggests:
  libcuda1 [amd64 arm64 i386],
  libnvcuvid1 [amd64 arm64 i386],
