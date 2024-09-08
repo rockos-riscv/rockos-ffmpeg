@@ -1,7 +1,7 @@
-From 2fe715c2ae6fbed9d655ff892a603b0efefc7127 Mon Sep 17 00:00:00 2001
+From 719f4db513a8b61a1fb7b581df065ea160071c53 Mon Sep 17 00:00:00 2001
 From: Han Gao <gaohan@iscas.ac.cn>
-Date: Mon, 5 Aug 2024 21:13:08 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20240805
+Date: Mon, 9 Sep 2024 00:18:49 +0800
+Subject: [PATCH 1/2] sync: sync eswin code 20240905
 
 Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
 Signed-off-by: Han Gao <rabenda.cn@gmail.com>
@@ -10,21 +10,21 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  fftools/ffmpeg_demux.c         |    6 +
  libavcodec/Makefile            |   18 +
  libavcodec/allcodecs.c         |   25 +
- libavcodec/es_audio_dec.c      |  285 +++++++++
- libavcodec/es_audio_enc.c      |  352 ++++++++++
- libavcodec/esmpp_comm.c        |  382 +++++++++++
- libavcodec/esmpp_comm.h        |   74 +++
- libavcodec/esmppdec.c          |  819 ++++++++++++++++++++++++
- libavcodec/esmppdec.h          |  199 ++++++
- libavcodec/esmppenc.c          | 1103 ++++++++++++++++++++++++++++++++
- libavcodec/esmppenc.h          |  505 +++++++++++++++
+ libavcodec/es_audio_dec.c      |  418 ++++++++++
+ libavcodec/es_audio_enc.c      |  352 +++++++++
+ libavcodec/esmpp_comm.c        |  382 ++++++++++
+ libavcodec/esmpp_comm.h        |   74 ++
+ libavcodec/esmppdec.c          |  916 ++++++++++++++++++++++
+ libavcodec/esmppdec.h          |  199 +++++
+ libavcodec/esmppenc.c          | 1300 ++++++++++++++++++++++++++++++++
+ libavcodec/esmppenc.h          |  524 +++++++++++++
  libavutil/Makefile             |    2 +
  libavutil/hwcontext.c          |    4 +
  libavutil/hwcontext.h          |    1 +
- libavutil/hwcontext_esmpp.c    |  635 ++++++++++++++++++
- libavutil/hwcontext_esmpp.h    |   80 +++
+ libavutil/hwcontext_esmpp.c    |  635 ++++++++++++++++
+ libavutil/hwcontext_esmpp.h    |   80 ++
  libavutil/hwcontext_internal.h |    1 +
- 18 files changed, 4584 insertions(+)
+ 18 files changed, 5030 insertions(+)
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
  create mode 100644 libavcodec/esmpp_comm.c
@@ -274,10 +274,10 @@ index 2386b450a6..fff8629343 100644
  extern const FFCodec ff_aasc_decoder;
 diff --git a/libavcodec/es_audio_dec.c b/libavcodec/es_audio_dec.c
 new file mode 100644
-index 0000000000..34baabfd82
+index 0000000000..4b25fa9609
 --- /dev/null
 +++ b/libavcodec/es_audio_dec.c
-@@ -0,0 +1,285 @@
+@@ -0,0 +1,418 @@
 +#include "libavutil/channel_layout.h"
 +#include "libavutil/common.h"
 +#include "libavutil/opt.h"
@@ -290,6 +290,15 @@ index 0000000000..34baabfd82
 +#include "adp_aac.h"
 +#include "codec_api.h"
 +#include "CodecTypes.h"
++#include "get_bits.h"
++#include "put_bits.h"
++#include "mpeg4audio.h"
++#include "mpeg4audio_copy_pce.h"
++#include "codec_par.h"
++
++#define ADTS_HEADER_SIZE 7
++#define ADTS_MAX_FRAME_BYTES ((1 << 14) - 1)
++#define ADTS_MAX_PCE_SIZE 320
 +
 +#define DEFAULT_G722_BIT_RATE       64000
 +#define DEFAULT_G726_BIT_RATE       32000
@@ -306,6 +315,19 @@ index 0000000000..34baabfd82
 +    uint32_t offset;
 +    AVChannelLayout downmix_layout;
 +} ESADECContext;
++
++typedef struct ADTSContext {
++    AVClass *class;
++    int write_adts;
++    int objecttype;
++    int sample_rate_index;
++    int channel_conf;
++    int pce_size;
++    int apetag;
++    int id3v2tag;
++    int mpeg_id;
++    uint8_t pce_data[ADTS_MAX_PCE_SIZE];
++} ADTSContext;
 +
 +static es_codec_type convert_codec_id_to_type(enum AVCodecID codec_id)
 +{
@@ -390,6 +412,9 @@ index 0000000000..34baabfd82
 +static av_cold int ff_es_adec_init(AVCodecContext *avctx)
 +{
 +    static int32_t chan = 1;
++    void *attr = NULL;
++    ESADECContext *s = NULL;
++    int ret = 0;
 +
 +    /* get codec type */
 +    enum AVCodecID codec_id = avctx->codec_id;
@@ -405,10 +430,10 @@ index 0000000000..34baabfd82
 +    }
 +
 +    /* get codec attr */
-+    void *attr = get_audio_decoder_attr(avctx, codec_id);
-+    ESADECContext *s = (ESADECContext *)avctx->priv_data;
++    attr = get_audio_decoder_attr(avctx, codec_id);
++    s = (ESADECContext *)avctx->priv_data;
 +
-+    int ret = es_adec_create(chan, codec_type, attr);
++    ret = es_adec_create(chan, codec_type, attr);
 +    /* free attr, NULL is safe */
 +    av_free(attr);
 +
@@ -472,6 +497,95 @@ index 0000000000..34baabfd82
 +    return 0;
 +}
 +
++static int adts_decode_extradata(AVCodecContext *s, ADTSContext *adts, const uint8_t *buf, int size)
++{
++    GetBitContext gb;
++    PutBitContext pb;
++    MPEG4AudioConfig m4ac;
++    int off, ret;
++
++    ret = init_get_bits8(&gb, buf, size);
++    if (ret < 0)
++        return ret;
++    off = avpriv_mpeg4audio_get_config2(&m4ac, buf, size, 1, s);
++    if (off < 0)
++        return off;
++    skip_bits_long(&gb, off);
++    adts->objecttype        = m4ac.object_type - 1;
++    adts->sample_rate_index = m4ac.sampling_index;
++    adts->channel_conf      = m4ac.chan_config;
++
++    if (adts->objecttype > 3U) {
++        av_log(s, AV_LOG_ERROR, "MPEG-4 AOT %d is not allowed in ADTS\n", adts->objecttype+1);
++        return AVERROR_INVALIDDATA;
++    }
++    if (adts->sample_rate_index == 15) {
++        av_log(s, AV_LOG_ERROR, "Escape sample rate index illegal in ADTS\n");
++        return AVERROR_INVALIDDATA;
++    }
++    if (get_bits(&gb, 1)) {
++        av_log(s, AV_LOG_ERROR, "960/120 MDCT window is not allowed in ADTS\n");
++        return AVERROR_INVALIDDATA;
++    }
++    if (get_bits(&gb, 1)) {
++        av_log(s, AV_LOG_ERROR, "Scalable configurations are not allowed in ADTS\n");
++        return AVERROR_INVALIDDATA;
++    }
++    if (get_bits(&gb, 1)) {
++        av_log(s, AV_LOG_ERROR, "Extension flag is not allowed in ADTS\n");
++        return AVERROR_INVALIDDATA;
++    }
++    if (!adts->channel_conf) {
++        init_put_bits(&pb, adts->pce_data, MAX_PCE_SIZE);
++
++        put_bits(&pb, 3, 5); //ID_PCE
++        adts->pce_size = (ff_copy_pce_data(&pb, &gb) + 3) / 8;
++        flush_put_bits(&pb);
++    }
++
++    adts->write_adts = 1;
++
++    return 0;
++}
++
++static int adts_write_frame_header(AVCodecContext *s, ADTSContext *ctx,
++                                   uint8_t *buf, int size, int pce_size)
++{
++    PutBitContext pb;
++
++    unsigned full_frame_size = (unsigned)ADTS_HEADER_SIZE + size + pce_size;
++    if (full_frame_size > ADTS_MAX_FRAME_BYTES) {
++        av_log(s, AV_LOG_ERROR, "frame size too large: %u (max %d)\n",
++               full_frame_size, ADTS_MAX_FRAME_BYTES);
++        return AVERROR_INVALIDDATA;
++    }
++
++    init_put_bits(&pb, buf, ADTS_HEADER_SIZE);
++
++    /* adts_fixed_header */
++    put_bits(&pb, 12, 0xfff);   /* syncword */
++    put_bits(&pb, 1, ctx->mpeg_id); /* ID */
++    put_bits(&pb, 2, 0);        /* layer */
++    put_bits(&pb, 1, 1);        /* protection_absent */
++    put_bits(&pb, 2, ctx->objecttype); /* profile_objecttype */
++    put_bits(&pb, 4, ctx->sample_rate_index);
++    put_bits(&pb, 1, 0);        /* private_bit */
++    put_bits(&pb, 3, ctx->channel_conf); /* channel_configuration */
++    put_bits(&pb, 1, 0);        /* original_copy */
++    put_bits(&pb, 1, 0);        /* home */
++
++    /* adts_variable_header */
++    put_bits(&pb, 1, 0);        /* copyright_identification_bit */
++    put_bits(&pb, 1, 0);        /* copyright_identification_start */
++    put_bits(&pb, 13, full_frame_size); /* aac_frame_length */
++    put_bits(&pb, 11, 0x7ff);   /* adts_buffer_fullness */
++    put_bits(&pb, 2, 0);        /* number_of_raw_data_blocks_in_frame */
++
++    flush_put_bits(&pb);
++
++    return 0;
++}
++
 +static int ff_es_adec_frame(AVCodecContext *avctx, AVFrame *frame,
 +                                int *got_frame_ptr, AVPacket *avpkt)
 +{
@@ -482,6 +596,11 @@ index 0000000000..34baabfd82
 +    uint8_t *pkt_data = NULL;
 +    uint32_t pkt_size = 0;
 +
++    AVCodecParameters par ;
++    ADTSContext adts;
++    memset(&par, 0 , sizeof(par));
++    memset(&adts, 0 , sizeof(adts));
++
 +    if (AV_CODEC_ID_MP3 == avctx->codec_id) {
 +        memcpy(s->stream + s->offset, avpkt->data, avpkt->size);
 +        pkt_size = s->offset;
@@ -490,6 +609,20 @@ index 0000000000..34baabfd82
 +    } else {
 +        pkt_data = avpkt->data;
 +        pkt_size = avpkt->size;
++    }
++
++    if(AV_CODEC_ID_AAC == avctx->codec_id && avctx->extradata) {
++        avcodec_parameters_from_context(&par, avctx);
++        if (par.extradata_size > 0) {
++            adts_decode_extradata(avctx, &adts, par.extradata, par.extradata_size);
++        }
++
++        if (adts.write_adts) {
++            adts_write_frame_header(avctx, &adts, s->stream, ADTS_HEADER_SIZE, adts.pce_size);
++            memcpy(s->stream + ADTS_HEADER_SIZE, avpkt->data, avpkt->size);
++            pkt_data = s->stream;
++            pkt_size = avpkt->size + ADTS_HEADER_SIZE;
++        }
 +    }
 +
 +    if (pkt_size == 0) {
@@ -1392,10 +1525,10 @@ index 0000000000..692a3f1c04
 \ No newline at end of file
 diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
 new file mode 100644
-index 0000000000..9ee9ab2567
+index 0000000000..72c2c3e45b
 --- /dev/null
 +++ b/libavcodec/esmppdec.c
-@@ -0,0 +1,819 @@
+@@ -0,0 +1,916 @@
 +#include "config.h"
 +#include "config_components.h"
 +
@@ -1533,6 +1666,14 @@ index 0000000000..9ee9ab2567
 +    return 0;
 +}
 +
++static int validate_dec_pixfmt(int bits_depth, MppFrameFormat mppfmt) {
++    if (bits_depth != 10 && mppfmt == MPP_FMT_P010) {
++        av_log(NULL, AV_LOG_ERROR, "input data %dbits and output pixfmt 10bits unsupported", bits_depth);
++        return -1;
++    }
++    return 0;
++}
++
 +static int mpp_decode_set_config(AVCodecContext *avctx) {
 +    ES_S32 ret;
 +    ES_S32 extra_hw_frames = 4;
@@ -1564,6 +1705,10 @@ index 0000000000..9ee9ab2567
 +
 +    mppfmt = ffmpeg_pixfmt_to_mpp_fmt(r->output_fmt);
 +    if (mppfmt != MPP_FMT_BUTT) {
++        if (validate_dec_pixfmt(avctx->bits_per_raw_sample, mppfmt) < 0) {
++            return AVERROR_EXTERNAL;
++        }
++
 +        mpp_dec_cfg_set_s32(dec_cfg, "output_fmt", mppfmt);
 +    }
 +    if (r->stride_align) {
@@ -1681,8 +1826,8 @@ index 0000000000..9ee9ab2567
 +
 +    ret = mpp_decode_set_config(avctx);
 +    if (ret != MPP_OK) {
-+        ret = MPP_OK;
 +        av_log(avctx, AV_LOG_WARNING, "mpp_decode_set_config failed\n");
++        goto fail;
 +    }
 +
 +    if ((ret = esmpp_open(r->mctx)) != MPP_OK) {
@@ -1821,6 +1966,70 @@ index 0000000000..9ee9ab2567
 +    return AVERROR(EINVAL);
 +}
 +
++static int esmpp_export_mastering_display(AVCodecContext *avctx,
++                                          AVFrame *frame,
++                                          MppFrameMasteringDisplayMetadata mpp_mastering) {
++    AVMasteringDisplayMetadata *mastering = NULL;
++    AVFrameSideData *sd = NULL;
++    int mapping[3] = {0, 1, 2};
++    int chroma_den = 50000;
++    int max_luma_den = 10000;
++    int min_luma_den = 10000;
++    int i;
++
++    switch (avctx->codec_id) {
++        case AV_CODEC_ID_HEVC:
++            // HEVC uses a g,b,r ordering, which we convert to a more natural r,g,b
++            mapping[0] = 2;
++            mapping[1] = 0;
++            mapping[2] = 1;
++            break;
++        case AV_CODEC_ID_H264:
++            break;
++        default:
++            return 0;
++    }
++
++    sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
++    if (sd)
++        mastering = (AVMasteringDisplayMetadata *)sd->data;
++    else
++        mastering = av_mastering_display_metadata_create_side_data(frame);
++    if (!mastering) return AVERROR(ENOMEM);
++
++    for (i = 0; i < 3; i++) {
++        const int j = mapping[i];
++        mastering->display_primaries[i][0] = av_make_q(mpp_mastering.display_primaries[j][0], chroma_den);
++        mastering->display_primaries[i][1] = av_make_q(mpp_mastering.display_primaries[j][1], chroma_den);
++    }
++    mastering->white_point[0] = av_make_q(mpp_mastering.white_point[0], chroma_den);
++    mastering->white_point[1] = av_make_q(mpp_mastering.white_point[1], chroma_den);
++
++    mastering->max_luminance = av_make_q(mpp_mastering.max_luminance, max_luma_den);
++    mastering->min_luminance = av_make_q(mpp_mastering.min_luminance, min_luma_den);
++
++    mastering->has_luminance = 1;
++    mastering->has_primaries = 1;
++
++    return 0;
++}
++
++static int esmpp_export_content_light(AVFrame *frame, MppFrameContentLightMetadata mpp_light) {
++    AVContentLightMetadata *light = NULL;
++
++    AVFrameSideData *sd = av_frame_get_side_data(frame, AV_FRAME_DATA_CONTENT_LIGHT_LEVEL);
++    if (sd)
++        light = (AVContentLightMetadata *)sd->data;
++    else
++        light = av_content_light_metadata_create_side_data(frame);
++    if (!light) return AVERROR(ENOMEM);
++
++    light->MaxCLL = mpp_light.MaxCLL;
++    light->MaxFALL = mpp_light.MaxFALL;
++
++    return 0;
++}
++
 +static int mpp_decode_export_frame(AVCodecContext *avctx, AVFrame *frame, MppFramePtr mpp_frame) {
 +    int ret;
 +    ESMPPDecContext *r = avctx->priv_data;
@@ -1920,7 +2129,23 @@ index 0000000000..9ee9ab2567
 +    frame->pts = mpp_frame_get_pts(mpp_frame);
 +    frame->pkt_dts = mpp_frame_get_dts(mpp_frame);
 +    frame->time_base = avctx->pkt_timebase;
++    if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
++        frame->opaque_ref = (AVBufferRef *)mpp_frame_get_reordered_opaque(mpp_frame);
++    }
 +
++    if ((avctx->codec_id == AV_CODEC_ID_HEVC || avctx->codec_id == AV_CODEC_ID_H264)
++        && (frame->color_trc == AVCOL_TRC_SMPTE2084 || frame->color_trc == AVCOL_TRC_ARIB_STD_B67)) {
++        ret = esmpp_export_mastering_display(avctx, frame, mpp_frame_get_mastering_display(mpp_frame));
++        if (ret < 0) return ret;
++        ret = esmpp_export_content_light(frame, mpp_frame_get_content_light(mpp_frame));
++        if (ret < 0) return ret;
++    }
++
++    if (avctx->pix_fmt != AV_PIX_FMT_DRM_PRIME) {
++        if (r->buf_cache_mode == ESMPP_DEC_DMA_CACHE) {
++            mpp_buffer_sync_begin(mpp_buf);
++        }
++    }
 +    return 0;
 +}
 +
@@ -2110,6 +2335,11 @@ index 0000000000..9ee9ab2567
 +    }
 +    mpp_packet_set_pts(mpp_pkt, pkt->pts);
 +    mpp_packet_set_dts(mpp_pkt, pkt->dts);
++    if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
++        /*tmp_opaque_ref will be released by av_frame_free*/
++        AVBufferRef *tmp_opaque_ref = av_buffer_ref(pkt->opaque_ref);
++        mpp_packet_set_reordered_opaque(mpp_pkt, (ES_S64)tmp_opaque_ref);
++    }
 +
 +    if ((ret = esmpp_put_packet(r->mctx, mpp_pkt)) != MPP_OK) {
 +        av_log(avctx, AV_LOG_DEBUG, "Decoder buffer is full\n");
@@ -2180,7 +2410,7 @@ index 0000000000..9ee9ab2567
 +                // it is workaround for jpeg as it must wait for info change
 +                ret = mpp_decode_get_frame(avctx, frame, ESMPP_DEC_WAIT_TIME);
 +            } else {
-+                ret = mpp_decode_get_frame(avctx, frame, ESMPP_DEC_WAIT_TIME);  //MPP_TIMEOUT_NON_BLOCK
++                ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_NON_BLOCK);
 +            }
 +
 +            av_packet_unref(pkt);
@@ -2422,15 +2652,16 @@ index 0000000000..676555a7ca
 +#endif /* AVCODEC_ESMPPDEC_H */
 diff --git a/libavcodec/esmppenc.c b/libavcodec/esmppenc.c
 new file mode 100644
-index 0000000000..8c9e494a41
+index 0000000000..107f620c20
 --- /dev/null
 +++ b/libavcodec/esmppenc.c
-@@ -0,0 +1,1103 @@
+@@ -0,0 +1,1300 @@
 +#include "esmppenc.h"
 +#include <es_venc_def.h>
 +#include <es_mpp_video.h>
 +
 +#include "libavutil/imgutils.h"
++#include "libavutil/mastering_display_metadata.h"
 +
 +static MppCodingType esmpp_get_coding_type(AVCodecContext *avctx) {
 +    switch (avctx->codec_id) {
@@ -2553,6 +2784,15 @@ index 0000000000..8c9e494a41
 +    return out;
 +}
 +
++#define CFG_SET_U16(cfg, cfgstr, value)                                            \
++    do {                                                                           \
++        if (mpp_enc_cfg_set_u16(cfg, cfgstr, value)) {                             \
++            av_log(NULL, AV_LOG_ERROR, "%s is set to %u failed\n", cfgstr, value); \
++            return -1;                                                             \
++        }                                                                          \
++        av_log(NULL, AV_LOG_INFO, "%s is set to %u\n", cfgstr, value);             \
++    } while (0)
++
 +#define CFG_SET_S32(cfg, cfgstr, value)                                            \
 +    do {                                                                           \
 +        if (mpp_enc_cfg_set_s32(cfg, cfgstr, value)) {                             \
@@ -2565,7 +2805,7 @@ index 0000000000..8c9e494a41
 +#define CFG_SET_U32(cfg, cfgstr, value)                                            \
 +    do {                                                                           \
 +        if (mpp_enc_cfg_set_u32(cfg, cfgstr, value)) {                             \
-+            av_log(NULL, AV_LOG_ERROR, "%s is set to %d failed\n", cfgstr, value); \
++            av_log(NULL, AV_LOG_ERROR, "%s is set to %u failed\n", cfgstr, value); \
 +            return -1;                                                             \
 +        }                                                                          \
 +        av_log(NULL, AV_LOG_INFO, "%s is set to %u\n", cfgstr, value);             \
@@ -2586,7 +2826,7 @@ index 0000000000..8c9e494a41
 +    do {                                                                               \
 +        if (value != unset_value) {                                                    \
 +            if (mpp_enc_cfg_set_u32(cfg, cfgstr, value)) {                             \
-+                av_log(NULL, AV_LOG_ERROR, "%s is set to %d failed\n", cfgstr, value); \
++                av_log(NULL, AV_LOG_ERROR, "%s is set to %u failed\n", cfgstr, value); \
 +                return -1;                                                             \
 +            }                                                                          \
 +            av_log(NULL, AV_LOG_INFO, "%s is set to %u\n", cfgstr, value);             \
@@ -2621,7 +2861,14 @@ index 0000000000..8c9e494a41
 +        if (avctx->codec_id == AV_CODEC_ID_HEVC) {
 +            CFG_SET_S32_IF_USER_SET(cfg, "venc:tier", cxt->tier, -1);
 +        }
-+        CFG_SET_S32_IF_USER_SET(cfg, "venc:bit_depth", cxt->bitdepth, -1);
++        if (cxt->bitdepth == -1) {
++            if (cxt->pix_fmt == AV_PIX_FMT_YUV420P10LE || cxt->pix_fmt == AV_PIX_FMT_P010LE) {
++                cxt->bitdepth = BIT_DEPTH_10BIT;
++            } else {
++                cxt->bitdepth = BIT_DEPTH_8BIT;
++            }
++        }
++        CFG_SET_S32(cfg, "venc:bit_depth", cxt->bitdepth);
 +    }
 +
 +    return 0;
@@ -2916,6 +3163,70 @@ index 0000000000..8c9e494a41
 +    return 0;
 +}
 +
++/* parse and set mastering_display */
++static int encoder_set_venc_mastering_display(MppEncCfgPtr cfg, const char *str) {
++    char *p;
++    uint32_t x = 0, y = 0;
++
++    if (!str) {
++        return 0;
++    }
++    // R(x,y)G(x,y)B(x,y)WP(x,y)L(x,y)
++    if ((p = strstr(str, "R(")) != NULL) {
++        if (sscanf(p, "R(%u,%u)", &x, &y) == 2) {
++            CFG_SET_U16(cfg, "display:dx0", (uint16_t)x);
++            CFG_SET_U16(cfg, "display:dy0", (uint16_t)y);
++        }
++    }
++
++    if ((p = strstr(str, "G(")) != NULL) {
++        if (sscanf(p, "G(%u,%u)", &x, &y) == 2) {
++            CFG_SET_U16(cfg, "display:dx1", (uint16_t)x);
++            CFG_SET_U16(cfg, "display:dy1", (uint16_t)y);
++        }
++    }
++
++    if ((p = strstr(str, "B(")) != NULL) {
++        if (sscanf(p, "B(%u,%u)", &x, &y) == 2) {
++            CFG_SET_U16(cfg, "display:dx2", (uint16_t)x);
++            CFG_SET_U16(cfg, "display:dy2", (uint16_t)y);
++        }
++    }
++
++    if ((p = strstr(str, "WP(")) != NULL) {
++        if (sscanf(p, "WP(%u,%u)", &x, &y) == 2) {
++            CFG_SET_U16(cfg, "display:white_x", (uint16_t)x);
++            CFG_SET_U16(cfg, "display:white_y", (uint16_t)y);
++        }
++    }
++    if ((p = strstr(str, "L(")) != NULL) {
++        if (sscanf(p, "L(%u,%u)", &x, &y) == 2) {
++            CFG_SET_U32(cfg, "display:min_luminance", x);
++            CFG_SET_U32(cfg, "display:max_luminance", y);
++        }
++    }
++
++    return 0;
++}
++
++/* parse and set content_light */
++static int encoder_set_venc_content_light(MppEncCfgPtr cfg, const char *str) {
++    char *p;
++
++    if (!str) {
++        return 0;
++    }
++
++    if ((p = strstr(str, "maxcll")) != NULL) {
++        CFG_SET_U16(cfg, "display:maxcll", (uint16_t)atoi(p + 7));
++    }
++    if ((p = strstr(str, "maxfall")) != NULL) {
++        CFG_SET_U16(cfg, "display:maxfall", (uint16_t)atoi(p + 8));
++    }
++
++    return 0;
++}
++
 +static int encoder_set_venc_protocal(MppEncCfgPtr cfg, AVCodecContext *avctx) {
 +    ESMPPEncContext *cxt = avctx->priv_data;
 +
@@ -2933,6 +3244,9 @@ index 0000000000..8c9e494a41
 +        mpp_enc_cfg_set_s32(cfg, "vui:colorspace", avctx->colorspace);
 +        mpp_enc_cfg_set_s32(cfg, "vui:colorprim", avctx->color_primaries);
 +        mpp_enc_cfg_set_s32(cfg, "vui:colortrc", avctx->color_trc);
++
++        encoder_set_venc_mastering_display(cfg, cxt->mastering_display);
++        encoder_set_venc_content_light(cfg, cxt->content_light);
 +
 +        if (avctx->codec_id == AV_CODEC_ID_H264) {
 +            CFG_SET_U32_IF_USER_SET(cfg, "h264:cabac", cxt->enable_cabac, -1);
@@ -3188,10 +3502,10 @@ index 0000000000..8c9e494a41
 +
 +        memcpy(vir_addr, frame->data[0], luma_size);  // cp luma
 +        if (frame->linesize[1] && frame->linesize[2]) {
-+            memcpy(vir_addr + luma_size, frame->data[1], chroma_size / 2);
-+            memcpy(vir_addr + luma_size + chroma_size / 2, frame->data[2], chroma_size / 2);
++            memcpy((uint8_t *)vir_addr + luma_size, frame->data[1], chroma_size / 2);
++            memcpy((uint8_t *)vir_addr + luma_size + chroma_size / 2, frame->data[2], chroma_size / 2);
 +        } else if (frame->linesize[1]) {
-+            memcpy(vir_addr + luma_size, frame->data[1], chroma_size);
++            memcpy((uint8_t *)vir_addr + luma_size, frame->data[1], chroma_size);
 +        }
 +        // av_log(avctx,
 +        //        AV_LOG_DEBUG,
@@ -3304,6 +3618,15 @@ index 0000000000..8c9e494a41
 +            av_log(avctx, AV_LOG_INFO, "frame is %p, ret %d\n", frame, ret);
 +            av_usleep(10 * 1000);
 +            goto get_pkt;
++        } else if (cxt->sent_frm_cnt - cxt->got_pkt_cnt >= cxt->async_frames) {
++            av_log(avctx,
++                   AV_LOG_DEBUG,
++                   "cxt->sent_frm_cnt %d, cxt->got_pkt_cnt %d\n",
++                   cxt->sent_frm_cnt,
++                   cxt->got_pkt_cnt);
++            // to ensure that not too much bufs are occupied
++            av_usleep(10 * 1000);
++            goto get_pkt;
 +        }
 +    }
 +
@@ -3409,6 +3732,104 @@ index 0000000000..8c9e494a41
 +    return ret;
 +}
 +
++static int handle_mdcv(AVCodecContext *avctx, const AVMasteringDisplayMetadata *mdcv, MppEncCfgPtr cfg) {
++    if (!mdcv->has_primaries && !mdcv->has_luminance) return 0;
++
++    if (mdcv->has_primaries) {
++        // hevc GBR order, h264 RGB order
++        if (avctx->codec_id == AV_CODEC_ID_HEVC) {
++            CFG_SET_U16(
++                cfg, "display:dx0", (uint16_t)av_rescale_q(1, mdcv->display_primaries[1][0], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dy0", (uint16_t)av_rescale_q(1, mdcv->display_primaries[1][1], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dx1", (uint16_t)av_rescale_q(1, mdcv->display_primaries[2][0], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dy1", (uint16_t)av_rescale_q(1, mdcv->display_primaries[2][1], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dx2", (uint16_t)av_rescale_q(1, mdcv->display_primaries[0][0], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dy2", (uint16_t)av_rescale_q(1, mdcv->display_primaries[0][1], (AVRational){1, 50000}));
++        } else {
++            CFG_SET_U16(
++                cfg, "display:dx0", (uint16_t)av_rescale_q(1, mdcv->display_primaries[0][0], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dy0", (uint16_t)av_rescale_q(1, mdcv->display_primaries[0][1], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dx1", (uint16_t)av_rescale_q(1, mdcv->display_primaries[1][0], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dy1", (uint16_t)av_rescale_q(1, mdcv->display_primaries[1][1], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dx2", (uint16_t)av_rescale_q(1, mdcv->display_primaries[2][0], (AVRational){1, 50000}));
++            CFG_SET_U16(
++                cfg, "display:dy2", (uint16_t)av_rescale_q(1, mdcv->display_primaries[2][1], (AVRational){1, 50000}));
++        }
++
++        CFG_SET_U16(cfg, "display:white_x", (uint16_t)av_rescale_q(1, mdcv->white_point[0], (AVRational){1, 50000}));
++        CFG_SET_U16(cfg, "display:white_y", (uint16_t)av_rescale_q(1, mdcv->white_point[1], (AVRational){1, 50000}));
++        av_log(avctx,
++               AV_LOG_INFO,
++               "display primaries %ld-%ld-%ld-%ld-%ld-%ld white_point %ld-%ld",
++               av_rescale_q(1, mdcv->display_primaries[0][0], (AVRational){1, 50000}),
++               av_rescale_q(1, mdcv->display_primaries[0][1], (AVRational){1, 50000}),
++               av_rescale_q(1, mdcv->display_primaries[1][0], (AVRational){1, 50000}),
++               av_rescale_q(1, mdcv->display_primaries[1][1], (AVRational){1, 50000}),
++               av_rescale_q(1, mdcv->display_primaries[2][0], (AVRational){1, 50000}),
++               av_rescale_q(1, mdcv->display_primaries[2][1], (AVRational){1, 50000}),
++               av_rescale_q(1, mdcv->white_point[0], (AVRational){1, 50000}),
++               av_rescale_q(1, mdcv->white_point[1], (AVRational){1, 50000}));
++    }
++
++    if (mdcv->has_luminance) {
++        CFG_SET_U32(
++            cfg, "display:max_luminance", (uint32_t)av_rescale_q(1, mdcv->max_luminance, (AVRational){1, 10000}));
++        CFG_SET_U32(
++            cfg, "display:min_luminance", (uint32_t)av_rescale_q(1, mdcv->min_luminance, (AVRational){1, 10000}));
++        av_log(avctx,
++               AV_LOG_INFO,
++               "display luminance %ld-%ld",
++               av_rescale_q(1, mdcv->max_luminance, (AVRational){1, 10000}),
++               av_rescale_q(1, mdcv->min_luminance, (AVRational){1, 10000}));
++    }
++    return 0;
++}
++
++static int handle_side_data(AVCodecContext *avctx, ESMPPEncContext *params) {
++    const AVFrameSideData *cll_sd = av_frame_side_data_get(
++        avctx->decoded_side_data, avctx->nb_decoded_side_data, AV_FRAME_DATA_CONTENT_LIGHT_LEVEL);
++    const AVFrameSideData *mdcv_sd = av_frame_side_data_get(
++        avctx->decoded_side_data, avctx->nb_decoded_side_data, AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
++
++    // prefer to the setting from user
++    if ((cll_sd && !params->content_light) || (mdcv_sd && !params->mastering_display)) {
++        ESMPPEncContext *cxt = avctx->priv_data;
++        MppEncCfgPtr cfg = cxt->mcfg;
++        int ret = MPP_OK;
++
++        if ((ret = esmpp_control(cxt->mctx, MPP_ENC_GET_CFG, cfg)) != MPP_OK) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to get encoder config: %d\n", ret);
++            ret = AVERROR_EXTERNAL;
++            return -1;
++        }
++
++        if (cll_sd && !params->content_light) {
++            const AVContentLightMetadata *cll = (AVContentLightMetadata *)cll_sd->data;
++            CFG_SET_U16(cfg, "display:maxcll", cll->MaxCLL);
++            CFG_SET_U16(cfg, "display:maxfall", cll->MaxFALL);
++        }
++
++        if (mdcv_sd && !params->mastering_display) {
++            handle_mdcv(avctx, (AVMasteringDisplayMetadata *)mdcv_sd->data, cfg);
++        }
++
++        if (esmpp_control(cxt->mctx, MPP_ENC_SET_CFG, cfg)) {
++            av_log(avctx, AV_LOG_ERROR, "Failed to set config\n");
++            return -1;
++        }
++    }
++    return 0;
++}
++
 +static int esmpp_encode_init(AVCodecContext *avctx) {
 +    ESMPPEncContext *cxt = avctx->priv_data;
 +    enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE;
@@ -3474,6 +3895,12 @@ index 0000000000..8c9e494a41
 +        goto fail;
 +    }
 +
++    if ((ret = handle_side_data(avctx, cxt)) < 0) {
++        av_log(avctx, AV_LOG_ERROR, "Failed to handle side data: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
 +    if ((ret = esmpp_open(cxt->mctx)) != MPP_OK) {
 +        av_log(avctx, AV_LOG_ERROR, "Failed to open esmpp: %d\n", ret);
 +        goto fail;
@@ -3531,10 +3958,10 @@ index 0000000000..8c9e494a41
 +DEFINE_ESMPP_ENCODER(mjpeg, MJPEG, mjpeg)
 diff --git a/libavcodec/esmppenc.h b/libavcodec/esmppenc.h
 new file mode 100644
-index 0000000000..f49f0379b7
+index 0000000000..ac65b58283
 --- /dev/null
 +++ b/libavcodec/esmppenc.h
-@@ -0,0 +1,505 @@
+@@ -0,0 +1,524 @@
 +#ifndef AVCODEC_ESMPPENC_H
 +#define AVCODEC_ESMPPENC_H
 +
@@ -3555,7 +3982,7 @@ index 0000000000..f49f0379b7
 +#include "libavutil/pixdesc.h"
 +
 +#define H26X_HEADER_SIZE 1024
-+#define H26X_ASYNC_FRAMES 8  // 4
++#define H26X_ASYNC_FRAMES 5  // current max gop size 4
 +#define MJPEG_ASYNC_FRAMES 8
 +#define ALIGN_DOWN(a, b) ((a) & ~((b) - 1))
 +
@@ -3626,6 +4053,8 @@ index 0000000000..f49f0379b7
 +
 +    // protocal
 +    int enable_deblocking;
++    char *mastering_display;
++    char *content_light;
 +
 +    // dump
 +    char *dump_path;
@@ -3715,18 +4144,35 @@ index 0000000000..f49f0379b7
 +            0, INT_MAX, VE                                                                                            \
 +    }
 +
-+#define ESMPP_ENC_VIDEO_COMMON_OPTS                                                                                   \
-+    {"bitdepth",                                                                                                      \
-+     "Bitdepth. 8=8-bit, 10=10-bit.",                                                                                 \
-+     OFFSET(bitdepth),                                                                                                \
-+     AV_OPT_TYPE_INT,                                                                                                 \
-+     {.i64 = -1},                                                                                                     \
-+     -1,                                                                                                              \
-+     BIT_DEPTH_10BIT,                                                                                                 \
-+     VE,                                                                                                              \
-+     "bitdepth"},                                                                                                     \
-+    {                                                                                                                 \
-+        "enable_deblock", "Enable deblock filter", OFFSET(enable_deblocking), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 1, VE \
++#define ESMPP_ENC_VIDEO_COMMON_OPTS                                                                       \
++    {"bitdepth",                                                                                          \
++     "Bitdepth. 8=8-bit, 10=10-bit.",                                                                     \
++     OFFSET(bitdepth),                                                                                    \
++     AV_OPT_TYPE_INT,                                                                                     \
++     {.i64 = -1},                                                                                         \
++     -1,                                                                                                  \
++     BIT_DEPTH_10BIT,                                                                                     \
++     VE,                                                                                                  \
++     "bitdepth"},                                                                                         \
++        {"enable_deblock",                                                                                \
++         "Enable deblock filter",                                                                         \
++         OFFSET(enable_deblocking),                                                                       \
++         AV_OPT_TYPE_INT,                                                                                 \
++         {.i64 = -1},                                                                                     \
++         -1,                                                                                              \
++         1,                                                                                               \
++         VE},                                                                                             \
++        {"mastering_display",                                                                             \
++         "mastering_display 'R(x,y)G(x,y)B(x,y)WP(x,y)L(x,y)'",                                           \
++         OFFSET(mastering_display),                                                                       \
++         AV_OPT_TYPE_STRING,                                                                              \
++         {.str = NULL},                                                                                   \
++         0,                                                                                               \
++         0,                                                                                               \
++         VE},                                                                                             \
++    {                                                                                                     \
++        "content_light", "content_light 'maxcll:N,maxfall:N'", OFFSET(content_light), AV_OPT_TYPE_STRING, \
++            {.str = NULL}, 0, 0, VE                                                                       \
 +    }
 +
 +#define ESMPP_ENC_VIDEO_GOP_OPTS                                                                                     \
@@ -3817,7 +4263,7 @@ index 0000000000..f49f0379b7
 +    }
 +
 +#define ESMPP_ENC_VIDEO_RC_OPTS                                                                                      \
-+        {"cpb_size", "[10, 800000]", OFFSET(cpb_size), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 800000, VE, "cpb_size"},    \
++    {"cpb_size", "[10, 800000]", OFFSET(cpb_size), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 800000, VE, "cpb_size"},        \
 +        {"iqp", "[0, 51]", OFFSET(iqp), AV_OPT_TYPE_INT, {.i64 = 30}, 0, 51, VE, "iqp"},                             \
 +        {"pqp", "[0, 51]", OFFSET(pqp), AV_OPT_TYPE_INT, {.i64 = 32}, 0, 51, VE, "pqp"},                             \
 +        {"bqp", "[0, 51]", OFFSET(bqp), AV_OPT_TYPE_INT, {.i64 = 32}, 0, 51, VE, "bqp"},                             \
