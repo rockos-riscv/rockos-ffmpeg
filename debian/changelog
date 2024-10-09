@@ -1,3 +1,9 @@
+ffmpeg (7:7.0.2-3rockos1) unstable; urgency=medium
+
+  * Apply eswin patchset 20240905
+
+ -- Han Gao <gaohan@iscas.ac.cn>  Wed, 09 Oct 2024 21:20:51 +0800
+
 ffmpeg (7:7.0.2-3) unstable; urgency=medium
 
   * debian/patches: Apply upstream patch to fix armel/armhf asm builds
