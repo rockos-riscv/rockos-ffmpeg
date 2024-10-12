@@ -1271,6 +1271,12 @@ static int ist_add(const OptionsContext *o, Demuxer *d, AVStream *st)
                 "with old commandlines. This behaviour is DEPRECATED and will be removed "
                 "in the future. Please explicitly set \"-hwaccel_output_format qsv\".\n");
             ds->dec_opts.hwaccel_output_format = AV_PIX_FMT_QSV;
+        } else if (!hwaccel_output_format && hwaccel && !strcmp(hwaccel, "esmpp")) {
+                av_log(NULL, AV_LOG_WARNING,
+                    "WARNING: defaulting hwaccel_output_format to drm prime for compatibility "
+                    "with old commandlines. This behaviour is DEPRECATED and will be removed "
+                    "in the future. Please explicitly set \"-hwaccel_output_format drm prime\".\n");
+                ds->dec_opts.hwaccel_output_format = AV_PIX_FMT_DRM_PRIME;
         } else if (!hwaccel_output_format && hwaccel && !strcmp(hwaccel, "mediacodec")) {
             // There is no real AVHWFrameContext implementation. Set
             // hwaccel_output_format to avoid av_hwframe_transfer_data error.

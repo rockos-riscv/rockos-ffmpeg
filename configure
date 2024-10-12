@@ -230,6 +230,14 @@ External library support:
   --enable-libdvdnav       enable libdvdnav, needed for DVD demuxing [no]
   --enable-libdvdread      enable libdvdread, needed for DVD demuxing [no]
   --enable-libfdk-aac      enable AAC de/encoding via libfdk-aac [no]
+  --enable-es-aac          enable AAC de/encoding via es_codec [no]
+  --enable-es-mp3          enable MP3 de/encoding via es_codec [no]
+  --enable-es-amrnb        enable amrnb de/encoding via es_codec [no]
+  --enable-es-amrwb        enable amrwb de/encoding via es_codec [no]
+  --enable-es-g711alaw     enable amrnb de/encoding via es_codec [no]
+  --enable-es-g711mulaw    enable amrwb de/encoding via es_codec [no]
+  --enable-es-g722         enable amrnb de/encoding via es_codec [no]
+  --enable-es-g726         enable amrwb de/encoding via es_codec [no]
   --enable-libflite        enable flite (voice synthesis) support via libflite [no]
   --enable-libfontconfig   enable libfontconfig, useful for drawtext filter [no]
   --enable-libfreetype     enable libfreetype, needed for drawtext filter [no]
@@ -333,6 +341,7 @@ External library support:
   --enable-vapoursynth     enable VapourSynth demuxer [no]
   --disable-xlib           disable xlib [autodetect]
   --disable-zlib           disable zlib [autodetect]
+  --enable-esmpp           enable esw mpp code [no]
 
   The following libraries provide various hardware acceleration features:
   --disable-amf            disable AMF video encoding code [autodetect]
@@ -1873,7 +1882,16 @@ EXTERNAL_LIBRARY_GPL_LIST="
 EXTERNAL_LIBRARY_NONFREE_LIST="
     decklink
     libfdk_aac
+    es_aac
+    es_mp3
+    es_amrnb
+    es_amrwb
+    es_g711alaw
+    es_g711mulaw
+    es_g722
+    es_g726
     libtls
+    esmpp
 "
 
 EXTERNAL_LIBRARY_VERSION3_LIST="
@@ -3402,6 +3420,18 @@ av1_qsv_encoder_deps="libvpl"
 av1_amf_encoder_deps="amf"
 av1_vaapi_encoder_deps="VAEncPictureParameterBufferAV1"
 av1_vaapi_encoder_select="cbs_av1 vaapi_encode"
+h264_esmpp_encoder_deps="esmpp"
+h264_esmpp_encoder_select="esmpp"
+hevc_esmpp_encoder_deps="esmpp"
+hevc_esmpp_encoder_select="esmpp"
+h264_esmpp_decoder_deps="esmpp"
+h264_esmpp_decoder_select="esmpp"
+hevc_esmpp_decoder_deps="esmpp"
+hevc_esmpp_decoder_select="esmpp"
+mjpeg_esmpp_encoder_deps="esmpp"
+mjpeg_esmpp_encoder_select="esmpp"
+mjpeg_esmpp_decoder_deps="esmpp"
+mjpeg_esmpp_decoder_select="esmpp"
 
 # parsers
 aac_parser_select="adts_header mpeg4audio"
@@ -3489,6 +3519,36 @@ libdavs2_decoder_deps="libdavs2"
 libdavs2_decoder_select="avs2_parser"
 libfdk_aac_decoder_deps="libfdk_aac"
 libfdk_aac_encoder_deps="libfdk_aac"
+es_aac_decoder_extralibs="-les_codec"
+es_aac_decoder_deps="es_aac"
+es_aac_encoder_extralibs="-les_codec"
+es_aac_encoder_deps="es_aac"
+es_mp3_decoder_extralibs="-les_codec"
+es_mp3_decoder_deps="es_mp3"
+es_amrnb_decoder_extralibs="-les_codec"
+es_amrnb_decoder_deps="es_amrnb"
+es_amrnb_encoder_extralibs="-les_codec"
+es_amrnb_encoder_deps="es_amrwb"
+es_amrwb_decoder_extralibs="-les_codec"
+es_amrwb_decoder_deps="es_amrwb"
+es_amrwb_encoder_extralibs="-les_codec"
+es_amrwb_encoder_deps="es_amrwb"
+es_g711alaw_decoder_extralibs="-les_codec"
+es_g711alaw_decoder_deps="es_g711alaw"
+es_g711alaw_encoder_extralibs="-les_codec"
+es_g711alaw_encoder_deps="es_g711alaw"
+es_g711mulaw_decoder_extralibs="-les_codec"
+es_g711mulaw_decoder_deps="es_g711mulaw"
+es_g711mulaw_encoder_extralibs="-les_codec"
+es_g711mulaw_encoder_deps="es_g711mulaw"
+es_g722_decoder_extralibs="-les_codec"
+es_g722_decoder_deps="es_g722"
+es_g722_encoder_extralibs="-les_codec"
+es_g722_encoder_deps="es_g722"
+es_g726_decoder_extralibs="-les_codec"
+es_g726_decoder_deps="es_g726"
+es_g726_encoder_extralibs="-les_codec"
+es_g726_encoder_deps="es_g726"
 libfdk_aac_encoder_select="audio_frame_queue"
 libgme_demuxer_deps="libgme"
 libgsm_decoder_deps="libgsm"
@@ -6848,6 +6908,14 @@ enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aace
                                { require libfdk_aac fdk-aac/aacenc_lib.h aacEncOpen -lfdk-aac &&
                                  warn "using libfdk without pkg-config"; } }
 flite_extralibs="-lflite_cmu_time_awb -lflite_cmu_us_awb -lflite_cmu_us_kal -lflite_cmu_us_kal16 -lflite_cmu_us_rms -lflite_cmu_us_slt -lflite_usenglish -lflite_cmulex -lflite"
+enabled es_aac            && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_mp3            && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_amrnb          && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_amrwb          && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_g711alaw       && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_g711mulaw      && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_g722           && require eswin_codec codec_api.h es_aenc_create -les_codec
+enabled es_g726           && require eswin_codec codec_api.h es_aenc_create -les_codec
 enabled libflite          && require libflite "flite/flite.h" flite_init $flite_extralibs
 enabled fontconfig        && enable libfontconfig
 enabled libfontconfig     && require_pkg_config libfontconfig fontconfig "fontconfig/fontconfig.h" FcInit
@@ -7069,6 +7137,31 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
                              }
 enabled vapoursynth       && require_pkg_config vapoursynth "vapoursynth-script >= 42" VSScript.h vsscript_init
 
+enabled esmpp               && {
+    enabled h264_esmpp_encoder && {
+        log check_pkg_config h264_esmpp_encoder
+    } || disable h264_esmpp_encoder
+
+    enabled hevc_esmpp_encoder  && {
+        log check_pkg_config hevc_esmpp_encoder
+    } || disable hevc_esmpp_encoder
+
+    enabled h264_esmppvdec && {
+        log check_pkg_config h264_esmppvdec
+    } || disable h264_esmppvdec
+
+    enabled hevc_esmppvdec  && {
+        log check_pkg_config hevc_esmppvdec
+    } || disable hevc_esmppvdec
+
+    enabled mjpeg_esmppvdec  && {
+        log check_pkg_config mjpeg_esmppvdec
+    } || disable mjpeg_esmppvdec
+
+    if disabled_all h264_esmpp_encoder hevc_esmpp_encoder h264_esmppvdec hevc_esmppvdec mjpeg_esmppvdec; then
+        die "esmpp enabled but no supported codecs found"
+    fi
+}
 
 if enabled gcrypt; then
     GCRYPT_CONFIG="${cross_prefix}libgcrypt-config"
