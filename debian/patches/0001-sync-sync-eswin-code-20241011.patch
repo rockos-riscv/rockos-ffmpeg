@@ -1,10 +1,9 @@
-From 00988f213f8c02728757386fa4c9c66401d4eac4 Mon Sep 17 00:00:00 2001
+From 1ec87a78ecf324a4231455e324b7cc318788c248 Mon Sep 17 00:00:00 2001
 From: Han Gao <gaohan@iscas.ac.cn>
-Date: Mon, 9 Sep 2024 00:18:49 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20240905
+Date: Sat, 12 Oct 2024 14:31:01 +0800
+Subject: [PATCH 1/2] sync: sync eswin code 20241011
 
 Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
-Signed-off-by: Han Gao <rabenda.cn@gmail.com>
 ---
  configure                      |   93 +++
  fftools/ffmpeg_demux.c         |    6 +
