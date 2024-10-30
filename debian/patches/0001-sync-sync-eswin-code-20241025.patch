@@ -1,10 +1,9 @@
-From a343cd8f38434458b1b2235dcc0856300dc9db9d Mon Sep 17 00:00:00 2001
+From 9596d2c807f94d9919564aba88fce6230059cf67 Mon Sep 17 00:00:00 2001
 From: Han Gao <gaohan@iscas.ac.cn>
-Date: Tue, 15 Oct 2024 15:46:28 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20241011
+Date: Thu, 31 Oct 2024 03:53:37 +0800
+Subject: [PATCH 1/2] sync: sync eswin code 20241025
 
 Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
-Signed-off-by: Han Gao <rabenda.cn@gmail.com>
 ---
  configure                      |   93 +++
  fftools/ffmpeg_demux.c         |    6 +
@@ -14,7 +13,7 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  libavcodec/es_audio_enc.c      |  352 +++++++++
  libavcodec/esmpp_comm.c        |  382 ++++++++++
  libavcodec/esmpp_comm.h        |   74 ++
- libavcodec/esmppdec.c          |  999 ++++++++++++++++++++++++
+ libavcodec/esmppdec.c          |  991 ++++++++++++++++++++++++
  libavcodec/esmppdec.h          |  219 ++++++
  libavcodec/esmppenc.c          | 1304 ++++++++++++++++++++++++++++++++
  libavcodec/esmppenc.h          |  524 +++++++++++++
@@ -24,7 +23,7 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  libavutil/hwcontext_esmpp.c    |  635 ++++++++++++++++
  libavutil/hwcontext_esmpp.h    |   80 ++
  libavutil/hwcontext_internal.h |    1 +
- 18 files changed, 5139 insertions(+)
+ 18 files changed, 5131 insertions(+)
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
  create mode 100644 libavcodec/esmpp_comm.c
@@ -1527,10 +1526,10 @@ index 0000000000..692a3f1c04
 \ No newline at end of file
 diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
 new file mode 100644
-index 0000000000..5c3b5b9b88
+index 0000000000..c4ec9c345c
 --- /dev/null
 +++ b/libavcodec/esmppdec.c
-@@ -0,0 +1,999 @@
+@@ -0,0 +1,991 @@
 +#include "config.h"
 +#include "config_components.h"
 +#include <stdbool.h>
@@ -2402,7 +2401,7 @@ index 0000000000..5c3b5b9b88
 +            }
 +            mpp_packet_set_pts(mpp_pkt, pkt->pts);
 +            mpp_packet_set_dts(mpp_pkt, pkt->dts);
-+
++            mpp_packet_set_extra_data(mpp_pkt);
 +            if ((ret = esmpp_put_packet(r->mctx, mpp_pkt)) != MPP_OK) {
 +                av_log(avctx, AV_LOG_DEBUG, "Decoder buffer is full\n");
 +                ret = AVERROR(EAGAIN);
@@ -2491,16 +2490,8 @@ index 0000000000..5c3b5b9b88
 +            av_log(avctx, AV_LOG_ERROR, "Decoder failed to send packet: %d\n", ret);
 +            goto exit;
 +        } else {
-+            if (avctx->codec_id == AV_CODEC_ID_MJPEG) {
-+                // it is workaround for jpeg as it must wait for info change
-+                ret = mpp_decode_get_frame(avctx, frame, ESMPP_DEC_WAIT_TIME);
-+            } else {
-+                ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_NON_BLOCK);
-+            }
-+
 +            av_packet_unref(pkt);
 +            pkt->size = 0;
-+            goto exit;
 +        }
 +    }
 +
