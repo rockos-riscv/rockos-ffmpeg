@@ -546,6 +546,7 @@ extern const AVFilter ff_vf_xstack_vaapi;
 extern const AVFilter ff_vf_hstack_qsv;
 extern const AVFilter ff_vf_vstack_qsv;
 extern const AVFilter ff_vf_xstack_qsv;
+extern const AVFilter ff_vf_esmpp_complex;
 
 extern const AVFilter ff_vsrc_allrgb;
 extern const AVFilter ff_vsrc_allyuv;
