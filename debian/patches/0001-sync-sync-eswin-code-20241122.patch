@@ -1,29 +1,32 @@
-From 9596d2c807f94d9919564aba88fce6230059cf67 Mon Sep 17 00:00:00 2001
+From d6e4b33005707c3f3d03de43c910728017bcb5a8 Mon Sep 17 00:00:00 2001
 From: Han Gao <gaohan@iscas.ac.cn>
-Date: Thu, 31 Oct 2024 03:53:37 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20241025
+Date: Tue, 3 Dec 2024 20:42:33 +0800
+Subject: [PATCH 1/2] sync: sync eswin code 20241122
 
 Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
 ---
- configure                      |   93 +++
+ configure                      |   98 +++
  fftools/ffmpeg_demux.c         |    6 +
  libavcodec/Makefile            |   18 +
  libavcodec/allcodecs.c         |   25 +
- libavcodec/es_audio_dec.c      |  420 ++++++++++
+ libavcodec/es_audio_dec.c      |  432 +++++++++++
  libavcodec/es_audio_enc.c      |  352 +++++++++
  libavcodec/esmpp_comm.c        |  382 ++++++++++
  libavcodec/esmpp_comm.h        |   74 ++
- libavcodec/esmppdec.c          |  991 ++++++++++++++++++++++++
- libavcodec/esmppdec.h          |  219 ++++++
- libavcodec/esmppenc.c          | 1304 ++++++++++++++++++++++++++++++++
- libavcodec/esmppenc.h          |  524 +++++++++++++
+ libavcodec/esmppdec.c          |  996 ++++++++++++++++++++++++
+ libavcodec/esmppdec.h          |  230 ++++++
+ libavcodec/esmppenc.c          | 1306 ++++++++++++++++++++++++++++++++
+ libavcodec/esmppenc.h          |  535 +++++++++++++
+ libavfilter/Makefile           |    1 +
+ libavfilter/allfilters.c       |    1 +
+ libavfilter/vf_esmpp_complex.c | 1058 ++++++++++++++++++++++++++
  libavutil/Makefile             |    2 +
  libavutil/hwcontext.c          |    4 +
  libavutil/hwcontext.h          |    1 +
- libavutil/hwcontext_esmpp.c    |  635 ++++++++++++++++
- libavutil/hwcontext_esmpp.h    |   80 ++
+ libavutil/hwcontext_esmpp.c    |  637 ++++++++++++++++
+ libavutil/hwcontext_esmpp.h    |   81 ++
  libavutil/hwcontext_internal.h |    1 +
- 18 files changed, 5131 insertions(+)
+ 22 files changed, 6346 insertions(+), 106 deletions(-)
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
  create mode 100644 libavcodec/esmpp_comm.c
@@ -32,11 +35,12 @@ Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
  create mode 100644 libavcodec/esmppdec.h
  create mode 100644 libavcodec/esmppenc.c
  create mode 100644 libavcodec/esmppenc.h
+ create mode 100644 libavfilter/vf_esmpp_complex.c
  create mode 100644 libavutil/hwcontext_esmpp.c
  create mode 100644 libavutil/hwcontext_esmpp.h
 
 diff --git a/configure b/configure
-index 86425130bd..b650f77836 100755
+index 86425130bd..bfbdcbba8c 100755
 --- a/configure
 +++ b/configure
 @@ -230,6 +230,14 @@ External library support:
@@ -102,55 +106,63 @@ index 86425130bd..b650f77836 100755
  libdavs2_decoder_select="avs2_parser"
  libfdk_aac_decoder_deps="libfdk_aac"
  libfdk_aac_encoder_deps="libfdk_aac"
-+es_aac_decoder_extralibs="-les_codec"
++es_aac_decoder_extralibs="-les_acodec"
 +es_aac_decoder_deps="es_aac"
-+es_aac_encoder_extralibs="-les_codec"
++es_aac_encoder_extralibs="-les_acodec"
 +es_aac_encoder_deps="es_aac"
-+es_mp3_decoder_extralibs="-les_codec"
++es_mp3_decoder_extralibs="-les_acodec"
 +es_mp3_decoder_deps="es_mp3"
-+es_amrnb_decoder_extralibs="-les_codec"
++es_amrnb_decoder_extralibs="-les_acodec"
 +es_amrnb_decoder_deps="es_amrnb"
-+es_amrnb_encoder_extralibs="-les_codec"
++es_amrnb_encoder_extralibs="-les_acodec"
 +es_amrnb_encoder_deps="es_amrwb"
-+es_amrwb_decoder_extralibs="-les_codec"
++es_amrwb_decoder_extralibs="-les_acodec"
 +es_amrwb_decoder_deps="es_amrwb"
-+es_amrwb_encoder_extralibs="-les_codec"
++es_amrwb_encoder_extralibs="-les_acodec"
 +es_amrwb_encoder_deps="es_amrwb"
-+es_g711alaw_decoder_extralibs="-les_codec"
++es_g711alaw_decoder_extralibs="-les_acodec"
 +es_g711alaw_decoder_deps="es_g711alaw"
-+es_g711alaw_encoder_extralibs="-les_codec"
++es_g711alaw_encoder_extralibs="-les_acodec"
 +es_g711alaw_encoder_deps="es_g711alaw"
-+es_g711mulaw_decoder_extralibs="-les_codec"
++es_g711mulaw_decoder_extralibs="-les_acodec"
 +es_g711mulaw_decoder_deps="es_g711mulaw"
-+es_g711mulaw_encoder_extralibs="-les_codec"
++es_g711mulaw_encoder_extralibs="-les_acodec"
 +es_g711mulaw_encoder_deps="es_g711mulaw"
-+es_g722_decoder_extralibs="-les_codec"
++es_g722_decoder_extralibs="-les_acodec"
 +es_g722_decoder_deps="es_g722"
-+es_g722_encoder_extralibs="-les_codec"
++es_g722_encoder_extralibs="-les_acodec"
 +es_g722_encoder_deps="es_g722"
-+es_g726_decoder_extralibs="-les_codec"
++es_g726_decoder_extralibs="-les_acodec"
 +es_g726_decoder_deps="es_g726"
-+es_g726_encoder_extralibs="-les_codec"
++es_g726_encoder_extralibs="-les_acodec"
 +es_g726_encoder_deps="es_g726"
  libfdk_aac_encoder_select="audio_frame_queue"
  libgme_demuxer_deps="libgme"
  libgsm_decoder_deps="libgsm"
-@@ -6848,6 +6908,14 @@ enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aace
+@@ -3946,6 +4006,7 @@ vstack_qsv_filter_deps="libmfx"
+ vstack_qsv_filter_select="qsvvpp"
+ xstack_qsv_filter_deps="libmfx"
+ xstack_qsv_filter_select="qsvvpp"
++esmpp_complex_filter_deps="esmpp"
+ 
+ # examples
+ avio_http_serve_files_deps="avformat avutil fork"
+@@ -6848,6 +6909,14 @@ enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aace
                                 { require libfdk_aac fdk-aac/aacenc_lib.h aacEncOpen -lfdk-aac &&
                                   warn "using libfdk without pkg-config"; } }
  flite_extralibs="-lflite_cmu_time_awb -lflite_cmu_us_awb -lflite_cmu_us_kal -lflite_cmu_us_kal16 -lflite_cmu_us_rms -lflite_cmu_us_slt -lflite_usenglish -lflite_cmulex -lflite"
-+enabled es_aac            && require eswin_codec codec_api.h es_aenc_create -les_codec
-+enabled es_mp3            && require eswin_codec codec_api.h es_aenc_create -les_codec
-+enabled es_amrnb          && require eswin_codec codec_api.h es_aenc_create -les_codec
-+enabled es_amrwb          && require eswin_codec codec_api.h es_aenc_create -les_codec
-+enabled es_g711alaw       && require eswin_codec codec_api.h es_aenc_create -les_codec
-+enabled es_g711mulaw      && require eswin_codec codec_api.h es_aenc_create -les_codec
-+enabled es_g722           && require eswin_codec codec_api.h es_aenc_create -les_codec
-+enabled es_g726           && require eswin_codec codec_api.h es_aenc_create -les_codec
++enabled es_aac            && require eswin_codec codec_api.h es_aenc_create -les_acodec
++enabled es_mp3            && require eswin_codec codec_api.h es_aenc_create -les_acodec
++enabled es_amrnb          && require eswin_codec codec_api.h es_aenc_create -les_acodec
++enabled es_amrwb          && require eswin_codec codec_api.h es_aenc_create -les_acodec
++enabled es_g711alaw       && require eswin_codec codec_api.h es_aenc_create -les_acodec
++enabled es_g711mulaw      && require eswin_codec codec_api.h es_aenc_create -les_acodec
++enabled es_g722           && require eswin_codec codec_api.h es_aenc_create -les_acodec
++enabled es_g726           && require eswin_codec codec_api.h es_aenc_create -les_acodec
  enabled libflite          && require libflite "flite/flite.h" flite_init $flite_extralibs
  enabled fontconfig        && enable libfontconfig
  enabled libfontconfig     && require_pkg_config libfontconfig fontconfig "fontconfig/fontconfig.h" FcInit
-@@ -7069,6 +7137,31 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
+@@ -7069,6 +7138,35 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
                               }
  enabled vapoursynth       && require_pkg_config vapoursynth "vapoursynth-script >= 42" VSScript.h vsscript_init
  
@@ -175,7 +187,11 @@ index 86425130bd..b650f77836 100755
 +        log check_pkg_config mjpeg_esmppvdec
 +    } || disable mjpeg_esmppvdec
 +
-+    if disabled_all h264_esmpp_encoder hevc_esmpp_encoder h264_esmppvdec hevc_esmppvdec mjpeg_esmppvdec; then
++    enabled esmpp_complex_filter  && {
++        log check_pkg_config esmpp_complex_filter
++    } || disable esmpp_complex_filter
++
++    if disabled_all h264_esmpp_encoder hevc_esmpp_encoder h264_esmppvdec hevc_esmppvdec mjpeg_esmppvdec esmpp_complex_filter; then
 +        die "esmpp enabled but no supported codecs found"
 +    fi
 +}
@@ -273,10 +289,10 @@ index 2386b450a6..fff8629343 100644
  extern const FFCodec ff_aasc_decoder;
 diff --git a/libavcodec/es_audio_dec.c b/libavcodec/es_audio_dec.c
 new file mode 100644
-index 0000000000..5865357224
+index 0000000000..8b032682b9
 --- /dev/null
 +++ b/libavcodec/es_audio_dec.c
-@@ -0,0 +1,420 @@
+@@ -0,0 +1,432 @@
 +#include "libavutil/channel_layout.h"
 +#include "libavutil/common.h"
 +#include "libavutil/opt.h"
@@ -303,6 +319,7 @@ index 0000000000..5865357224
 +#define DEFAULT_G726_BIT_RATE       32000
 +#define MAX_BUFFER_SIZE             32768
 +#define MAX_STREAM_LEN              2048
++#define MAX_CHANNELS                8
 +
 +typedef struct ESADECContext {
 +    const AVClass *class;
@@ -310,7 +327,7 @@ index 0000000000..5865357224
 +    int bit_rate;
 +    char *buffer;
 +    int buffer_size;
-+    uint8_t stream[MAX_STREAM_LEN * 2];
++    uint8_t stream[MAX_STREAM_LEN * MAX_CHANNELS];
 +    uint32_t offset;
 +    AVChannelLayout downmix_layout;
 +} ESADECContext;
@@ -327,6 +344,15 @@ index 0000000000..5865357224
 +    int mpeg_id;
 +    uint8_t pce_data[ADTS_MAX_PCE_SIZE];
 +} ADTSContext;
++
++static const AVChannelLayout layout[] = {AV_CHANNEL_LAYOUT_MONO,
++                                        AV_CHANNEL_LAYOUT_STEREO,
++                                        AV_CHANNEL_LAYOUT_2POINT1,
++                                        AV_CHANNEL_LAYOUT_3POINT1,
++                                        AV_CHANNEL_LAYOUT_4POINT1,
++                                        AV_CHANNEL_LAYOUT_5POINT1,
++                                        AV_CHANNEL_LAYOUT_6POINT1,
++                                        AV_CHANNEL_LAYOUT_7POINT1};
 +
 +static es_codec_type convert_codec_id_to_type(enum AVCodecID codec_id)
 +{
@@ -466,6 +492,10 @@ index 0000000000..5865357224
 +        av_log(avctx, AV_LOG_ERROR, "es_adec_parse_packets failed:%d\n", ret);
 +        return AVERROR_UNKNOWN;
 +    }
++    if (frame_info->channels > MAX_CHANNELS || frame_info->channels == 0) {
++        av_log(avctx, AV_LOG_ERROR, "unsupport channel number:%d\n", frame_info->channels);
++        return AVERROR_UNKNOWN;
++    }
 +    // av_log(avctx, AV_LOG_INFO, "sample_rate=%d, frame_size=%d, channels=%d, bit_depth=%d, decoded_size=%d\n",
 +    //        frame_info->sample_rate, frame_info->frame_size, frame_info->channels,
 +    //        frame_info->bit_depth, frame_info->decoded_size);
@@ -473,11 +503,7 @@ index 0000000000..5865357224
 +    avctx->frame_size  = frame_info->decoded_size / frame_info->channels / (frame_info->bit_depth / 8);
 +
 +    av_channel_layout_uninit(&avctx->ch_layout);
-+    if (frame_info->channels == 1) {
-+        avctx->ch_layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
-+    } else {
-+        avctx->ch_layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
-+    }
++    avctx->ch_layout = layout[frame_info->channels-1];
 +
 +    switch (frame_info->bit_depth) {
 +    case 8:
@@ -616,12 +642,12 @@ index 0000000000..5865357224
 +            adts_decode_extradata(avctx, &adts, par->extradata, par->extradata_size);
 +        }
 +
-+        if (adts.write_adts) {
++        if(adts.write_adts) {
 +            adts_write_frame_header(avctx, &adts, s->stream, ADTS_HEADER_SIZE, adts.pce_size);
-+            memcpy(s->stream + ADTS_HEADER_SIZE, avpkt->data, avpkt->size);
-+            pkt_data = s->stream;
-+            pkt_size = avpkt->size + ADTS_HEADER_SIZE;
 +        }
++        memcpy(s->stream + ADTS_HEADER_SIZE, avpkt->data, avpkt->size);
++        pkt_data = s->stream;
++        pkt_size = avpkt->size + ADTS_HEADER_SIZE;
 +    }
 +    if(par)
 +        avcodec_parameters_free(&par);
@@ -655,7 +681,9 @@ index 0000000000..5865357224
 +        av_log(s, AV_LOG_ERROR, "cannot get buffer for decode, ret: %d\n", ret);
 +        return ret;
 +    }
-+
++    if(frame->buf[0] && frame->buf[0]->size < size) {
++        size = frame->buf[0]->size;
++    }
 +    memcpy(frame->extended_data[0], s->buffer, size);
 +
 +    *got_frame_ptr = 1;
@@ -1526,10 +1554,10 @@ index 0000000000..692a3f1c04
 \ No newline at end of file
 diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
 new file mode 100644
-index 0000000000..c4ec9c345c
+index 0000000000..bddd2624ae
 --- /dev/null
 +++ b/libavcodec/esmppdec.c
-@@ -0,0 +1,991 @@
+@@ -0,0 +1,996 @@
 +#include "config.h"
 +#include "config_components.h"
 +#include <stdbool.h>
@@ -1764,7 +1792,7 @@ index 0000000000..c4ec9c345c
 +        return AVERROR(ENOSYS);
 +    }
 +
-+    if ((ret = esmpp_create(&r->mctx, MPP_CTX_DEC, coding_type)) != MPP_OK) {
++    if ((ret = esmpp_create(&r->mctx, MPP_CTX_DEC, coding_type, r->die_idx)) != MPP_OK) {
 +        av_log(avctx, AV_LOG_ERROR, "Failed to create MPP context and api: %d\n", ret);
 +        ret = AVERROR_EXTERNAL;
 +        goto fail;
@@ -1824,6 +1852,7 @@ index 0000000000..c4ec9c345c
 +    group_limit = mpp_frame_get_group_buf_count(mpp_frame);
 +
 +    mppfc = hwfc->hwctx;
++    mppfc->die_idx = r->die_idx;
 +    if (r->buf_mode != ESMPP_DEC_PURE_EXTERNAL) {
 +        if ((ret = av_hwframe_ctx_init(r->hwframe)) < 0) {
 +            av_log(avctx, AV_LOG_ERROR, "Failed to init ESMPP frame pool\n");
@@ -1848,7 +1877,8 @@ index 0000000000..c4ec9c345c
 +            goto fail;
 +        }
 +    } else {
-+        if ((ret = mpp_buffer_group_get_external(&r->buf_group, MPP_BUFFER_TYPE_DMA_HEAP)) != MPP_OK) {
++        MppBufferType type = mpp_buffer_get_type(MPP_BUFFER_TYPE_DMA_HEAP, r->die_idx);
++        if ((ret = mpp_buffer_group_get_external(&r->buf_group, type)) != MPP_OK) {
 +            av_log(avctx, AV_LOG_ERROR, "Failed to get external buffer group: %d\n", ret);
 +            ret = AVERROR_EXTERNAL;
 +            goto fail;
@@ -1865,6 +1895,7 @@ index 0000000000..c4ec9c345c
 +            .size = esmpp_fc->frames[i].drm_desc.objects[0].size,
 +        };
 +
++        buf_info.type = mpp_buffer_get_type(buf_info.type, r->die_idx);
 +        if ((ret = mpp_buffer_commit(r->buf_group, &buf_info)) != MPP_OK) {
 +            av_log(avctx, AV_LOG_ERROR, "Failed to commit external buffer group: %d\n", ret);
 +            ret = AVERROR_EXTERNAL;
@@ -2127,6 +2158,8 @@ index 0000000000..c4ec9c345c
 +    frame->pts = mpp_frame_get_pts(mpp_frame);
 +    frame->pkt_dts = mpp_frame_get_dts(mpp_frame);
 +    frame->time_base = avctx->pkt_timebase;
++    frame->colorspace = mpp_frame_get_colorspace(mpp_frame);
++    frame->color_range = mpp_frame_get_color_range(mpp_frame);
 +#if 0  // for vlc master
 +    if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
 +        frame->opaque_ref = (AVBufferRef *)mpp_frame_get_reordered_opaque(mpp_frame);
@@ -2523,10 +2556,10 @@ index 0000000000..c4ec9c345c
 +DEFINE_ESMPP_DECODER(mjpeg, MJPEG, "mjpeg2jpeg")
 diff --git a/libavcodec/esmppdec.h b/libavcodec/esmppdec.h
 new file mode 100644
-index 0000000000..f6f73c28f0
+index 0000000000..0753c8a4a4
 --- /dev/null
 +++ b/libavcodec/esmppdec.h
-@@ -0,0 +1,219 @@
+@@ -0,0 +1,230 @@
 +#ifndef AVCODEC_ESMPPDEC_H
 +#define AVCODEC_ESMPPDEC_H
 +
@@ -2579,6 +2612,8 @@ index 0000000000..f6f73c28f0
 +    int scale_height;
 +
 +    int first_packet;
++    // multiple dies
++    int die_idx;
 +} ESMPPDecContext;
 +
 +enum {
@@ -2601,15 +2636,24 @@ index 0000000000..f6f73c28f0
 +#define VD (AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
 +
 +#define ESMPP_VDEC_COMMON_OPTIONS                                                                                      \
-+    {"stride_align",                                                                                                   \
-+     "set out stride",                                                                                                 \
-+     OFFSET(stride_align),                                                                                             \
++    {"die_idx",                                                                                                        \
++     "set the idx of die for multiple dies version. range[0,1]",                                                       \
++     OFFSET(die_idx),                                                                                                  \
 +     AV_OPT_TYPE_INT,                                                                                                  \
-+     {.i64 = 64},                                                                                                      \
++     {.i64 = 0},                                                                                                       \
++     0,                                                                                                                \
 +     1,                                                                                                                \
-+     2048,                                                                                                             \
 +     VD,                                                                                                               \
-+     "stride_align"},                                                                                                  \
++     "die_idx"},                                                                                                       \
++        {"stride_align",                                                                                               \
++         "set out stride",                                                                                             \
++         OFFSET(stride_align),                                                                                         \
++         AV_OPT_TYPE_INT,                                                                                              \
++         {.i64 = 64},                                                                                                  \
++         1,                                                                                                            \
++         2048,                                                                                                         \
++         VD,                                                                                                           \
++         "stride_align"},                                                                                              \
 +        {"1", "1 byte align", 0, AV_OPT_TYPE_CONST, {.i64 = 1}, 0, 0, VD, "stride_align"},                             \
 +        {"8", "8 bytes align", 0, AV_OPT_TYPE_CONST, {.i64 = 8}, 0, 0, VD, "stride_align"},                            \
 +        {"16", "16 bytes align", 0, AV_OPT_TYPE_CONST, {.i64 = 16}, 0, 0, VD, "stride_align"},                         \
@@ -2748,10 +2792,10 @@ index 0000000000..f6f73c28f0
 +#endif /* AVCODEC_ESMPPDEC_H */
 diff --git a/libavcodec/esmppenc.c b/libavcodec/esmppenc.c
 new file mode 100644
-index 0000000000..21a0c29512
+index 0000000000..c3bc192e98
 --- /dev/null
 +++ b/libavcodec/esmppenc.c
-@@ -0,0 +1,1304 @@
+@@ -0,0 +1,1306 @@
 +#include "esmppenc.h"
 +#include <es_venc_def.h>
 +#include <es_mpp_video.h>
@@ -3708,7 +3752,7 @@ index 0000000000..21a0c29512
 +
 +send_frm:
 +    ret = esmpp_send_frame(avctx, mpp_enc_frame);
-+    av_log(avctx, AV_LOG_INFO, "send_frame ret:%d, sent frm cnt:%d\n", ret, cxt->sent_frm_cnt);
++    av_log(avctx, AV_LOG_DEBUG, "send_frame ret:%d, sent frm cnt:%d\n", ret, cxt->sent_frm_cnt);
 +    if (ret == AVERROR(EAGAIN)) {
 +        av_usleep(10 * 1000);
 +        goto send_frm;
@@ -3750,11 +3794,11 @@ index 0000000000..21a0c29512
 +               ret,
 +               ret == AVERROR(EAGAIN) ? "EAGAIN" : "AVERROR_EOF");
 +    } else if (ret) {
-+        av_log(avctx, AV_LOG_INFO, "get_packet len %d ret:%d\n", packet->size, ret);
++        av_log(avctx, AV_LOG_DEBUG, "get_packet len %d ret:%d\n", packet->size, ret);
 +        return ret;
 +    } else {
 +        av_log(avctx,
-+               AV_LOG_INFO,
++               AV_LOG_DEBUG,
 +               "get_packet len %d ret:%d pts:%ld dts:%ld, got pktcnt:%d\n",
 +               packet->size,
 +               ret,
@@ -3946,6 +3990,7 @@ index 0000000000..21a0c29512
 +    enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE;
 +    MppCodingType coding_type = MPP_VIDEO_CodingUnused;
 +    MppPacketPtr mpp_pkt = NULL;
++    ES_S32 buf_type = MPP_BUFFER_TYPE_DMA_HEAP;
 +    int ret = 0;
 +
 +    esmpp_set_log_level();
@@ -3955,7 +4000,8 @@ index 0000000000..21a0c29512
 +    cxt->sent_frm_cnt = 0;
 +    cxt->got_pkt_cnt = 0;
 +
-+    ret = mpp_buffer_group_get_internal(&cxt->frame_grp, MPP_BUFFER_TYPE_DMA_HEAP);
++    buf_type = mpp_buffer_get_type(buf_type, cxt->die_idx);
++    ret = mpp_buffer_group_get_internal(&cxt->frame_grp, buf_type);
 +    if (ret) {
 +        av_log(avctx, AV_LOG_ERROR, "get frame group failed %d\n", ret);
 +        return AVERROR(ENOSYS);
@@ -3970,7 +4016,7 @@ index 0000000000..21a0c29512
 +    pix_fmt = (avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME) ? avctx->sw_pix_fmt : avctx->pix_fmt;
 +    cxt->pix_fmt = pix_fmt;
 +
-+    if ((ret = esmpp_create(&cxt->mctx, MPP_CTX_ENC, coding_type)) != MPP_OK) {
++    if ((ret = esmpp_create(&cxt->mctx, MPP_CTX_ENC, coding_type, cxt->die_idx)) != MPP_OK) {
 +        av_log(avctx, AV_LOG_ERROR, "Failed to create mpp context and api: %d\n", ret);
 +        ret = AVERROR_EXTERNAL;
 +        goto fail;
@@ -4058,10 +4104,10 @@ index 0000000000..21a0c29512
 +DEFINE_ESMPP_ENCODER(mjpeg, MJPEG, mjpeg)
 diff --git a/libavcodec/esmppenc.h b/libavcodec/esmppenc.h
 new file mode 100644
-index 0000000000..150e794c47
+index 0000000000..6474a89b9e
 --- /dev/null
 +++ b/libavcodec/esmppenc.h
-@@ -0,0 +1,524 @@
+@@ -0,0 +1,535 @@
 +#ifndef AVCODEC_ESMPPENC_H
 +#define AVCODEC_ESMPPENC_H
 +
@@ -4156,6 +4202,9 @@ index 0000000000..150e794c47
 +    char *mastering_display;
 +    char *content_light;
 +
++    // multiple dies
++    int die_idx;
++
 +    // dump
 +    char *dump_path;
 +    int32_t dump_frame_enable;
@@ -4181,14 +4230,22 @@ index 0000000000..150e794c47
 +#define VE (AV_OPT_FLAG_ENCODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
 +
 +#define ESMPP_ENC_COMMON_OPTS                                                                                         \
-+    {"stride_align",                                                                                                  \
-+     "set the stride alignment of input frame, multiple of 16",                                                       \
-+     OFFSET(stride_align),                                                                                            \
++    {"die_idx",                                                                                                       \
++     "set the idx of die for multiple dies version. range[0,1]",                                                      \
++     OFFSET(die_idx),                                                                                                 \
 +     AV_OPT_TYPE_INT,                                                                                                 \
-+     {.i64 = -1},                                                                                                     \
-+     -1,                                                                                                              \
-+     4096,                                                                                                            \
++     {.i64 = 0},                                                                                                      \
++     0,                                                                                                               \
++     1,                                                                                                               \
 +     VE},                                                                                                             \
++        {"stride_align",                                                                                              \
++         "set the stride alignment of input frame, multiple of 16",                                                   \
++         OFFSET(stride_align),                                                                                        \
++         AV_OPT_TYPE_INT,                                                                                             \
++         {.i64 = -1},                                                                                                 \
++         -1,                                                                                                          \
++         4096,                                                                                                        \
++         VE},                                                                                                         \
 +        {"v_stride_align",                                                                                            \
 +         "set the vertical stride alignment of input frame, multiple of 2",                                           \
 +         OFFSET(v_stride_align),                                                                                      \
@@ -4586,6 +4643,1094 @@ index 0000000000..150e794c47
 +    };
 +
 +#endif
+diff --git a/libavfilter/Makefile b/libavfilter/Makefile
+index 994d9773ba..2343e11f3d 100644
+--- a/libavfilter/Makefile
++++ b/libavfilter/Makefile
+@@ -581,6 +581,7 @@ OBJS-$(CONFIG_XSTACK_VAAPI_FILTER)           += vf_stack_vaapi.o framesync.o vaa
+ OBJS-$(CONFIG_HSTACK_QSV_FILTER)             += vf_stack_qsv.o framesync.o
+ OBJS-$(CONFIG_VSTACK_QSV_FILTER)             += vf_stack_qsv.o framesync.o
+ OBJS-$(CONFIG_XSTACK_QSV_FILTER)             += vf_stack_qsv.o framesync.o
++OBJS-$(CONFIG_ESMPP)                         += vf_esmpp_complex.o
+ 
+ OBJS-$(CONFIG_ALLRGB_FILTER)                 += vsrc_testsrc.o
+ OBJS-$(CONFIG_ALLYUV_FILTER)                 += vsrc_testsrc.o
+diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
+index 149bf50997..9fe7f99bbd 100644
+--- a/libavfilter/allfilters.c
++++ b/libavfilter/allfilters.c
+@@ -546,6 +546,7 @@ extern const AVFilter ff_vf_xstack_vaapi;
+ extern const AVFilter ff_vf_hstack_qsv;
+ extern const AVFilter ff_vf_vstack_qsv;
+ extern const AVFilter ff_vf_xstack_qsv;
++extern const AVFilter ff_vf_esmpp_complex;
+ 
+ extern const AVFilter ff_vsrc_allrgb;
+ extern const AVFilter ff_vsrc_allyuv;
+diff --git a/libavfilter/vf_esmpp_complex.c b/libavfilter/vf_esmpp_complex.c
+new file mode 100644
+index 0000000000..ed6dcebc8e
+--- /dev/null
++++ b/libavfilter/vf_esmpp_complex.c
+@@ -0,0 +1,1058 @@
++#include <stdio.h>
++#include <string.h>
++#include <dlfcn.h>
++#include "libavutil/avstring.h"
++#include "libavutil/common.h"
++#include "libavutil/hwcontext.h"
++#include "libavutil/hwcontext_esmpp.h"
++#include "libavcodec/defs.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/pixfmt.h"
++#include "libavutil/imgutils.h"
++#include "avfilter.h"
++#include "formats.h"
++#include "framesync.h"
++#include "internal.h"
++#include "mpp_tde_api.h"
++#include "mpp_buffer.h"
++#include "video.h"
++
++#define SUCCESS (0)
++#define FAILURE (-1)
++#define OFFSET(x) offsetof(MppFilterContext, x)
++#define FLAGS (AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
++#define MAX_INPUT_NB 2
++
++#define ESMPP_COMPLEX_DUMP (1)
++#define ESMPP_ACTIVE (1)
++
++typedef struct MppFilterContext {
++    const AVClass *class;
++    FFFrameSync fs;
++    int nb_inputs;
++    enum AVPixelFormat in_fmt;
++    enum AVPixelFormat out_fmt;
++
++    AVBufferRef *hw_device_ref;
++    AVBufferRef *input_hw_frm_ref;
++    AVBufferRef *output_hw_frm_ref;
++    AVESMPPFramesContext *mpp_dev_ctx;
++    AVHWFramesContext *input_hw_frm_ctx;
++    AVHWFramesContext *out_hw_frame_ctx;
++
++    MppBufferGroupPtr buf_grp;
++    RECT_S src_rect;
++    RECT_S dst_rect;
++    ROTATION_E src_rotation;
++    ROTATION_E dst_rotation;
++    ES_S32 src_global_alpha;
++    ES_S32 dst_global_alpha;
++    ES_S32 blend_mode;
++
++    char *crop_set;
++    char *clip_set;
++    int32_t output_w_set;
++    int32_t output_h_set;
++    int32_t output_fmt_set;
++    char *rotation_set;
++    int32_t src_global_alpha_set;
++    int32_t dst_global_alpha_set;
++    int32_t blend_mode_set;
++} MppFilterContext;
++
++static int complex_query_formats(AVFilterContext *ctx) {
++    static const enum AVPixelFormat pixel_formats[] = {
++        AV_PIX_FMT_NV12,
++        AV_PIX_FMT_NV21,
++        AV_PIX_FMT_YUV420P,
++        AV_PIX_FMT_GRAY8,
++        AV_PIX_FMT_YUV420P10LE,
++        AV_PIX_FMT_P010LE,
++        AV_PIX_FMT_YVYU422,
++        AV_PIX_FMT_YUYV422,
++        AV_PIX_FMT_UYVY422,
++        AV_PIX_FMT_NV16,
++        AV_PIX_FMT_RGB24,
++        AV_PIX_FMT_BGR24,
++        AV_PIX_FMT_ARGB,
++        AV_PIX_FMT_ABGR,
++        AV_PIX_FMT_BGRA,
++        AV_PIX_FMT_RGBA,
++        AV_PIX_FMT_DRM_PRIME,
++        AV_PIX_FMT_NONE,
++    };
++    AVFilterFormats *pix_fmts = ff_make_format_list(pixel_formats);
++    int ret = ff_set_common_formats(ctx, pix_fmts);
++    if (ret < 0) return ret;
++    return 0;
++}
++
++static av_cold int init(AVFilterContext *ctx) {
++    MPP_RET mpp_ret;
++    MppFilterContext *s = NULL;
++
++    if (!ctx || !ctx->priv) {
++        return FAILURE;
++    }
++
++    s = (MppFilterContext *)ctx->priv;
++    s->src_global_alpha = -1;
++    s->dst_global_alpha = -1;
++    s->nb_inputs = 1;
++    if (s->blend_mode_set != -1) {
++        s->nb_inputs = 2;
++    }
++
++    mpp_ret = mpp_buffer_group_get_internal(&s->buf_grp, MPP_BUFFER_TYPE_DMA_HEAP);
++    if (mpp_ret) {
++        av_log(ctx, AV_LOG_ERROR, "Create buffer group with type %d failed: %d.\n", MPP_BUFFER_TYPE_DMA_HEAP, mpp_ret);
++        return FAILURE;
++    }
++    mpp_ret = mpp_buffer_group_limit_config(s->buf_grp, 0, 0);
++    if (mpp_ret) {
++        av_log(ctx, AV_LOG_ERROR, "Limit buffer group with no limit failed: %d.\n", mpp_ret);
++        return FAILURE;
++    }
++
++#ifdef ESMPP_ACTIVE
++    for (int i = 0; i < s->nb_inputs; i++) {
++        AVFilterPad pad = {0};
++
++        pad.type = AVMEDIA_TYPE_VIDEO;
++        pad.name = av_asprintf("in%d", i);
++        if (!pad.name) return AVERROR(ENOMEM);
++
++        if (ff_append_inpad_free_name(ctx, &pad) < 0) return FAILURE;
++    }
++#endif
++    return SUCCESS;
++}
++
++static av_cold void uninit(AVFilterContext *ctx) {
++    MppFilterContext *s = (MppFilterContext *)ctx->priv;
++    if (!ctx || !ctx->priv) {
++        return;
++    }
++
++    if (s->input_hw_frm_ref) {
++        av_buffer_unref(&s->input_hw_frm_ref);
++    }
++    if (s->output_hw_frm_ref) {
++        av_buffer_unref(&s->output_hw_frm_ref);
++    }
++    if (s->hw_device_ref) {
++        av_buffer_unref(&s->hw_device_ref);
++    }
++    if (s->buf_grp) {
++        mpp_buffer_group_put(s->buf_grp);
++        s->buf_grp = NULL;
++    }
++}
++
++static int set_output_fmt(MppFilterContext *s) {
++    if (!s) {
++        return FAILURE;
++    }
++    s->out_fmt = (s->output_fmt_set == -1) ? s->in_fmt : (enum AVPixelFormat)s->output_fmt_set;
++    av_log(NULL, AV_LOG_INFO, "output format is %s\n", av_get_pix_fmt_name(s->out_fmt));
++    return SUCCESS;
++}
++
++static int parse_rect(char *rect_cmd, RECT_S *rect) {
++    if (!rect_cmd || !rect) {
++        return FAILURE;
++    }
++    if (sscanf(rect_cmd, "%dx%dx%dx%d", &rect->x, &rect->y, &rect->width, &rect->height) == 4) {
++        return SUCCESS;
++    }
++    return FAILURE;
++}
++
++static int parse_rotation(char *rotation_cmd, ROTATION_E *rotation) {
++    if (!rotation_cmd || !rotation) {
++        return FAILURE;
++    }
++    if (!av_strcasecmp(rotation_cmd, "90")) {
++        *rotation = ROTATION_90;
++    } else if (!av_strcasecmp(rotation_cmd, "180")) {
++        *rotation = ROTATION_180;
++    } else if (!av_strcasecmp(rotation_cmd, "270")) {
++        *rotation = ROTATION_270;
++    } else if (!av_strcasecmp(rotation_cmd, "h")) {
++        *rotation = ROTATION_FLIP_H;
++    } else if (!av_strcasecmp(rotation_cmd, "v")) {
++        *rotation = ROTATION_FLIP_V;
++    } else if (!av_strcasecmp(rotation_cmd, "0")) {
++        *rotation = ROTATION_0;
++    } else {
++        return FAILURE;
++    }
++    return SUCCESS;
++}
++
++static int parse_blend_mode(int blend_mode_cmd, int *mode) {
++    if (!mode) {
++        return FAILURE;
++    }
++    switch (blend_mode_cmd) {
++        case 0:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blending mode is 'SRC'");
++            *mode = TDE_USAGE_BLEND_SRC;
++            break;
++        case 1:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'DST'");
++            *mode = TDE_USAGE_BLEND_DST;
++            break;
++        case 2:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'SRC over DST'");
++            *mode = TDE_USAGE_BLEND_SRC_OVER;
++            break;
++        case 3:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'DST over SRC'");
++            *mode = TDE_USAGE_BLEND_DST_OVER;
++            break;
++        case 4:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'SRC in DST'");
++            *mode = TDE_USAGE_BLEND_SRC_IN;
++            break;
++        case 5:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'DST in SRC'");
++            *mode = TDE_USAGE_BLEND_DST_IN;
++            break;
++        case 6:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'SRC out DST'");
++            *mode = TDE_USAGE_BLEND_SRC_OUT;
++            break;
++        case 7:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'DST out SRC'");
++            *mode = TDE_USAGE_BLEND_DST_OUT;
++            break;
++        case 8:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'SRC ATOP'");
++            *mode = TDE_USAGE_BLEND_SRC_ATOP;
++            break;
++        case 9:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'DST ATOP'");
++            *mode = TDE_USAGE_BLEND_DST_ATOP;
++            break;
++        case 10:
++            av_log(NULL, AV_LOG_DEBUG, "Alpha blend mode is 'XOR'");
++            *mode = TDE_USAGE_BLEND_XOR;
++            break;
++        default:
++            return FAILURE;
++    }
++    return SUCCESS;
++}
++
++static int get_alignment_by_format(enum AVPixelFormat fmt) {
++    int align = 0;
++    switch (fmt) {
++        case AV_PIX_FMT_YUV420P:
++        case AV_PIX_FMT_NV12:
++        case AV_PIX_FMT_NV21:
++        case AV_PIX_FMT_NV16:
++            align = 64;
++            break;
++        case AV_PIX_FMT_YVYU422:
++        case AV_PIX_FMT_YUYV422:
++        case AV_PIX_FMT_UYVY422:
++            align = 4;
++            break;
++        case AV_PIX_FMT_P010LE:
++        case AV_PIX_FMT_YUV420P10LE:
++            align = 128;
++            break;
++
++        default:
++            align = 1;  // such as rgb etc.
++            break;
++    }
++    return align;
++}
++
++static void adjust_width_height_by_format(enum AVPixelFormat fmt, int *width, int *height) {
++    int align = get_alignment_by_format(fmt);
++
++    *width = FFALIGN(*width, align);
++    *height = FFALIGN(*height, 2);
++}
++
++static MppFrameFormat ff_fmt_to_mpp_fmt(enum AVPixelFormat ff_fmt) {
++    switch (ff_fmt) {
++        case AV_PIX_FMT_NV12:
++            return MPP_FMT_NV12;
++        case AV_PIX_FMT_NV21:
++            return MPP_FMT_NV21;
++        case AV_PIX_FMT_YUV420P:
++            return MPP_FMT_I420;
++        case AV_PIX_FMT_GRAY8:
++            return MPP_FMT_GRAY8;
++        case AV_PIX_FMT_YUV420P10LE:
++            return MPP_FMT_I010;
++        case AV_PIX_FMT_P010LE:
++            return MPP_FMT_P010;
++        case AV_PIX_FMT_YVYU422:
++            return MPP_FMT_YVY2;
++        case AV_PIX_FMT_YUYV422:
++            return MPP_FMT_YUY2;
++        case AV_PIX_FMT_UYVY422:
++            return MPP_FMT_UYVY;
++        case AV_PIX_FMT_NV16:
++            return MPP_FMT_NV16;
++        case AV_PIX_FMT_RGB24:
++            return MPP_FMT_R8G8B8;
++        case AV_PIX_FMT_BGR24:
++            return MPP_FMT_B8G8R8;
++        case AV_PIX_FMT_ARGB:
++            return MPP_FMT_A8R8G8B8;
++        case AV_PIX_FMT_ABGR:
++            return MPP_FMT_A8B8G8R8;
++        case AV_PIX_FMT_BGRA:
++            return MPP_FMT_B8G8R8A8;
++        case AV_PIX_FMT_RGBA:
++            return MPP_FMT_R8G8B8A8;
++        default:
++            return MPP_FMT_BUTT;
++    }
++}
++
++static int get_plane_bpp(enum AVPixelFormat fmt, int bpp[3]) {
++    bpp[0] = bpp[1] = bpp[2] = 0;
++    switch (fmt) {
++        case AV_PIX_FMT_YUV420P:
++            bpp[0] = 8;
++            bpp[1] = bpp[2] = 2;
++            break;
++        case AV_PIX_FMT_NV12:
++        case AV_PIX_FMT_NV21:
++            bpp[0] = 8;
++            bpp[1] = 4;
++            break;
++        case AV_PIX_FMT_YVYU422:
++        case AV_PIX_FMT_YUYV422:
++        case AV_PIX_FMT_UYVY422:
++            bpp[0] = 16;
++            break;
++        case AV_PIX_FMT_NV16:
++            bpp[0] = bpp[1] = 8;
++            break;
++        case AV_PIX_FMT_YUV420P10LE:
++            bpp[0] = 16;
++            bpp[1] = bpp[2] = 4;
++            break;
++        case AV_PIX_FMT_P010LE:
++            bpp[0] = 16;
++            bpp[1] = 8;
++            break;
++        case AV_PIX_FMT_GRAY8:
++            bpp[0] = 8;
++            break;
++        case AV_PIX_FMT_RGB24:
++        case AV_PIX_FMT_BGR24:
++            bpp[0] = 24;
++            break;
++        case AV_PIX_FMT_ARGB:
++        case AV_PIX_FMT_ABGR:
++        case AV_PIX_FMT_BGRA:
++        case AV_PIX_FMT_RGBA:
++            bpp[0] = 32;
++            break;
++
++        default:
++            return -1;
++    }
++    return 0;
++}
++
++static int get_bpp(enum AVPixelFormat fmt) {
++    int bpp[3] = {0, 0, 0};
++
++    get_plane_bpp(fmt, bpp);
++
++    return bpp[0] + bpp[1] + bpp[2];
++}
++
++static size_t get_pic_buf_info(
++    enum AVPixelFormat fmt, int width, int height, int align, int align_h, int *p_stride, int *p_offset, int *p_plane) {
++    int bpp, plane, stride;
++    int uStride, vStride, uOffset, vOffset, alignWidth, strideAlign;
++
++    bpp = get_bpp(fmt);
++    if (!bpp) return 0;
++    alignWidth = (align > 0) ? FFALIGN(width, align) : width;
++    align_h = (align_h > 0) ? FFALIGN(height, align_h) : height;
++    strideAlign = (align < 2) ? 2 : FFALIGN(align, 2);
++    stride = FFALIGN(alignWidth, strideAlign);
++
++    switch (fmt) {
++        case AV_PIX_FMT_NV12:
++        case AV_PIX_FMT_NV21:
++            /*  WxH Y plane followed by (W)x(H/2) interleaved U/V plane. */
++            stride = alignWidth;
++            stride = FFALIGN(stride, strideAlign);
++            uStride = vStride = stride;
++            uOffset = vOffset = stride * align_h;
++            plane = 2;
++            break;
++        case AV_PIX_FMT_NV16:
++            stride = alignWidth;
++            /*  WxH Y plane followed by WxH interleaved U/V(V/U) plane. */
++            stride = FFALIGN(stride, strideAlign);
++            uStride = vStride = stride;
++            uOffset = vOffset = stride * align_h;
++            plane = 2;
++            break;
++        case AV_PIX_FMT_P010LE:
++            /*  WxH Y plane followed by (W)x(H/2) interleaved U/V plane. */
++            stride = alignWidth * 2;
++            stride = FFALIGN(stride, strideAlign);
++            uStride = vStride = stride;
++            uOffset = vOffset = stride * align_h;
++            plane = 2;
++            break;
++        case AV_PIX_FMT_YUV420P:
++            /*  WxH Y plane followed by (W/2)x(H/2) U and V planes. */
++            uStride = vStride = (stride / 2);
++            stride = FFALIGN(stride, strideAlign);
++            uStride = FFALIGN(uStride, strideAlign / 2);
++            vStride = FFALIGN(vStride, strideAlign / 2);
++            uOffset = stride * align_h;
++            vOffset = uOffset + vStride * align_h / 2;
++            plane = 3;
++            break;
++        case AV_PIX_FMT_YUV420P10LE:
++            /*  WxH Y plane followed by (W/2)x(H/2) U and V planes. */
++            stride = alignWidth * 2;
++            uStride = vStride = (stride / 2);
++            stride = FFALIGN(stride, strideAlign);
++            uStride = FFALIGN(uStride, strideAlign / 2);
++            vStride = FFALIGN(vStride, strideAlign / 2);
++            uOffset = stride * align_h;
++            vOffset = uOffset + uStride * align_h / 2;
++            plane = 3;
++            break;
++        default:
++            stride = (alignWidth * bpp) / 8;
++            uStride = vStride = 0;
++            uOffset = vOffset = 0;
++            plane = 1;
++            break;
++    }
++
++    if (p_stride) {
++        p_stride[0] = stride;
++        if (plane > 1) p_stride[1] = uStride;
++        if (plane > 2) p_stride[2] = vStride;
++    }
++    if (p_offset) {
++        p_offset[0] = 0;
++        if (plane > 1) p_offset[1] = uOffset;
++        if (plane > 2) p_offset[2] = vOffset;
++    }
++    if (p_plane) {
++        *p_plane = plane;
++    }
++
++    return (size_t)alignWidth * align_h * bpp / 8;
++}
++
++#if ESMPP_COMPLEX_DUMP
++#define MAX_FILE_PATH (200)
++static ES_BOOL write_buffer_to_file(const void *buffer,
++                                    ES_S32 size,
++                                    const char *path,
++                                    ES_U32 width,
++                                    ES_U32 height,
++                                    enum AVPixelFormat format,
++                                    ES_S32 index) {
++    char file_path[MAX_FILE_PATH] = {0};
++    FILE *file = NULL;
++    size_t returnSize = 0;
++    size_t offset = 0;
++    size_t totalSize = 0;
++    size_t writeSize = size;
++
++    if (!buffer || size <= 0) {
++        return ES_FALSE;
++    }
++    snprintf(file_path,
++             MAX_FILE_PATH,
++             "%s/out_%d_%ux%u_%s.raw",
++             path ? path : ".",
++             index,
++             width,
++             height,
++             av_get_pix_fmt_name(format));
++    file = fopen(file_path, "wb+");
++    if (!file) {
++        av_log(NULL, AV_LOG_ERROR, "Can't open %s.\n", file_path);
++        return ES_FALSE;
++    }
++
++    do {
++        returnSize = fwrite(buffer + offset, 1, writeSize, file);
++        if (returnSize == 0) {
++            av_log(NULL, AV_LOG_ERROR, "fwrite return error.\n");
++            fclose(file);
++            return ES_FALSE;
++        } else if (returnSize < writeSize) {
++            offset += returnSize;
++            writeSize -= returnSize;
++            totalSize += returnSize;
++        } else {
++            totalSize += returnSize;
++            av_log(NULL, AV_LOG_WARNING, "Success write %zu bytes to %s\n", totalSize, file_path);
++            break;
++        }
++    } while (1);
++    fclose(file);
++    return ES_TRUE;
++}
++#endif
++
++static void esmpp_free_frame_buf(void *opaque, uint8_t *data) {
++    MppBufferPtr dst_mpp_buf = opaque;
++    if (dst_mpp_buf) {
++        mpp_buffer_put(dst_mpp_buf);
++    }
++}
++
++static int esmpp_set_mpp_frame(MppFramePtr mpp_frame, const AVFrame *in, const MppFilterContext *s) {
++    mpp_frame_set_width(mpp_frame, in->width);
++    mpp_frame_set_height(mpp_frame, in->height);
++    mpp_frame_set_fmt(mpp_frame, ff_fmt_to_mpp_fmt(s->in_fmt));
++    mpp_frame_set_rotation(mpp_frame, s->src_rotation);
++    mpp_frame_set_global_alpha(mpp_frame, s->src_global_alpha);
++    return 0;
++}
++
++static int esmpp_get_frame_data_size(const MppFilterContext *s, const AVFrame *in) {
++    const AVPixFmtDescriptor *desc;
++    int height = 0;
++    int total_size = 0;
++
++    if (!in) {
++        av_log(NULL, AV_LOG_ERROR, "esmpp_get_frame_data_size invaild paras, in: %p\n", in);
++        return FAILURE;
++    }
++
++    desc = av_pix_fmt_desc_get(s->in_fmt);
++    if (!desc) {
++        av_log(NULL,
++               AV_LOG_ERROR,
++               "convert_get_frame_data_size get fmt: %s AVPixFmtDescriptor failed.\n",
++               av_get_pix_fmt_name(s->out_fmt));
++        return FAILURE;
++    }
++
++    for (int i = 0; i < FF_ARRAY_ELEMS(in->data) && in->data[i]; i++) {
++        height = in->height;
++        if (i == 1 || i == 2) {
++            height = AV_CEIL_RSHIFT(height, desc->log2_chroma_h);
++        }
++        total_size += in->linesize[i] * height;
++    }
++
++    return total_size;
++}
++
++static int esmpp_memcpy_host2device(const MppFilterContext *s, const AVFrame *in, void *out_vir) {
++    const AVPixFmtDescriptor *desc;
++    int height = 0;
++    int cp_size = 0;
++    int totol_size = 0;
++
++    desc = av_pix_fmt_desc_get(s->in_fmt);
++    if (!desc) {
++        av_log(NULL,
++               AV_LOG_ERROR,
++               "convert_memcpy_host2device get fmt: %s AVPixFmtDescriptor failed.\n",
++               av_get_pix_fmt_name(s->out_fmt));
++        return FAILURE;
++    }
++
++    for (int i = 0; i < FF_ARRAY_ELEMS(in->data) && in->data[i]; i++) {
++        height = in->height;
++        if (i == 1 || i == 2) {
++            height = AV_CEIL_RSHIFT(height, desc->log2_chroma_h);
++        }
++        cp_size = in->linesize[i] * height;
++        memcpy(out_vir + totol_size, in->data[i], cp_size);
++        totol_size += cp_size;
++    }
++    return SUCCESS;
++}
++
++static int esmpp_complex_filter_frame(int input_nb, AVFilterLink **link, AVFrame **in) {
++    AVFilterLink *link_src = link[0], *link_dst = input_nb > 1 ? link[1] : NULL;
++    AVFrame *in_src = in[0], *in_dst = input_nb > 1 ? in[1] : NULL;
++    AVFilterContext *ctx = link_src->dst;
++    MppFilterContext *s = (MppFilterContext *)ctx->priv;
++    AVFilterLink *outlink = ctx->outputs[0];
++    AVFrame *out = NULL;
++    int ret = SUCCESS;
++    MPP_RET mpp_ret = MPP_OK;
++    MppFramePtr src_mpp_frame = NULL;
++    MppFramePtr dst_mpp_frame = NULL;
++    MppBufferPtr src_mpp_buf = NULL;
++    MppBufferPtr dst_mpp_buf = NULL;
++    ES_BOOL is_hw = ES_FALSE;
++    ES_S32 usage = 0;
++    int in_frame_size = 0;
++
++    if (link_src->format == AV_PIX_FMT_DRM_PRIME && !in_src->hw_frames_ctx) {
++        av_log(ctx, AV_LOG_ERROR, "Private format used, input frame must have hardware context.\n");
++        ret = FAILURE;
++        goto exit2;
++    }
++
++    if (mpp_frame_init(&src_mpp_frame) != MPP_OK) {
++        av_log(ctx, AV_LOG_ERROR, "Init src mpp frame failed.\n");
++        ret = FAILURE;
++        goto exit1;
++    }
++    if (mpp_frame_init(&dst_mpp_frame) != MPP_OK) {
++        av_log(ctx, AV_LOG_ERROR, "Init dst mpp frame failed.\n");
++        ret = FAILURE;
++        goto exit2;
++    }
++
++    // handle src mpp frame
++    esmpp_set_mpp_frame(src_mpp_frame, in_src, s);
++    in_frame_size = esmpp_get_frame_data_size(s, in_src);  // in_src->buf[0]->size;
++    if (link_src->format == AV_PIX_FMT_DRM_PRIME && in_src->hw_frames_ctx) {
++        is_hw = ES_TRUE;
++        if (in_src->buf[0]) {
++            src_mpp_buf = (MppBufferPtr)in_src->buf[0]->data;
++            if (!src_mpp_buf) {
++                av_log(ctx, AV_LOG_ERROR, "src_mpp_buf is NULL\n");
++                goto exit2;
++            }
++            mpp_buffer_inc_ref(src_mpp_buf);
++        } else {
++            av_log(ctx, AV_LOG_WARNING, "frame buf is NULL\n");
++            goto exit2;
++        }
++
++        mpp_frame_set_buffer(src_mpp_frame, src_mpp_buf);
++        mpp_frame_set_buf_size(src_mpp_frame, in_frame_size);
++    } else {
++        // size_t input_frame_size = in_src->buf[0]->size;
++        mpp_ret = mpp_buffer_get(s->buf_grp, &src_mpp_buf, in_frame_size);
++        if (mpp_ret) {
++            av_log(ctx, AV_LOG_ERROR, "Get buffer from group with %zu failed: %d.\n", in_src->buf[0]->size, mpp_ret);
++            ret = FAILURE;
++            goto exit3;
++        }
++        // memcpy(mpp_buffer_get_ptr(src_mpp_buf), in_src->buf[0]->data, in_frame_size);
++        esmpp_memcpy_host2device(s, in_src, mpp_buffer_get_ptr(src_mpp_buf));
++        mpp_frame_set_buffer(src_mpp_frame, src_mpp_buf);
++        mpp_frame_set_buf_size(src_mpp_frame, in_frame_size);
++    }
++
++    // handle dst mpp frame
++    {
++        size_t output_frame_size = 0;
++        AVBufferRef *buf;
++        int plane = 0, stride[3] = {0}, offset[3] = {0};
++
++        out = av_frame_alloc();
++        if (!out) {
++            av_log(ctx, AV_LOG_ERROR, "av_frame_alloc error.\n");
++            goto exit3;
++        }
++
++        if (in_dst) {
++            av_frame_copy_props(out, in_dst);
++        } else {
++            av_frame_copy_props(out, in_src);
++        }
++
++        out->format = s->out_fmt;
++        out->width = s->dst_rect.width;
++        out->height = s->dst_rect.height;
++
++        output_frame_size = get_pic_buf_info(
++            out->format, out->width, out->height, get_alignment_by_format(out->format), 2, stride, offset, &plane);
++
++        av_log(ctx,
++               AV_LOG_INFO,
++               "out info size:%ld plane:%d stride:%d-%d-%d, offset:%d-%d-%d.\n",
++               output_frame_size,
++               plane,
++               stride[0],
++               stride[1],
++               stride[2],
++               offset[0],
++               offset[1],
++               offset[2]);
++
++        mpp_ret = mpp_buffer_get(s->buf_grp, &dst_mpp_buf, output_frame_size);
++        if (mpp_ret) {
++            av_log(ctx, AV_LOG_ERROR, "Get buffer from group with %zu failed: %d.\n", output_frame_size, mpp_ret);
++            ret = FAILURE;
++            goto exit3;
++        }
++        mpp_frame_set_width(dst_mpp_frame, out->width);
++        mpp_frame_set_height(dst_mpp_frame, out->height);
++        mpp_frame_set_fmt(dst_mpp_frame, ff_fmt_to_mpp_fmt(out->format));
++        mpp_frame_set_rotation(dst_mpp_frame, s->dst_rotation);
++        mpp_frame_set_global_alpha(dst_mpp_frame, s->dst_global_alpha);
++        mpp_frame_set_hor_stride(dst_mpp_frame, get_alignment_by_format(out->format));
++
++        mpp_frame_set_buffer(dst_mpp_frame, dst_mpp_buf);
++        mpp_frame_set_buf_size(dst_mpp_frame, output_frame_size);
++
++        buf = av_buffer_create(mpp_buffer_get_ptr(dst_mpp_buf),
++                               mpp_buffer_get_size(dst_mpp_buf),
++                               esmpp_free_frame_buf,
++                               dst_mpp_buf,
++                               AV_BUFFER_FLAG_READONLY);
++        if (!buf) {
++            goto exit3;
++        }
++
++        if (in_dst) {
++            memcpy(mpp_buffer_get_ptr(dst_mpp_buf), in_dst->buf[0]->data, output_frame_size);
++        }
++
++        out->buf[0] = buf;
++        for (int i = 0; i < plane; i++) {
++            out->linesize[i] = stride[i];
++            out->data[i] = out->buf[0]->data + offset[i];
++        }
++    }
++
++    if (s->blend_mode & TDE_USAGE_BLEND_MASK) {
++        usage |= s->blend_mode;
++    }
++#if ESMPP_COMPLEX_DUMP
++    write_buffer_to_file(
++        mpp_buffer_get_ptr(src_mpp_buf), in_frame_size, NULL, in_src->width, in_src->height, s->in_fmt, 0);
++    if (in_dst) {
++        write_buffer_to_file(
++            mpp_buffer_get_ptr(dst_mpp_buf), out->buf[0]->size, NULL, out->width, out->height, out->format, 1);
++    }
++#endif
++    mpp_ret = es_tde_complex_process(src_mpp_frame, dst_mpp_frame, NULL, &s->src_rect, &s->dst_rect, NULL, usage);
++    av_log(ctx, AV_LOG_WARNING, "es_tde_complex_process return %d\n", mpp_ret);
++    if (mpp_ret != MPP_OK) {
++        ret = FAILURE;
++        goto exit3;
++    }
++
++    ret = SUCCESS;
++
++#if ESMPP_COMPLEX_DUMP
++    write_buffer_to_file(out->buf[0]->data, out->buf[0]->size, NULL, out->width, out->height, out->format, 2);
++#endif
++    goto exit2;
++
++exit3:
++    if (!is_hw && out) {
++        av_frame_free(&out);
++    }
++    if (dst_mpp_buf) {
++        mpp_buffer_put(dst_mpp_buf);
++    }
++exit2:
++    if (src_mpp_buf) {
++        mpp_buffer_put(src_mpp_buf);
++    }
++    if (dst_mpp_frame) {
++        mpp_frame_deinit(&dst_mpp_frame);
++    }
++exit1:
++    if (src_mpp_frame) {
++        mpp_frame_deinit(&src_mpp_frame);
++    }
++    av_frame_free(&in_src);
++
++    if (ret == SUCCESS) {
++        return ff_filter_frame(outlink, out);
++    } else {
++        return ret;
++    }
++}
++
++static int complex_filter_frame(AVFilterLink *link, AVFrame *frame) {
++    return esmpp_complex_filter_frame(1, &link, &frame);
++}
++
++static int process_frame(FFFrameSync *fs) {
++    AVFilterContext *ctx = fs->parent;
++    MppFilterContext *s = fs->opaque;
++    AVFrame *in[MAX_INPUT_NB] = {0};
++    int i, ret;
++
++    for (i = 0; i < ctx->nb_inputs; i++) {
++        if ((ret = ff_framesync_get_frame(&s->fs, i, &in[i], 1)) < 0) {
++            return ret;
++        }
++        av_log(ctx,
++               AV_LOG_INFO,
++               "vf[esmpp_complex] process_frame nb_inputs:%d i:%d size:%ld.\n",
++               s->nb_inputs,
++               i,
++               in[i]->buf[0]->size);
++    }
++
++    return esmpp_complex_filter_frame(ctx->nb_inputs, ctx->inputs, in);
++}
++
++static av_cold int complex_config_props(AVFilterLink *outlink) {
++    AVFilterContext *ctx = outlink->src;
++    AVFilterLink *inlink = ctx->inputs[0], *inlink_dst = ctx->inputs[1];
++    MppFilterContext *s = (MppFilterContext *)ctx->priv;
++    FFFrameSyncIn *in;
++    int i, ret;
++
++    s->src_rect.x = 0;
++    s->src_rect.y = 0;
++    s->src_rect.width = inlink->w;
++    s->src_rect.height = inlink->h;
++    if (s->crop_set) {
++        if (parse_rect(s->crop_set, &s->src_rect)) {
++            av_log(ctx, AV_LOG_ERROR, "vf[esmpp_complex] parse crop cmd failed.\n");
++            return FAILURE;
++        }
++    }
++    // If not set clip/o_w/o_h, output as src_rect after crop
++    memcpy(&s->dst_rect, &s->src_rect, sizeof(RECT_S));
++
++    if (s->clip_set) {
++        if (parse_rect(s->clip_set, &s->dst_rect)) {
++            av_log(ctx, AV_LOG_ERROR, "vf[esmpp_complex] parse clip cmd failed.\n");
++            return FAILURE;
++        }
++    }
++
++    if (s->rotation_set) {
++        if (parse_rotation(s->rotation_set, &s->dst_rotation)) {
++            av_log(ctx, AV_LOG_ERROR, "vf[esmpp_complex] parse dst rotation cmd failed.\n");
++            return FAILURE;
++        }
++        if (s->dst_rotation == ROTATION_90 || s->dst_rotation == ROTATION_270) {
++            int tmp = s->dst_rect.width;
++            s->dst_rect.width = s->dst_rect.height;
++            s->dst_rect.height = tmp;
++        }
++    }
++    if (s->output_w_set) {
++        s->dst_rect.width = s->output_w_set;
++    }
++    if (s->output_h_set) {
++        s->dst_rect.height = s->output_h_set;
++    }
++    outlink->w = s->dst_rect.width;
++    outlink->h = s->dst_rect.height;
++
++    s->src_global_alpha = s->src_global_alpha_set;
++    s->dst_global_alpha = s->dst_global_alpha_set;
++
++    if (s->blend_mode_set != -1) {
++        if (parse_blend_mode(s->blend_mode_set, &s->blend_mode)) {
++            av_log(ctx, AV_LOG_ERROR, "vf[esmpp_complex] parse blend mode cmd failed.\n");
++            return FAILURE;
++        }
++    }
++
++    if (inlink->format == AV_PIX_FMT_DRM_PRIME && inlink->hw_frames_ctx) {
++        s->input_hw_frm_ctx = (AVHWFramesContext *)inlink->hw_frames_ctx->data;
++        s->mpp_dev_ctx = (AVESMPPFramesContext *)s->input_hw_frm_ctx->device_ctx->hwctx;
++        s->input_hw_frm_ref = av_buffer_ref(inlink->hw_frames_ctx);
++        if (!s->input_hw_frm_ref) {
++            av_log(ctx, AV_LOG_ERROR, "av_buffer_ref(inlink->hw_frames_ctx) failed\n");
++            return FAILURE;
++        }
++        s->hw_device_ref = av_buffer_ref(s->input_hw_frm_ctx->device_ref);
++        if (!s->hw_device_ref) {
++            av_log(ctx, AV_LOG_ERROR, "av_buffer_ref(input_hw_frm_ctx->device_ref) failed\n");
++            av_buffer_unref(&s->input_hw_frm_ref);
++            return FAILURE;
++        }
++        s->in_fmt = s->input_hw_frm_ctx->sw_format;
++        set_output_fmt(s);
++        outlink->format = inlink->format;
++
++        av_buffer_unref(&s->output_hw_frm_ref);
++        s->output_hw_frm_ref = av_hwframe_ctx_alloc(s->hw_device_ref);
++        if (!s->output_hw_frm_ref) {
++            av_log(ctx, AV_LOG_ERROR, "av_hwframe_ctx_alloc failed \n");
++            av_buffer_unref(&s->input_hw_frm_ref);
++            av_buffer_unref(&s->hw_device_ref);
++            return AVERROR(EINVAL);
++        }
++        s->out_hw_frame_ctx = (AVHWFramesContext *)s->output_hw_frm_ref->data;
++        s->out_hw_frame_ctx->format = AV_PIX_FMT_DRM_PRIME;
++        s->out_hw_frame_ctx->sw_format = s->out_fmt;
++        adjust_width_height_by_format(s->out_fmt, &outlink->w, &outlink->h);
++        s->out_hw_frame_ctx->width = outlink->w;
++        s->out_hw_frame_ctx->height = outlink->h;
++        outlink->hw_frames_ctx = av_buffer_ref(s->output_hw_frm_ref);
++    } else {
++        s->in_fmt = inlink->format;
++        set_output_fmt(s);
++        outlink->format = s->out_fmt;
++        adjust_width_height_by_format(s->out_fmt, &outlink->w, &outlink->h);
++    }
++
++#ifdef ESMPP_ACTIVE
++    if ((ret = ff_framesync_init(&s->fs, ctx, s->nb_inputs)) < 0) {
++        return ret;
++    }
++    in = s->fs.in;
++    s->fs.opaque = s;
++    s->fs.on_event = process_frame;
++
++    for (i = 0; i < s->nb_inputs; i++) {
++        AVFilterLink *inlink = ctx->inputs[i];
++
++        in[i].time_base = inlink->time_base;
++        in[i].sync = 1;
++        in[i].before = EXT_STOP;
++        in[i].after = EXT_INFINITY;
++    }
++    ret = ff_framesync_configure(&s->fs);
++    outlink->time_base = s->fs.time_base;
++#endif
++    return SUCCESS;
++}
++
++static int esmpp_complex_filter_activate(AVFilterContext *ctx) {
++    MppFilterContext *s = ctx->priv;
++    return ff_framesync_activate(&s->fs);
++}
++
++static const AVOption options[] = {
++    {
++        "crop",
++        "Set the crop rectangle of source image: (xoffset)x(yoffset)x(width)x(height)",
++        OFFSET(crop_set),
++        AV_OPT_TYPE_STRING,
++        {.str = NULL},
++        0,
++        0,
++        FLAGS,
++    },
++    {
++        "clip",
++        "Set the clip rectangle of destination image: (xoffset)x(yoffset)x(width)x(height)",
++        OFFSET(clip_set),
++        AV_OPT_TYPE_STRING,
++        {.str = NULL},
++        0,
++        0,
++        FLAGS,
++    },
++    {"o_w", "Set output image width", OFFSET(output_w_set), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, FLAGS, "o_w"},
++    {"o_h", "Set output image width", OFFSET(output_h_set), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, FLAGS, "o_h"},
++    {"o_fmt", "output pixfmt", OFFSET(output_fmt_set), AV_OPT_TYPE_INT, {.i64 = -1}, -1, INT_MAX, FLAGS, "fmt"},
++    {"nv12", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_NV12}, 0, INT_MAX, FLAGS, "fmt"},
++    {"nv21", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_NV21}, 0, INT_MAX, FLAGS, "fmt"},
++    {"i420", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_YUV420P}, 0, INT_MAX, FLAGS, "fmt"},
++    {"gray", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_GRAY8}, 0, INT_MAX, FLAGS, "fmt"},
++    {"i010", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_YUV420P10LE}, 0, INT_MAX, FLAGS, "fmt"},
++    {"p010", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_P010LE}, 0, INT_MAX, FLAGS, "fmt"},
++    {"yvy2", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_YVYU422}, 0, INT_MAX, FLAGS, "fmt"},
++    {"yuy2", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_YUYV422}, 0, INT_MAX, FLAGS, "fmt"},
++    {"uyvy", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_UYVY422}, 0, INT_MAX, FLAGS, "fmt"},
++    {"nv16", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_NV16}, 0, INT_MAX, FLAGS, "fmt"},
++    {"rgb24", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_RGB24}, 0, INT_MAX, FLAGS, "fmt"},
++    {"bgr24", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_BGR24}, 0, INT_MAX, FLAGS, "fmt"},
++    {"argb", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_ARGB}, 0, INT_MAX, FLAGS, "fmt"},
++    {"abgr", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_ABGR}, 0, INT_MAX, FLAGS, "fmt"},
++    {"bgra", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_BGRA}, 0, INT_MAX, FLAGS, "fmt"},
++    {"rgba", "output pixfmt", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PIX_FMT_RGBA}, 0, INT_MAX, FLAGS, "fmt"},
++    {
++        "blend_mode",
++        "Set alpha blend mode: "
++        "0[SRC] 1[DST] 2[SRC over DST] 3[DST over SRC] 4[SRC in DST] 5[DST in SRC] "
++        "6[SRC out DST] 7[DST out SRC] 8[SRC ATOP] 9[DST ATOP] 10[XOR]",
++        OFFSET(blend_mode_set),
++        AV_OPT_TYPE_INT,
++        {.i64 = -1},
++        -1,
++        10,
++        FLAGS,
++        "blend_mode",
++    },
++    {
++        "rot",
++        "Set destination rotation [90, 180, 270, h, v]",
++        OFFSET(rotation_set),
++        AV_OPT_TYPE_STRING,
++        {.str = NULL},
++        0,
++        0,
++        FLAGS,
++    },
++    {
++        "src_alpha",
++        "Set source global alhpa value [-1, 255]",
++        OFFSET(src_global_alpha_set),
++        AV_OPT_TYPE_INT,
++        {.i64 = -1},
++        -1,
++        255,
++        FLAGS,
++        "src_alpha",
++    },
++    {
++        "dst_alpha",
++        "Set destination global alhpa value [-1, 255]",
++        OFFSET(dst_global_alpha_set),
++        AV_OPT_TYPE_INT,
++        {.i64 = -1},
++        -1,
++        255,
++        FLAGS,
++        "dst_alpha",
++    },
++    {NULL},
++};
++
++static const AVClass complex_class = {
++    .class_name = "esmpp_complex",
++    .item_name = av_default_item_name,
++    .option = options,
++    .version = LIBAVUTIL_VERSION_INT,
++};
++
++// for dynamic inputs, input pads should be inited in func init.
++static const AVFilterPad complex_inputs[] = {
++    {
++        .name = "default",
++        .type = AVMEDIA_TYPE_VIDEO,
++        .filter_frame = complex_filter_frame,
++    },
++};
++
++static const AVFilterPad complex_outputs[] = {
++    {
++        .name = "default",
++        .type = AVMEDIA_TYPE_VIDEO,
++        .config_props = complex_config_props,
++    },
++};
++
++AVFilter ff_vf_esmpp_complex = {
++    .name = "esmpp_complex",
++    .description = NULL_IF_CONFIG_SMALL("eswin esmpp complex filter"),
++
++    .init = init,
++    .uninit = uninit,
++
++    .priv_size = sizeof(MppFilterContext),
++    .priv_class = &complex_class,
++#ifdef ESMPP_ACTIVE
++    .activate = &esmpp_complex_filter_activate,
++#else
++    FILTER_INPUTS(complex_inputs),
++#endif
++    FILTER_OUTPUTS(complex_outputs),
++    FILTER_QUERY_FUNC(complex_query_formats),
++    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
++};
 diff --git a/libavutil/Makefile b/libavutil/Makefile
 index 6e6fa8d800..7fcb0fd9e8 100644
 --- a/libavutil/Makefile
@@ -4642,10 +5787,10 @@ index bac30debae..24f8e2eba9 100644
  /**
 diff --git a/libavutil/hwcontext_esmpp.c b/libavutil/hwcontext_esmpp.c
 new file mode 100644
-index 0000000000..9267a7e8c4
+index 0000000000..3925c8bf23
 --- /dev/null
 +++ b/libavutil/hwcontext_esmpp.c
-@@ -0,0 +1,635 @@
+@@ -0,0 +1,637 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -5023,6 +6168,7 @@ index 0000000000..9267a7e8c4
 +static int esmpp_frames_init(AVHWFramesContext *hwfc) {
 +    AVESMPPFramesContext *avfc = hwfc->hwctx;
 +    AVESMPPDeviceContext *hwctx = hwfc->device_ctx->hwctx;
++    MppBufferType buf_type = MPP_BUFFER_TYPE_DMA_HEAP;
 +    int i, ret;
 +    size_t size;
 +
@@ -5045,7 +6191,8 @@ index 0000000000..9267a7e8c4
 +        }
 +    }
 +
-+    ret = mpp_buffer_group_get_internal(&avfc->buf_group, MPP_BUFFER_TYPE_DMA_HEAP | hwctx->flags);
++    buf_type = mpp_buffer_get_type(buf_type, avfc->die_idx);
++    ret = mpp_buffer_group_get_internal(&avfc->buf_group, buf_type | hwctx->flags);
 +    if (ret != MPP_OK) {
 +        av_log(hwfc, AV_LOG_ERROR, "Failed to get MPP internal buffer group: %d\n", ret);
 +        return AVERROR_EXTERNAL;
@@ -5283,10 +6430,10 @@ index 0000000000..9267a7e8c4
 +};
 diff --git a/libavutil/hwcontext_esmpp.h b/libavutil/hwcontext_esmpp.h
 new file mode 100644
-index 0000000000..e23a288916
+index 0000000000..a0f8fdceb1
 --- /dev/null
 +++ b/libavutil/hwcontext_esmpp.h
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,81 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -5352,6 +6499,7 @@ index 0000000000..e23a288916
 +    AVESMPPDRMFrameDescriptor *frames;
 +    int nb_frames;
 +    size_t buf_size;
++    int die_idx;
 +} AVESMPPFramesContext;
 +
 +/**

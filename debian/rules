@@ -83,7 +83,7 @@ CONFIG := --prefix=/usr \
 	--enable-es-g726
 
 CONFIG += --extra-cflags="-DESW_AUDIO_CODEC"
-CONFIG += --extra-libs="-les_mpp -lvideo-common -les_codec"
+CONFIG += --extra-libs="-les_mpp -lvideo-common -les_acodec"
 
 # disable sndio, it's pulled in via libopenal-dev and autodetected
 CONFIG += --disable-sndio
