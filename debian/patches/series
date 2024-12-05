@@ -5,3 +5,4 @@
 # eswin patch
 0001-sync-sync-eswin-code-20241122.patch
 0002-fix-usleep-in-_POSIX_C_SOURCE-200809L.patch
+0003-chromium-ffmpeg-add-av_stream_get_first_dts-for-chro.patch

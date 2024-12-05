@@ -1,0 +1,50 @@
+From 96b47e63cde4d1c65151743928bf59e646953b55 Mon Sep 17 00:00:00 2001
+From: Han Gao <gaohan@iscas.ac.cn>
+Date: Thu, 5 Dec 2024 16:36:57 +0800
+Subject: [PATCH 3/3] chromium:
+ ffmpeg-add-av_stream_get_first_dts-for-chromium.
+
+From: https://github.com/microsoft/vcpkg/blob/2024.11.16/ports/ffmpeg/0040-ffmpeg-add-av_stream_get_first_dts-for-chromium.patch
+
+Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
+---
+ libavformat/avformat.h  | 4 ++++
+ libavformat/mux_utils.c | 7 +++++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/libavformat/avformat.h b/libavformat/avformat.h
+index de40397676..dc6ff7fef9 100644
+--- a/libavformat/avformat.h
++++ b/libavformat/avformat.h
+@@ -1170,6 +1170,10 @@ typedef struct AVStreamGroup {
+ 
+ struct AVCodecParserContext *av_stream_get_parser(const AVStream *s);
+ 
++// Chromium: We use the internal field first_dts vvv
++int64_t    av_stream_get_first_dts(const AVStream *st);
++// Chromium: We use the internal field first_dts ^^^
++
+ #define AV_PROGRAM_RUNNING 1
+ 
+ /**
+diff --git a/libavformat/mux_utils.c b/libavformat/mux_utils.c
+index ed1242a6a2..7c04d4b9f2 100644
+--- a/libavformat/mux_utils.c
++++ b/libavformat/mux_utils.c
+@@ -30,6 +30,13 @@
+ #include "internal.h"
+ #include "mux.h"
+ 
++// Chromium: We use the internal field first_dts vvv
++int64_t av_stream_get_first_dts(const AVStream *st)
++{
++  return cffstream(st)->first_dts;
++}
++// Chromium: We use the internal field first_dts ^^^
++
+ int avformat_query_codec(const AVOutputFormat *ofmt, enum AVCodecID codec_id,
+                          int std_compliance)
+ {
+-- 
+2.40.1
+
