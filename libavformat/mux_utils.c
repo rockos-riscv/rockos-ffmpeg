@@ -30,6 +30,13 @@
 #include "internal.h"
 #include "mux.h"
 
+// Chromium: We use the internal field first_dts vvv
+int64_t av_stream_get_first_dts(const AVStream *st)
+{
+  return cffstream(st)->first_dts;
+}
+// Chromium: We use the internal field first_dts ^^^
+
 int avformat_query_codec(const AVOutputFormat *ofmt, enum AVCodecID codec_id,
                          int std_compliance)
 {
