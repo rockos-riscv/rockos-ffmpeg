@@ -1,9 +1,10 @@
-From cd54ef1b0625dd9c7f5cb02430c8a9f65015d3c5 Mon Sep 17 00:00:00 2001
+From 9efda7318c12029fd18c89762764e2d1d7a1c514 Mon Sep 17 00:00:00 2001
 From: Han Gao <gaohan@iscas.ac.cn>
-Date: Sun, 5 Jan 2025 23:45:28 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20241230
+Date: Sun, 16 Feb 2025 22:52:24 +0800
+Subject: [PATCH 1/2] sync: sync eswin code 20250130
 
 Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
+Signed-off-by: Han Gao <rabenda.cn@gmail.com>
 ---
  configure                      |  113 +++
  fftools/ffmpeg_demux.c         |    6 +
@@ -19,17 +20,17 @@ Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
  libavcodec/esmppenc.h          |  537 +++++++++++++
  libavfilter/Makefile           |    4 +
  libavfilter/allfilters.c       |    5 +
- libavfilter/vf_esmpp_common.c  |  398 ++++++++++
+ libavfilter/vf_esmpp_common.c  |  395 ++++++++++
  libavfilter/vf_esmpp_common.h  |   57 ++
  libavfilter/vf_esmpp_complex.c |  794 +++++++++++++++++++
- libavfilter/vf_stack_esmpp.c   |  645 ++++++++++++++++
+ libavfilter/vf_stack_esmpp.c   |  678 +++++++++++++++++
  libavutil/Makefile             |    2 +
  libavutil/hwcontext.c          |    4 +
  libavutil/hwcontext.h          |    1 +
  libavutil/hwcontext_esmpp.c    |  637 ++++++++++++++++
  libavutil/hwcontext_esmpp.h    |   81 ++
  libavutil/hwcontext_internal.h |    1 +
- 24 files changed, 7103 insertions(+)
+ 24 files changed, 7133 insertions(+)
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
  create mode 100644 libavcodec/esmpp_comm.c
@@ -4702,10 +4703,10 @@ index 149bf50997..d515581d1f 100644
  extern const AVFilter ff_vsrc_allyuv;
 diff --git a/libavfilter/vf_esmpp_common.c b/libavfilter/vf_esmpp_common.c
 new file mode 100644
-index 0000000000..fb6db29b67
+index 0000000000..1c9dd4946c
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_common.c
-@@ -0,0 +1,398 @@
+@@ -0,0 +1,395 @@
 +#include "vf_esmpp_common.h"
 +
 +#define MAX_FILE_PATH (200)
@@ -4808,7 +4809,6 @@ index 0000000000..fb6db29b67
 +    int height = 0;
 +    int cp_size = 0;
 +    int totol_size = 0;
-+    av_log(NULL, AV_LOG_INFO, "esmpp_memcpy_host2device  fmt: %d   enter.\n", fmt);
 +
 +    desc = av_pix_fmt_desc_get(fmt);
 +    if (!desc) {
@@ -4827,7 +4827,6 @@ index 0000000000..fb6db29b67
 +        memcpy(out_vir + totol_size, in->data[i], cp_size);
 +        totol_size += cp_size;
 +    }
-+    av_log(NULL, AV_LOG_INFO, "esmpp_memcpy_host2device  exit.\n");
 +    return SUCCESS;
 +}
 +
@@ -4863,7 +4862,6 @@ index 0000000000..fb6db29b67
 +    }
 +    desc->drm_desc.nb_objects = 1;
 +    desc->buffers[0] = mpp_buf;
-+    mpp_buffer_inc_ref(mpp_buf);
 +    desc->drm_desc.objects[0].fd = mpp_buffer_get_fd(mpp_buf);
 +    desc->drm_desc.objects[0].size = mpp_buffer_get_size(mpp_buf);
 +    desc->drm_desc.nb_layers = 1;
@@ -5971,10 +5969,10 @@ index 0000000000..4e7024c9cd
 +};
 diff --git a/libavfilter/vf_stack_esmpp.c b/libavfilter/vf_stack_esmpp.c
 new file mode 100644
-index 0000000000..577f616580
+index 0000000000..e7479cfbdb
 --- /dev/null
 +++ b/libavfilter/vf_stack_esmpp.c
-@@ -0,0 +1,645 @@
+@@ -0,0 +1,678 @@
 +#include "config_components.h"
 +
 +#include "libavutil/opt.h"
@@ -6043,8 +6041,49 @@ index 0000000000..577f616580
 +    int fillcolor_enable;
 +} MppInputParams;
 +
-+static int esmpp_stack_set_mpp_frame(
-+    MppFramePtr mpp_frame, const AVFrame *in, ROTATION_E rotation, ES_S32 global_alpha, enum AVPixelFormat fmt) {
++static int esmpp_stack_get_offset_stride(
++    const AVFrame *in, enum AVPixelFormat fmt, int *stride, int *offset, uint32_t *pic_size) {
++    int hshift, vshift, planes;
++    int offset_sum = 0;
++    uint32_t i = 0;
++
++    if (!in || !stride || !offset) {
++        av_log(NULL, AV_LOG_ERROR, "input invaild params, frmae: %p,stride: %p, stride: %p\n", in, stride, offset);
++        return FAILURE;
++    }
++
++    av_pix_fmt_get_chroma_sub_sample(fmt, &hshift, &vshift);
++    planes = av_pix_fmt_count_planes(fmt);
++    for (i = 0; i < planes; i++) {
++        *pic_size += in->linesize[i] * (in->height >> (i ? vshift : 0));
++        stride[i] = in->linesize[i];
++        offset[i] = offset_sum;
++        offset_sum = *pic_size;
++    }
++    av_log(NULL,
++           AV_LOG_DEBUG,
++           "get stride[0]=%d, stride[1]=%d, stride[2]=%d, stride[3]=%d, offset[0]=%d, offset[1]=%d, offset[2]=%d, "
++           "offset[3]=%d.\n",
++           stride[0],
++           stride[1],
++           stride[2],
++           stride[3],
++           offset[0],
++           offset[1],
++           offset[2],
++           offset[3]);
++    return SUCCESS;
++}
++
++static int esmpp_stack_set_mpp_frame(MppFramePtr mpp_frame,
++                                     const AVFrame *in,
++                                     ROTATION_E rotation,
++                                     ES_S32 global_alpha,
++                                     int *stride,
++                                     int *offset,
++                                     enum AVPixelFormat fmt) {
++    mpp_frame_set_stride(mpp_frame, stride);
++    mpp_frame_set_offset(mpp_frame, offset);
 +    mpp_frame_set_width(mpp_frame, in->width);
 +    mpp_frame_set_height(mpp_frame, in->height);
 +    mpp_frame_set_fmt(mpp_frame, ff_fmt_to_mpp_fmt(fmt));
@@ -6106,13 +6145,17 @@ index 0000000000..577f616580
 +    for (ES_S32 i = 0; i < input_nb; i++) {
 +        MppFramePtr mpp_frame = NULL;
 +        MppBufferPtr mpp_buf = NULL;
++        int stride[4] = {0}, offset[4] = {0};
++        uint32_t pic_size = 0;
++
 +        if (mpp_frame_init(&mpp_frame) != MPP_OK) {
 +            av_log(ctx, AV_LOG_ERROR, "Init src mpp frame failed.\n");
 +            ret = FAILURE;
 +            goto exit1;
 +        }
 +
-+        esmpp_stack_set_mpp_frame(mpp_frame, in_src[i], 0, -1, esctx->in_sw_fmt[i]);
++        esmpp_stack_get_offset_stride(in_src[i], esctx->in_sw_fmt[i], stride, offset, &pic_size);
++        esmpp_stack_set_mpp_frame(mpp_frame, in_src[i], 0, -1, stride, offset, esctx->in_sw_fmt[i]);
 +        if (esctx->format == AV_PIX_FMT_DRM_PRIME && in_src[i]->hw_frames_ctx) {
 +            is_hw = ES_TRUE;
 +            if (in_src[i]->buf[0]) {
@@ -6131,7 +6174,8 @@ index 0000000000..577f616580
 +            src_mpp_frame[i] = mpp_frame;
 +            src_mpp_buf[i] = mpp_buf;
 +        } else {
-+            in_frame_size[i] = esmpp_get_frame_data_size(esctx->in_sw_fmt[i], in_src[i]);
++            // in_frame_size[i] = esmpp_get_frame_data_size(esctx->in_sw_fmt[i], in_src[i]);
++            in_frame_size[i] = pic_size;
 +            mpp_ret = mpp_buffer_get(esctx->buf_grp, &mpp_buf, in_frame_size[i]);
 +            if (mpp_ret) {
 +                av_log(ctx,
@@ -6142,8 +6186,6 @@ index 0000000000..577f616580
 +                ret = FAILURE;
 +                goto exit3;
 +            }
-+
-+            // memcpy(mpp_buffer_get_ptr(mpp_buf), in_src[i]->buf[0]->data, in_frame_size[i]);
 +            esmpp_memcpy_host2device(esctx->in_sw_fmt[i], in_src[i], mpp_buffer_get_ptr(mpp_buf));
 +            mpp_frame_set_buffer(mpp_frame, mpp_buf);
 +            mpp_frame_set_buf_size(mpp_frame, in_frame_size[i]);
@@ -6198,14 +6240,7 @@ index 0000000000..577f616580
 +                goto exit3;
 +            }
 +        }
-+
-+        mpp_frame_set_width(dst_mpp_frame, out->width);
-+        mpp_frame_set_height(dst_mpp_frame, out->height);
-+        mpp_frame_set_fmt(dst_mpp_frame, ff_fmt_to_mpp_fmt(esctx->out_sw_fmt));
-+        mpp_frame_set_rotation(dst_mpp_frame, 0);
-+        mpp_frame_set_global_alpha(dst_mpp_frame, -1);
-+        mpp_frame_set_hor_stride(dst_mpp_frame, get_alignment_by_format(esctx->out_sw_fmt));
-+
++        esmpp_stack_set_mpp_frame(dst_mpp_frame, out, 0, -1, stride, offset, esctx->out_sw_fmt);
 +        mpp_frame_set_buffer(dst_mpp_frame, dst_mpp_buf);
 +        mpp_frame_set_buf_size(dst_mpp_frame, output_frame_size);
 +
@@ -6393,7 +6428,7 @@ index 0000000000..577f616580
 +        goto fail;
 +    }
 +
-+    ret =   ff_filter_frame(outlink, oframe);
++    ret = ff_filter_frame(outlink, oframe);
 +
 +fail:
 +    av_freep(&iparams.src_rects);
@@ -6416,11 +6451,7 @@ index 0000000000..577f616580
 +    esctx->format = inlink0->format;
 +    for (int i = 0; i < sctx->base.nb_inputs; i++) {
 +        AVFilterLink *inlink = ctx->inputs[i];
-+
 +        if (inlink0->format == AV_PIX_FMT_DRM_PRIME && inlink0->hw_frames_ctx) {
-+            AVHWFramesContext *hwfc0 = (AVHWFramesContext *)inlink0->hw_frames_ctx->data;
-+            AVHWFramesContext *hwfc = (AVHWFramesContext *)inlink->hw_frames_ctx->data;
-+
 +            if (inlink0->format != inlink->format) {
 +                av_log(ctx, AV_LOG_ERROR, "Mixing hardware and software pixel formats is not supported.\n");
 +                return AVERROR(EINVAL);
