@@ -1,9 +1,8 @@
-From 9efda7318c12029fd18c89762764e2d1d7a1c514 Mon Sep 17 00:00:00 2001
-From: Han Gao <gaohan@iscas.ac.cn>
-Date: Sun, 16 Feb 2025 22:52:24 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20250130
+From d9a64000894f43fedda1eae179c9537fe2ab1b41 Mon Sep 17 00:00:00 2001
+From: Han Gao <rabenda.cn@gmail.com>
+Date: Mon, 10 Mar 2025 02:11:05 +0800
+Subject: [PATCH 1/2] sync: sync eswin code 20250228
 
-Signed-off-by: Han Gao <gaohan@iscas.ac.cn>
 Signed-off-by: Han Gao <rabenda.cn@gmail.com>
 ---
  configure                      |  113 +++
@@ -14,23 +13,23 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  libavcodec/es_audio_enc.c      |  352 +++++++++
  libavcodec/esmpp_comm.c        |  382 ++++++++++
  libavcodec/esmpp_comm.h        |   74 ++
- libavcodec/esmppdec.c          |  997 ++++++++++++++++++++++++
+ libavcodec/esmppdec.c          | 1006 ++++++++++++++++++++++++
  libavcodec/esmppdec.h          |  230 ++++++
- libavcodec/esmppenc.c          | 1308 ++++++++++++++++++++++++++++++++
+ libavcodec/esmppenc.c          | 1303 ++++++++++++++++++++++++++++++++
  libavcodec/esmppenc.h          |  537 +++++++++++++
  libavfilter/Makefile           |    4 +
  libavfilter/allfilters.c       |    5 +
  libavfilter/vf_esmpp_common.c  |  395 ++++++++++
  libavfilter/vf_esmpp_common.h  |   57 ++
- libavfilter/vf_esmpp_complex.c |  794 +++++++++++++++++++
+ libavfilter/vf_esmpp_complex.c |  793 +++++++++++++++++++
  libavfilter/vf_stack_esmpp.c   |  678 +++++++++++++++++
  libavutil/Makefile             |    2 +
  libavutil/hwcontext.c          |    4 +
  libavutil/hwcontext.h          |    1 +
- libavutil/hwcontext_esmpp.c    |  637 ++++++++++++++++
- libavutil/hwcontext_esmpp.h    |   81 ++
+ libavutil/hwcontext_esmpp.c    |  638 ++++++++++++++++
+ libavutil/hwcontext_esmpp.h    |   82 ++
  libavutil/hwcontext_internal.h |    1 +
- 24 files changed, 7133 insertions(+)
+ 24 files changed, 7138 insertions(+)
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
  create mode 100644 libavcodec/esmpp_comm.c
@@ -1576,10 +1575,10 @@ index 0000000000..692a3f1c04
 \ No newline at end of file
 diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
 new file mode 100644
-index 0000000000..0f2bc443cd
+index 0000000000..2cd6e947d3
 --- /dev/null
 +++ b/libavcodec/esmppdec.c
-@@ -0,0 +1,997 @@
+@@ -0,0 +1,1006 @@
 +#include "config.h"
 +#include "config_components.h"
 +#include <stdbool.h>
@@ -1676,7 +1675,7 @@ index 0000000000..0f2bc443cd
 +    }
 +
 +    if (r->buf_mode == ESMPP_DEC_PURE_EXTERNAL) {
-+        av_log(NULL, AV_LOG_INFO, "close esmpp put buf_group: %p\n", r->buf_group);
++        av_log(NULL, AV_LOG_DEBUG, "close esmpp put buf_group: %p\n", r->buf_group);
 +        mpp_buffer_group_put(r->buf_group);
 +        r->buf_group = NULL;
 +    }
@@ -2104,6 +2103,7 @@ index 0000000000..0f2bc443cd
 +    }
 +    desc->drm_desc.nb_objects = 1;
 +    desc->buffers[0] = mpp_buf;
++    desc->fd[0] = mpp_buffer_get_fd_sys(mpp_buf);
 +
 +    mpp_buffer_inc_ref(mpp_buf);
 +
@@ -2182,9 +2182,10 @@ index 0000000000..0f2bc443cd
 +    frame->time_base = avctx->pkt_timebase;
 +    frame->colorspace = mpp_frame_get_colorspace(mpp_frame);
 +    frame->color_range = mpp_frame_get_color_range(mpp_frame);
-+#if 0  // for vlc master
++#if 1  // for vlc master
 +    if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
-+        frame->opaque_ref = (AVBufferRef *)mpp_frame_get_reordered_opaque(mpp_frame);
++        //frame->opaque_ref = (AVBufferRef *)mpp_frame_get_reordered_opaque(mpp_frame); //for vlc
++        frame->opaque = (ES_VOID *)mpp_frame_get_reordered_opaque(mpp_frame); //for chromium
 +    }
 +#endif
 +    if ((avctx->codec_id == AV_CODEC_ID_HEVC || avctx->codec_id == AV_CODEC_ID_H264)
@@ -2229,11 +2230,10 @@ index 0000000000..0f2bc443cd
 +    }
 +    if (!mpp_frame) {
 +        if (timeout != MPP_TIMEOUT_NON_BLOCK) {
-+            av_log(avctx, AV_LOG_DEBUG, "Timeout getting decoded frame\n");
++            av_log(avctx, AV_LOG_TRACE, "Timeout getting decoded frame\n");
 +        }
 +        return AVERROR(EAGAIN);
 +    }
-+    av_log(avctx, AV_LOG_DEBUG, "Received mpp_frame: %p\n", mpp_frame);
 +    if (mpp_frame_get_eos(mpp_frame)) {
 +        av_log(avctx, AV_LOG_INFO, "Received a 'EOS' frame\n");
 +        /* EOS frame may contain valid data */
@@ -2260,7 +2260,7 @@ index 0000000000..0f2bc443cd
 +        enum AVPixelFormat frame_fmt;
 +        const MppFrameFormat mpp_fmt = mpp_frame_get_fmt(mpp_frame);
 +
-+        av_log(avctx, AV_LOG_VERBOSE, "Noticed an info change\n");
++        av_log(avctx, AV_LOG_INFO, "Noticed an info change\n");
 +
 +        frame_fmt = mpp_fmt_to_ffmpeg_pixfmt(mpp_fmt & MPP_FRAME_FMT_MASK);
 +        if (frame_fmt == AV_PIX_FMT_NONE) {
@@ -2429,7 +2429,7 @@ index 0000000000..0f2bc443cd
 +    if (ret != MPP_OK) {
 +        av_log(avctx, AV_LOG_WARNING, "send eos failed ret: %d\n", ret);
 +    } else {
-+        av_log(avctx, AV_LOG_WARNING, "send eos success\n");
++        av_log(avctx, AV_LOG_INFO, "send eos success\n");
 +    }
 +    r->draining = 1;
 +
@@ -2458,10 +2458,10 @@ index 0000000000..0f2bc443cd
 +            mpp_packet_set_dts(mpp_pkt, pkt->dts);
 +            mpp_packet_set_extra_data(mpp_pkt);
 +            if ((ret = esmpp_put_packet(r->mctx, mpp_pkt)) != MPP_OK) {
-+                av_log(avctx, AV_LOG_DEBUG, "Decoder buffer is full\n");
++                av_log(avctx, AV_LOG_TRACE, "Decoder buffer is full\n");
 +                ret = AVERROR(EAGAIN);
 +            } else {
-+                av_log(avctx, AV_LOG_DEBUG, "Wrote extradata %d bytes to decoder\n", avctx->extradata_size);
++                av_log(avctx, AV_LOG_TRACE, "Wrote extradata %d bytes to decoder\n", avctx->extradata_size);
 +            }
 +            mpp_packet_deinit(&mpp_pkt);
 +        }
@@ -2474,18 +2474,22 @@ index 0000000000..0f2bc443cd
 +    }
 +    mpp_packet_set_pts(mpp_pkt, pkt->pts);
 +    mpp_packet_set_dts(mpp_pkt, pkt->dts);
-+#if 0  // for vlc master
++#if 1  // for vlc master
 +    if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
 +        /*tmp_opaque_ref will be released by av_frame_free*/
-+        AVBufferRef *tmp_opaque_ref = av_buffer_ref(pkt->opaque_ref);
-+        mpp_packet_set_reordered_opaque(mpp_pkt, (ES_S64)tmp_opaque_ref);
++        if (pkt->opaque_ref) {//for vlc
++            AVBufferRef *tmp_opaque_ref = av_buffer_ref(pkt->opaque_ref);
++            mpp_packet_set_reordered_opaque(mpp_pkt, (ES_S64)tmp_opaque_ref);
++        } else {
++            mpp_packet_set_reordered_opaque(mpp_pkt, (ES_S64)pkt->opaque); //for chromium
++        }
 +    }
 +#endif
 +    if ((ret = esmpp_put_packet(r->mctx, mpp_pkt)) != MPP_OK) {
-+        av_log(avctx, AV_LOG_DEBUG, "Decoder buffer is full\n");
++        av_log(avctx, AV_LOG_TRACE, "Decoder buffer is full\n");
 +        ret = AVERROR(EAGAIN);
 +    } else {
-+        av_log(avctx, AV_LOG_DEBUG, "Wrote %d bytes to decoder\n", pkt->size);
++        av_log(avctx, AV_LOG_TRACE, "Wrote %d bytes to decoder\n", pkt->size);
 +    }
 +    mpp_packet_deinit(&mpp_pkt);
 +
@@ -2548,6 +2552,10 @@ index 0000000000..0f2bc443cd
 +        } else {
 +            av_packet_unref(pkt);
 +            pkt->size = 0;
++            ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_NON_BLOCK);
++            if (ret == MPP_OK) {
++                goto exit;
++            }
 +        }
 +    }
 +
@@ -2815,10 +2823,10 @@ index 0000000000..0753c8a4a4
 +#endif /* AVCODEC_ESMPPDEC_H */
 diff --git a/libavcodec/esmppenc.c b/libavcodec/esmppenc.c
 new file mode 100644
-index 0000000000..c2801fb75a
+index 0000000000..c028f996ce
 --- /dev/null
 +++ b/libavcodec/esmppenc.c
-@@ -0,0 +1,1308 @@
+@@ -0,0 +1,1303 @@
 +#include "esmppenc.h"
 +#include <es_venc_def.h>
 +#include <es_mpp_video.h>
@@ -2874,17 +2882,15 @@ index 0000000000..c2801fb75a
 +    return count;
 +}
 +
-+static void clear_unused_frames(ESMPPEncFrame *list) {
++static void clear_unused_frame(ESMPPEncFrame *list, MppFramePtr mpp_frame) {
++    if (!mpp_frame) {
++        return;
++    }
 +    while (list) {
-+        if (list->queued == 1) {
-+            MppFramePtr mpp_frame = list->mpp_frame;
-+            MppBufferPtr mpp_buf = NULL;
++        if (list->queued == 1 && list->mpp_frame == mpp_frame) {
++            MppBufferPtr mpp_buf = mpp_frame_get_buffer(mpp_frame);
 +
-+            if (mpp_frame) {
-+                mpp_buf = mpp_frame_get_buffer(mpp_frame);
-+            }
-+
-+            if (mpp_buf && mpp_buffer_get_index(mpp_buf) < 0) {
++            if (mpp_buf) {
 +                mpp_buffer_put(mpp_buf);
 +
 +                mpp_frame_deinit(&list->mpp_frame);
@@ -2893,6 +2899,7 @@ index 0000000000..c2801fb75a
 +                av_frame_free(&list->frame);
 +                list->queued = 0;
 +            }
++            break;
 +        }
 +        list = list->next;
 +    }
@@ -2910,7 +2917,7 @@ index 0000000000..c2801fb75a
 +        mpp_frame = frame->mpp_frame;
 +        if (mpp_frame) {
 +            mpp_buf = mpp_frame_get_buffer(mpp_frame);
-+            if (mpp_buf && mpp_buffer_get_index(mpp_buf) >= 0) {
++            if (mpp_buf) {
 +                mpp_buffer_put(mpp_buf);
 +            }
 +
@@ -3152,7 +3159,7 @@ index 0000000000..c2801fb75a
 +        framerate = framerate_num / framerate_den;
 +    }
 +
-+    av_log(NULL, AV_LOG_DEBUG, "get_framerate num:%d den:%d rate:%u\n", av_framerate.num, av_framerate.den, framerate);
++    av_log(NULL, AV_LOG_TRACE, "get_framerate num:%d den:%d rate:%u\n", av_framerate.num, av_framerate.den, framerate);
 +    return framerate;
 +}
 +
@@ -3479,12 +3486,12 @@ index 0000000000..c2801fb75a
 +    }
 +
 +    if ((ret = esmpp_put_frame(cxt->mctx, mpp_frame)) != MPP_OK) {
-+        int log_level = (ret == MPP_ERR_INPUT_FULL) ? AV_LOG_DEBUG : AV_LOG_ERROR;
++        int log_level = (ret == MPP_ERR_INPUT_FULL) ? AV_LOG_TRACE : AV_LOG_ERROR;
 +        ret = (ret == MPP_ERR_INPUT_FULL) ? AVERROR(EAGAIN) : AVERROR_EXTERNAL;
 +        av_log(avctx, log_level, "Failed to put frame to encoder input queue: %d\n", ret);
 +        goto exit;
 +    } else {
-+        av_log(avctx, AV_LOG_DEBUG, "Wrote %ld bytes to encoder\n", mpp_frame ? mpp_frame_get_buf_size(mpp_frame) : 0);
++        av_log(avctx, AV_LOG_TRACE, "Wrote %ld bytes to encoder\n", mpp_frame ? mpp_frame_get_buf_size(mpp_frame) : 0);
 +    }
 +
 +exit:
@@ -3560,9 +3567,8 @@ index 0000000000..c2801fb75a
 +            av_log(avctx, AV_LOG_ERROR, "Failed to get buf frame mpp frame: %d\n", ret);
 +            return AVERROR(ENOMEM);
 +        }
-+        /* mark buffer as unused (idx < 0) */
-+        mpp_buffer_set_index(mpp_buf, -1);
-+        clear_unused_frames(cxt->frame_list);
++
++        clear_unused_frame(cxt->frame_list, mpp_frame);
 +    }
 +
 +    // dump packet
@@ -3570,10 +3576,10 @@ index 0000000000..c2801fb75a
 +        int ret = 0;
 +        ret = esmpp_codec_dump_bytes_to_file(packet->data, packet->size, cxt->dump_pkt_hnd);
 +        if (ret == ERR_TIMEOUT) {
-+            av_log(NULL, AV_LOG_INFO, "pkt dump timeout\n");
++            av_log(NULL, AV_LOG_DEBUG, "pkt dump timeout\n");
 +            esmpp_codec_dump_file_close(&cxt->dump_pkt_hnd);
 +            cxt->dump_pkt_enable = 0;
-+            av_log(NULL, AV_LOG_INFO, "closed dump packet handle\n");
++            av_log(NULL, AV_LOG_DEBUG, "closed dump packet handle\n");
 +        } else if (ret < 0) {
 +            av_log(NULL, AV_LOG_ERROR, "write packet into file failed\n");
 +        }
@@ -3602,8 +3608,6 @@ index 0000000000..c2801fb75a
 +    int hshift, vshift, planes;
 +    int stride[4] = {0}, offset[4] = {0}, offset_sum = 0;
 +    uint32_t luma_size = 0, chroma_size = 0, pic_size = 0, i = 0;
-+
-+    clear_unused_frames(cxt->frame_list);
 +
 +    if (frame) {
 +        enum AVPixelFormat pix_fmt = avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME ? avctx->sw_pix_fmt : avctx->pix_fmt;
@@ -3710,7 +3714,6 @@ index 0000000000..c2801fb75a
 +            mpp_frame, (avctx->color_range == AVCOL_RANGE_MPEG) ? MPP_FRAME_RANGE_LIMITED : MPP_FRAME_RANGE_FULL);
 +    }
 +
-+    mpp_buffer_set_index(mpp_buf, mpp_buffer_get_fd(mpp_buf));
 +    mpp_frame_set_buffer(mpp_frame, mpp_buf);
 +
 +    // dump yuv
@@ -3729,13 +3732,13 @@ index 0000000000..c2801fb75a
 +            void *paddr = mpp_buffer_get_ptr(mpp_buf);
 +            ret = esmpp_codec_dump_bytes_to_file(paddr, pic_size, cxt->dump_frame_hnd);
 +            if (ret == ERR_TIMEOUT) {
-+                av_log(NULL, AV_LOG_INFO, "frame dump timeout\n");
++                av_log(NULL, AV_LOG_DEBUG, "frame dump timeout\n");
 +                esmpp_codec_dump_file_close(&cxt->dump_frame_hnd);
 +                cxt->dump_frame_enable = 0;
 +            } else if (ret < 0) {
 +                av_log(NULL, AV_LOG_ERROR, "write file error\n");
 +            }
-+            // av_log(NULL, AV_LOG_INFO, "dump frame: data %p size %d\n", paddr, pic_size);
++            // av_log(NULL, AV_LOG_DEBUG, "dump frame: data %p size %d\n", paddr, pic_size);
 +        } else {
 +            av_log(NULL, AV_LOG_ERROR, "fp is not inited\n");
 +        }
@@ -3777,7 +3780,7 @@ index 0000000000..c2801fb75a
 +
 +send_frm:
 +    ret = esmpp_send_frame(avctx, mpp_enc_frame);
-+    av_log(avctx, AV_LOG_DEBUG, "send_frame ret:%d, sent frm cnt:%d\n", ret, cxt->sent_frm_cnt);
++    av_log(avctx, AV_LOG_TRACE, "send_frame ret:%d, sent frm cnt:%d\n", ret, cxt->sent_frm_cnt);
 +    if (ret == AVERROR(EAGAIN)) {
 +        av_usleep(10 * 1000);
 +        goto send_frm;
@@ -3790,17 +3793,17 @@ index 0000000000..c2801fb75a
 +    if (ret == AVERROR(EAGAIN)) {
 +        if (is_hevc_still_pic_profile(avctx->codec_id, cxt->profile)) {
 +            if (cxt->sent_frm_cnt == 1 && cxt->got_pkt_cnt < 1) {
-+                av_log(avctx, AV_LOG_INFO, "still pic frame is %p, ret %d\n", frame, ret);
++                av_log(avctx, AV_LOG_DEBUG, "still pic frame is %p, ret %d\n", frame, ret);
 +                av_usleep(10 * 1000);
 +                goto get_pkt;
 +            }
 +        } else if (!frame) {  // sent all the frame we must get left packet
-+            av_log(avctx, AV_LOG_INFO, "frame is %p, ret %d\n", frame, ret);
++            av_log(avctx, AV_LOG_DEBUG, "frame is %p, ret %d\n", frame, ret);
 +            av_usleep(10 * 1000);
 +            goto get_pkt;
 +        } else if (cxt->sent_frm_cnt - cxt->got_pkt_cnt >= cxt->async_frames) {
 +            av_log(avctx,
-+                   AV_LOG_DEBUG,
++                   AV_LOG_TRACE,
 +                   "cxt->sent_frm_cnt %d, cxt->got_pkt_cnt %d\n",
 +                   cxt->sent_frm_cnt,
 +                   cxt->got_pkt_cnt);
@@ -3813,17 +3816,17 @@ index 0000000000..c2801fb75a
 +    if (ret == AVERROR_EOF || ret == AVERROR(EAGAIN)) {
 +        *got_packet = 0;
 +        av_log(avctx,
-+               AV_LOG_INFO,
++               AV_LOG_DEBUG,
 +               "get_packet len %d ret:%d %s\n",
 +               packet->size,
 +               ret,
 +               ret == AVERROR(EAGAIN) ? "EAGAIN" : "AVERROR_EOF");
 +    } else if (ret) {
-+        av_log(avctx, AV_LOG_DEBUG, "get_packet len %d ret:%d\n", packet->size, ret);
++        av_log(avctx, AV_LOG_TRACE, "get_packet len %d ret:%d\n", packet->size, ret);
 +        return ret;
 +    } else {
 +        av_log(avctx,
-+               AV_LOG_DEBUG,
++               AV_LOG_TRACE,
 +               "get_packet len %d ret:%d pts:%ld dts:%ld, got pktcnt:%d\n",
 +               packet->size,
 +               ret,
@@ -4129,7 +4132,7 @@ index 0000000000..c2801fb75a
 +DEFINE_ESMPP_ENCODER(mjpeg, MJPEG, mjpeg)
 diff --git a/libavcodec/esmppenc.h b/libavcodec/esmppenc.h
 new file mode 100644
-index 0000000000..153329e668
+index 0000000000..0b293f29eb
 --- /dev/null
 +++ b/libavcodec/esmppenc.h
 @@ -0,0 +1,537 @@
@@ -4311,7 +4314,7 @@ index 0000000000..153329e668
 +        {"VBR", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, 0, 0, VE, "rc_mode"},                                         \
 +        {"CQP", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, 0, 0, VE, "rc_mode"},                                         \
 +        {"stat_time", "[1, 60]", OFFSET(stat_time), AV_OPT_TYPE_INT, {.i64 = 1}, 1, 60, VE, "stat_time"},             \
-+        {"startQp", "[0, 51]", OFFSET(start_qp), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 51, VE, "startQp"},                \
++        {"start_qp", "[0, 51]", OFFSET(start_qp), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 51, VE, "start_qp"},              \
 +        {"dump_path", "dump directory", OFFSET(dump_path), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},              \
 +        {"frame_dump", "frame dump enable", OFFSET(dump_frame_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VE},        \
 +        {"packet_dump", "packet dump enable", OFFSET(dump_pkt_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VE},        \
@@ -5169,10 +5172,10 @@ index 0000000000..1d81ded778
 \ No newline at end of file
 diff --git a/libavfilter/vf_esmpp_complex.c b/libavfilter/vf_esmpp_complex.c
 new file mode 100644
-index 0000000000..4e7024c9cd
+index 0000000000..1e5f01a6fb
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_complex.c
-@@ -0,0 +1,794 @@
+@@ -0,0 +1,793 @@
 +#include <stdio.h>
 +#include <string.h>
 +#include <dlfcn.h>
@@ -5359,7 +5362,7 @@ index 0000000000..4e7024c9cd
 +        return FAILURE;
 +    }
 +    s->out_fmt = (s->output_fmt_set == -1) ? s->in_fmt : (enum AVPixelFormat)s->output_fmt_set;
-+    av_log(NULL, AV_LOG_INFO, "output format is %s\n", av_get_pix_fmt_name(s->out_fmt));
++    av_log(NULL, AV_LOG_DEBUG, "output format is %s\n", av_get_pix_fmt_name(s->out_fmt));
 +    return SUCCESS;
 +}
 +
@@ -5560,7 +5563,7 @@ index 0000000000..4e7024c9cd
 +                                         offset,
 +                                         &plane);
 +    av_log(ctx,
-+           AV_LOG_DEBUG,
++           AV_LOG_TRACE,
 +           "out info size:%ld plane:%d stride:%d-%d-%d, offset:%d-%d-%d fmt:%d.\n",
 +           output_frame_size,
 +           plane,
@@ -5641,7 +5644,6 @@ index 0000000000..4e7024c9cd
 +    }
 +#endif
 +    mpp_ret = es_tde_complex_process(src_mpp_frame, dst_mpp_frame, NULL, &s->src_rect, &s->dst_rect, NULL, usage);
-+    av_log(ctx, AV_LOG_WARNING, "es_tde_complex_process return %d\n", mpp_ret);
 +    if (mpp_ret != MPP_OK) {
 +        ret = FAILURE;
 +        goto exit3;
@@ -6707,10 +6709,10 @@ index bac30debae..24f8e2eba9 100644
  /**
 diff --git a/libavutil/hwcontext_esmpp.c b/libavutil/hwcontext_esmpp.c
 new file mode 100644
-index 0000000000..3925c8bf23
+index 0000000000..37254a114e
 --- /dev/null
 +++ b/libavutil/hwcontext_esmpp.c
-@@ -0,0 +1,637 @@
+@@ -0,0 +1,638 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -6741,6 +6743,7 @@ index 0000000000..3925c8bf23
 +#include "hwcontext_esmpp.h"
 +#include "hwcontext_internal.h"
 +#include "imgutils.h"
++#include "mem.h"
 +
 +static const struct {
 +    enum AVPixelFormat pixfmt;
@@ -7350,10 +7353,10 @@ index 0000000000..3925c8bf23
 +};
 diff --git a/libavutil/hwcontext_esmpp.h b/libavutil/hwcontext_esmpp.h
 new file mode 100644
-index 0000000000..a0f8fdceb1
+index 0000000000..700d45efcf
 --- /dev/null
 +++ b/libavutil/hwcontext_esmpp.h
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,82 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -7398,6 +7401,7 @@ index 0000000000..a0f8fdceb1
 +     * on each drm frame index.
 +     */
 +    MppBufferPtr buffers[AV_DRM_MAX_PLANES];
++    uint64_t fd[AV_DRM_MAX_PLANES];
 +} AVESMPPDRMFrameDescriptor;
 +
 +/**
