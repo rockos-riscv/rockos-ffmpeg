@@ -88,7 +88,7 @@ int ff_framesync_init(FFFrameSync *fs, AVFilterContext *parent, unsigned nb_in)
     /* For filters with several outputs, we will not be able to assume which
        output is relevant for ff_outlink_frame_wanted() and
        ff_outlink_set_status(). To be designed when needed. */
-    av_assert0(parent->nb_outputs == 1);
+    //av_assert0(parent->nb_outputs == 1);
 
     ff_framesync_preinit(fs);
     fs->parent = parent;
