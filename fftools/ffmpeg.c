@@ -97,6 +97,8 @@
 
 #include "libswresample/swresample.h"
 
+#include "libavfilter/vf_esmpp_info.h"
+
 #include "cmdutils.h"
 #include "ffmpeg.h"
 #include "ffmpeg_sched.h"
@@ -926,6 +928,51 @@ static int64_t getmaxrss(void)
 #endif
 }
 
+#ifdef TRANSCODE_INFO_REPORT
+typedef struct {
+    int32_t original_ret;
+    int8_t mapped_ret;
+} return_value;
+
+static const return_value return_value_map[] = {{AVERROR_BSF_NOT_FOUND, 3},
+                                                {AVERROR_BUG, 4},
+                                                {AVERROR_BUFFER_TOO_SMALL, 5},
+                                                {AVERROR_DECODER_NOT_FOUND, 6},
+                                                {AVERROR_DEMUXER_NOT_FOUND, 7},
+                                                {AVERROR_ENCODER_NOT_FOUND, 8},
+                                                {AVERROR_EOF, 9},
+                                                {AVERROR_EXIT, 10},
+                                                {AVERROR_EXTERNAL, 11},
+                                                {AVERROR_FILTER_NOT_FOUND, 12},
+                                                {AVERROR_INVALIDDATA, 13},
+                                                {AVERROR_MUXER_NOT_FOUND, 14},
+                                                {AVERROR_OPTION_NOT_FOUND, 15},
+                                                {AVERROR_PATCHWELCOME, 16},
+                                                {AVERROR_PROTOCOL_NOT_FOUND, 17},
+                                                {AVERROR_STREAM_NOT_FOUND, 18},
+                                                {AVERROR_BUG2, 19},
+                                                {AVERROR_UNKNOWN, 20},
+                                                {AVERROR_EXPERIMENTAL, 21},
+                                                {AVERROR_INPUT_CHANGED, 22},
+                                                {AVERROR_OUTPUT_CHANGED, 23},
+                                                {AVERROR_HTTP_BAD_REQUEST, 24},
+                                                {AVERROR_HTTP_UNAUTHORIZED, 25},
+                                                {AVERROR_HTTP_FORBIDDEN, 26},
+                                                {AVERROR_HTTP_NOT_FOUND, 27},
+                                                {AVERROR_HTTP_OTHER_4XX, 28},
+                                                {AVERROR_HTTP_SERVER_ERROR, 29}};
+
+static int8_t map_error_code(int original_error_code) {
+    for (int i = 0; i < sizeof(return_value_map) / sizeof(return_value_map[0]); i++) {
+        if (return_value_map[i].original_ret == original_error_code) {
+            return return_value_map[i].mapped_ret;
+        }
+    }
+
+    return original_error_code;
+}
+#endif
+
 int main(int argc, char **argv)
 {
     Scheduler *sch = NULL;
@@ -995,5 +1042,9 @@ finish:
 
     sch_free(&sch);
 
+#ifdef TRANSCODE_INFO_REPORT
+    return map_error_code(ret);
+#else
     return ret;
+#endif
 }
