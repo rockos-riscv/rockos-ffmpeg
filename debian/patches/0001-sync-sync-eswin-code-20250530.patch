@@ -1,11 +1,12 @@
-From 7cc5af8114acada2d072c8a20b5152d3f5d01bd2 Mon Sep 17 00:00:00 2001
+From 9025820d054d959e3985ce6c5734e8c7af047074 Mon Sep 17 00:00:00 2001
 From: Han Gao <rabenda.cn@gmail.com>
-Date: Mon, 21 Apr 2025 00:56:16 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20250330
+Date: Mon, 16 Jun 2025 01:30:30 +0800
+Subject: [PATCH 1/3] sync: sync eswin code 20250530
 
 Signed-off-by: Han Gao <rabenda.cn@gmail.com>
 ---
- configure                      |  111 +++
+ configure                      |  119 +++
+ fftools/ffmpeg.c               |   51 ++
  fftools/ffmpeg_demux.c         |    6 +
  libavcodec/Makefile            |   18 +
  libavcodec/allcodecs.c         |   25 +
@@ -13,24 +14,24 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  libavcodec/es_audio_enc.c      |  352 ++++++++
  libavcodec/esmpp_comm.c        |  382 +++++++++
  libavcodec/esmpp_comm.h        |   74 ++
- libavcodec/esmppdec.c          | 1009 +++++++++++++++++++++++
- libavcodec/esmppdec.h          |  230 ++++++
- libavcodec/esmppenc.c          | 1307 ++++++++++++++++++++++++++++++
- libavcodec/esmppenc.h          |  537 +++++++++++++
+ libavcodec/esmppdec.c          | 1037 +++++++++++++++++++++++
+ libavcodec/esmppdec.h          |  243 ++++++
+ libavcodec/esmppenc.c          | 1445 ++++++++++++++++++++++++++++++++
+ libavcodec/esmppenc.h          |  599 +++++++++++++
  libavfilter/Makefile           |    1 +
  libavfilter/allfilters.c       |    3 +
  libavfilter/framesync.c        |    2 +-
- libavfilter/vf_esmpp_common.c  |  595 ++++++++++++++
- libavfilter/vf_esmpp_common.h  |  129 +++
- libavfilter/vf_esmpp_complex.c | 1103 +++++++++++++++++++++++++
- libavfilter/vf_stack_esmpp.c   | 1381 ++++++++++++++++++++++++++++++++
+ libavfilter/vf_esmpp_common.c  |  677 +++++++++++++++
+ libavfilter/vf_esmpp_common.h  |  148 ++++
+ libavfilter/vf_esmpp_complex.c | 1080 ++++++++++++++++++++++++
+ libavfilter/vf_stack_esmpp.c   | 1412 +++++++++++++++++++++++++++++++
  libavutil/Makefile             |    2 +
  libavutil/hwcontext.c          |    4 +
  libavutil/hwcontext.h          |    1 +
- libavutil/hwcontext_esmpp.c    |  638 +++++++++++++++
- libavutil/hwcontext_esmpp.h    |   82 ++
+ libavutil/hwcontext_esmpp.c    |  658 +++++++++++++++
+ libavutil/hwcontext_esmpp.h    |   83 ++
  libavutil/hwcontext_internal.h |    1 +
- 25 files changed, 8424 insertions(+), 1 deletion(-)
+ 26 files changed, 8854 insertions(+), 1 deletion(-)
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
  create mode 100644 libavcodec/esmpp_comm.c
@@ -47,7 +48,7 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  create mode 100644 libavutil/hwcontext_esmpp.h
 
 diff --git a/configure b/configure
-index 86425130bd..408a257d0e 100755
+index 86425130bd..7a174c66c4 100755
 --- a/configure
 +++ b/configure
 @@ -230,6 +230,14 @@ External library support:
@@ -65,15 +66,16 @@ index 86425130bd..408a257d0e 100755
    --enable-libflite        enable flite (voice synthesis) support via libflite [no]
    --enable-libfontconfig   enable libfontconfig, useful for drawtext filter [no]
    --enable-libfreetype     enable libfreetype, needed for drawtext filter [no]
-@@ -333,6 +341,7 @@ External library support:
+@@ -333,6 +341,8 @@ External library support:
    --enable-vapoursynth     enable VapourSynth demuxer [no]
    --disable-xlib           disable xlib [autodetect]
    --disable-zlib           disable zlib [autodetect]
 +  --enable-esmpp           enable esw mpp code [no]
++  --enable-es-report-info  enable esw info report [no]
  
    The following libraries provide various hardware acceleration features:
    --disable-amf            disable AMF video encoding code [autodetect]
-@@ -1873,7 +1882,16 @@ EXTERNAL_LIBRARY_GPL_LIST="
+@@ -1873,7 +1883,17 @@ EXTERNAL_LIBRARY_GPL_LIST="
  EXTERNAL_LIBRARY_NONFREE_LIST="
      decklink
      libfdk_aac
@@ -87,10 +89,11 @@ index 86425130bd..408a257d0e 100755
 +    es_g726
      libtls
 +    esmpp
++    es_report_info
  "
  
  EXTERNAL_LIBRARY_VERSION3_LIST="
-@@ -3402,6 +3420,18 @@ av1_qsv_encoder_deps="libvpl"
+@@ -3402,6 +3422,18 @@ av1_qsv_encoder_deps="libvpl"
  av1_amf_encoder_deps="amf"
  av1_vaapi_encoder_deps="VAEncPictureParameterBufferAV1"
  av1_vaapi_encoder_select="cbs_av1 vaapi_encode"
@@ -109,7 +112,7 @@ index 86425130bd..408a257d0e 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -3489,6 +3519,36 @@ libdavs2_decoder_deps="libdavs2"
+@@ -3489,6 +3521,36 @@ libdavs2_decoder_deps="libdavs2"
  libdavs2_decoder_select="avs2_parser"
  libfdk_aac_decoder_deps="libfdk_aac"
  libfdk_aac_encoder_deps="libfdk_aac"
@@ -146,7 +149,7 @@ index 86425130bd..408a257d0e 100755
  libfdk_aac_encoder_select="audio_frame_queue"
  libgme_demuxer_deps="libgme"
  libgsm_decoder_deps="libgsm"
-@@ -3946,6 +4006,8 @@ vstack_qsv_filter_deps="libmfx"
+@@ -3946,6 +4008,8 @@ vstack_qsv_filter_deps="libmfx"
  vstack_qsv_filter_select="qsvvpp"
  xstack_qsv_filter_deps="libmfx"
  xstack_qsv_filter_select="qsvvpp"
@@ -155,7 +158,7 @@ index 86425130bd..408a257d0e 100755
  
  # examples
  avio_http_serve_files_deps="avformat avutil fork"
-@@ -6848,6 +6910,14 @@ enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aace
+@@ -6848,6 +6912,14 @@ enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aace
                                 { require libfdk_aac fdk-aac/aacenc_lib.h aacEncOpen -lfdk-aac &&
                                   warn "using libfdk without pkg-config"; } }
  flite_extralibs="-lflite_cmu_time_awb -lflite_cmu_us_awb -lflite_cmu_us_kal -lflite_cmu_us_kal16 -lflite_cmu_us_rms -lflite_cmu_us_slt -lflite_usenglish -lflite_cmulex -lflite"
@@ -170,7 +173,7 @@ index 86425130bd..408a257d0e 100755
  enabled libflite          && require libflite "flite/flite.h" flite_init $flite_extralibs
  enabled fontconfig        && enable libfontconfig
  enabled libfontconfig     && require_pkg_config libfontconfig fontconfig "fontconfig/fontconfig.h" FcInit
-@@ -7069,6 +7139,47 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
+@@ -7069,6 +7141,53 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
                               }
  enabled vapoursynth       && require_pkg_config vapoursynth "vapoursynth-script >= 42" VSScript.h vsscript_init
  
@@ -215,9 +218,90 @@ index 86425130bd..408a257d0e 100755
 +        die "esmpp enabled but no supported codecs found"
 +    fi
 +}
++
++if enabled es_report_info; then
++    echo "#define TRANSCODE_INFO_REPORT 1" >> libavfilter/vf_esmpp_info.h
++else
++    touch libavfilter/vf_esmpp_info.h
++fi
  
  if enabled gcrypt; then
      GCRYPT_CONFIG="${cross_prefix}libgcrypt-config"
+diff --git a/fftools/ffmpeg.c b/fftools/ffmpeg.c
+index 4a0c7d5c4d..9810cd8199 100644
+--- a/fftools/ffmpeg.c
++++ b/fftools/ffmpeg.c
+@@ -97,6 +97,8 @@
+ 
+ #include "libswresample/swresample.h"
+ 
++#include "libavfilter/vf_esmpp_info.h"
++
+ #include "cmdutils.h"
+ #include "ffmpeg.h"
+ #include "ffmpeg_sched.h"
+@@ -927,6 +929,51 @@ static int64_t getmaxrss(void)
+ #endif
+ }
+ 
++#ifdef TRANSCODE_INFO_REPORT
++typedef struct {
++    int32_t original_ret;
++    int8_t mapped_ret;
++} return_value;
++
++static const return_value return_value_map[] = {{AVERROR_BSF_NOT_FOUND, 3},
++                                                {AVERROR_BUG, 4},
++                                                {AVERROR_BUFFER_TOO_SMALL, 5},
++                                                {AVERROR_DECODER_NOT_FOUND, 6},
++                                                {AVERROR_DEMUXER_NOT_FOUND, 7},
++                                                {AVERROR_ENCODER_NOT_FOUND, 8},
++                                                {AVERROR_EOF, 9},
++                                                {AVERROR_EXIT, 10},
++                                                {AVERROR_EXTERNAL, 11},
++                                                {AVERROR_FILTER_NOT_FOUND, 12},
++                                                {AVERROR_INVALIDDATA, 13},
++                                                {AVERROR_MUXER_NOT_FOUND, 14},
++                                                {AVERROR_OPTION_NOT_FOUND, 15},
++                                                {AVERROR_PATCHWELCOME, 16},
++                                                {AVERROR_PROTOCOL_NOT_FOUND, 17},
++                                                {AVERROR_STREAM_NOT_FOUND, 18},
++                                                {AVERROR_BUG2, 19},
++                                                {AVERROR_UNKNOWN, 20},
++                                                {AVERROR_EXPERIMENTAL, 21},
++                                                {AVERROR_INPUT_CHANGED, 22},
++                                                {AVERROR_OUTPUT_CHANGED, 23},
++                                                {AVERROR_HTTP_BAD_REQUEST, 24},
++                                                {AVERROR_HTTP_UNAUTHORIZED, 25},
++                                                {AVERROR_HTTP_FORBIDDEN, 26},
++                                                {AVERROR_HTTP_NOT_FOUND, 27},
++                                                {AVERROR_HTTP_OTHER_4XX, 28},
++                                                {AVERROR_HTTP_SERVER_ERROR, 29}};
++
++static int8_t map_error_code(int original_error_code) {
++    for (int i = 0; i < sizeof(return_value_map) / sizeof(return_value_map[0]); i++) {
++        if (return_value_map[i].original_ret == original_error_code) {
++            return return_value_map[i].mapped_ret;
++        }
++    }
++
++    return original_error_code;
++}
++#endif
++
+ int main(int argc, char **argv)
+ {
+     Scheduler *sch = NULL;
+@@ -996,5 +1043,9 @@ finish:
+ 
+     sch_free(&sch);
+ 
++#ifdef TRANSCODE_INFO_REPORT
++    return map_error_code(ret);
++#else
+     return ret;
++#endif
+ }
 diff --git a/fftools/ffmpeg_demux.c b/fftools/ffmpeg_demux.c
 index 47312c9fe1..e75f000f7f 100644
 --- a/fftools/ffmpeg_demux.c
@@ -1574,10 +1658,10 @@ index 0000000000..692a3f1c04
 \ No newline at end of file
 diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
 new file mode 100644
-index 0000000000..8e9cb2a2a5
+index 0000000000..6bb12efae7
 --- /dev/null
 +++ b/libavcodec/esmppdec.c
-@@ -0,0 +1,1009 @@
+@@ -0,0 +1,1037 @@
 +#include "config.h"
 +#include "config_components.h"
 +#include <stdbool.h>
@@ -1795,11 +1879,20 @@ index 0000000000..8e9cb2a2a5
 +    const char *opts_env = NULL;
 +    int ret;
 +
++    r->device_idx = -1;
 +    esmpp_set_log_level();
 +
 +    opts_env = getenv("FFMPEG_ESMPP_DEC_OPT");
 +    if (opts_env && av_set_options_string(r, opts_env, "=", " ") <= 0) {
 +        av_log(avctx, AV_LOG_WARNING, "Unable to set decoder options from env opts_env: %s\n", opts_env);
++    }
++
++    if (avctx->hw_device_ctx) {
++        AVHWDeviceContext *hwdev = avctx->hw_device_ctx->data;
++        AVESMPPDeviceContext *hwctx = hwdev->hwctx;
++        r->die_idx = hwctx->die_idx;
++        r->device_idx = hwctx->device_idx;
++        av_log(avctx, AV_LOG_INFO, "%s set device: %d, die_idx: %d.\n", __func__, r->device_idx, r->die_idx);
 +    }
 +
 +    av_log(avctx,
@@ -1842,6 +1935,7 @@ index 0000000000..8e9cb2a2a5
 +    }
 +
 +    r->first_packet = 1;
++    r->found_key_frame = 0;
 +    return 0;
 +
 +fail:
@@ -1861,7 +1955,6 @@ index 0000000000..8e9cb2a2a5
 +    }
 +
 +    av_buffer_unref(&r->hwframe);
-+
 +    r->hwframe = av_hwframe_ctx_alloc(r->hwdevice);
 +    if (!r->hwframe) {
 +        return AVERROR(ENOMEM);
@@ -1875,7 +1968,10 @@ index 0000000000..8e9cb2a2a5
 +    group_limit = mpp_frame_get_group_buf_count(mpp_frame);
 +
 +    mppfc = hwfc->hwctx;
-+    mppfc->die_idx = r->die_idx;
++    AVHWDeviceContext *hwdev = hwfc->device_ctx;
++    AVESMPPDeviceContext *hwctx = hwdev->hwctx;
++    hwctx->die_idx = r->die_idx;
++    hwctx->device_idx = r->device_idx;
 +    if (r->buf_mode != ESMPP_DEC_PURE_EXTERNAL) {
 +        if ((ret = av_hwframe_ctx_init(r->hwframe)) < 0) {
 +            av_log(avctx, AV_LOG_ERROR, "Failed to init ESMPP frame pool\n");
@@ -2184,10 +2280,13 @@ index 0000000000..8e9cb2a2a5
 +    frame->time_base = avctx->pkt_timebase;
 +    frame->colorspace = mpp_frame_get_colorspace(mpp_frame);
 +    frame->color_range = mpp_frame_get_color_range(mpp_frame);
-+#if 1  // for vlc master
++
++    if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
++        frame->opaque = (ES_VOID *)mpp_frame_get_reordered_opaque(mpp_frame);  // for chromium
++    }
++#if 0  // for vlc master
 +    if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
 +        // frame->opaque_ref = (AVBufferRef *)mpp_frame_get_reordered_opaque(mpp_frame); //for vlc
-+        frame->opaque = (ES_VOID *)mpp_frame_get_reordered_opaque(mpp_frame);  // for chromium
 +    }
 +#endif
 +    if ((avctx->codec_id == AV_CODEC_ID_HEVC || avctx->codec_id == AV_CODEC_ID_H264)
@@ -2272,10 +2371,8 @@ index 0000000000..8e9cb2a2a5
 +
 +        avctx->coded_width = mpp_frame_get_width(mpp_frame);
 +        avctx->coded_height = mpp_frame_get_height(mpp_frame);
-+        if (!avctx->width) {
++        if (avctx->width != avctx->coded_width || avctx->height != avctx->coded_height) {
 +            avctx->width = avctx->coded_width;
-+        }
-+        if (!avctx->height) {
 +            avctx->height = avctx->coded_height;
 +        }
 +
@@ -2470,21 +2567,36 @@ index 0000000000..8e9cb2a2a5
 +        r->first_packet = 0;
 +    }
 +
++    if (r->wait_key_frame) {
++        if (!r->found_key_frame) {
++            if (pkt->flags & AV_PKT_FLAG_KEY) {
++                r->found_key_frame = 1;
++                av_log(avctx, AV_LOG_INFO, "waiting key frame enabled, find key frame pakcet.\n");
++            } else {
++                av_log(avctx, AV_LOG_INFO, "waiting key frame enabled, drop a non-key frame packet.\n");
++                if (mpp_pkt) mpp_packet_deinit(&mpp_pkt);
++                return MPP_OK;
++            }
++        }
++    }
++
 +    if ((ret = mpp_packet_init(&mpp_pkt, pkt->data, pkt->size)) != MPP_OK) {
 +        av_log(avctx, AV_LOG_ERROR, "Failed to init packet: %d\n", ret);
 +        return AVERROR_EXTERNAL;
 +    }
 +    mpp_packet_set_pts(mpp_pkt, pkt->pts);
 +    mpp_packet_set_dts(mpp_pkt, pkt->dts);
-+#if 1  // for vlc master
++
 +    if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
-+        /*tmp_opaque_ref will be released by av_frame_free*/
-+        if (pkt->opaque_ref) {  // for vlc
-+            AVBufferRef *tmp_opaque_ref = av_buffer_ref(pkt->opaque_ref);
-+            mpp_packet_set_reordered_opaque(mpp_pkt, (ES_S64)tmp_opaque_ref);
-+        } else {
++        if (pkt->opaque_ref == NULL) {
 +            mpp_packet_set_reordered_opaque(mpp_pkt, (ES_S64)pkt->opaque);  // for chromium
 +        }
++    }
++#if 0  // for vlc master
++    if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
++        /*tmp_opaque_ref will be released by av_frame_free*/
++        AVBufferRef *tmp_opaque_ref = av_buffer_ref(pkt->opaque_ref);
++        mpp_packet_set_reordered_opaque(mpp_pkt, (ES_S64)tmp_opaque_ref);
 +    }
 +#endif
 +    if ((ret = esmpp_put_packet(r->mctx, mpp_pkt)) != MPP_OK) {
@@ -2589,10 +2701,10 @@ index 0000000000..8e9cb2a2a5
 +DEFINE_ESMPP_DECODER(mjpeg, MJPEG, "mjpeg2jpeg")
 diff --git a/libavcodec/esmppdec.h b/libavcodec/esmppdec.h
 new file mode 100644
-index 0000000000..0753c8a4a4
+index 0000000000..063fc172d3
 --- /dev/null
 +++ b/libavcodec/esmppdec.h
-@@ -0,0 +1,230 @@
+@@ -0,0 +1,243 @@
 +#ifndef AVCODEC_ESMPPDEC_H
 +#define AVCODEC_ESMPPDEC_H
 +
@@ -2647,6 +2759,10 @@ index 0000000000..0753c8a4a4
 +    int first_packet;
 +    // multiple dies
 +    int die_idx;
++    int device_idx;
++
++    int wait_key_frame;
++    int found_key_frame;
 +} ESMPPDecContext;
 +
 +enum {
@@ -2728,6 +2844,15 @@ index 0000000000..0753c8a4a4
 +         0,                                                                                                            \
 +         VD},                                                                                                          \
 +        {"scale", "width:height or ratio_x:ratio_y", OFFSET(scale), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VD},      \
++        {"wait_key_frame",                                                                                             \
++         "wait key frame",                                                                                             \
++         OFFSET(wait_key_frame),                                                                                       \
++         AV_OPT_TYPE_INT,                                                                                              \
++         {.i64 = 0},                                                                                                   \
++         0,                                                                                                            \
++         1,                                                                                                            \
++         VD,                                                                                                           \
++         "wait_key_frame"},                                                                                            \
 +        {"dfd", "force drm format output", OFFSET(dfd), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VD},                        \
 +        {"dec_pixfmt",                                                                                                 \
 +         "set decode output pixfmt",                                                                                   \
@@ -2825,10 +2950,10 @@ index 0000000000..0753c8a4a4
 +#endif /* AVCODEC_ESMPPDEC_H */
 diff --git a/libavcodec/esmppenc.c b/libavcodec/esmppenc.c
 new file mode 100644
-index 0000000000..8db920305e
+index 0000000000..e0d9396fe5
 --- /dev/null
 +++ b/libavcodec/esmppenc.c
-@@ -0,0 +1,1307 @@
+@@ -0,0 +1,1445 @@
 +#include "esmppenc.h"
 +#include <es_venc_def.h>
 +#include <es_mpp_video.h>
@@ -2901,6 +3026,10 @@ index 0000000000..8db920305e
 +                av_frame_free(&list->frame);
 +                list->queued = 0;
 +            }
++            if (list->roi_attr) {
++                free(list->roi_attr);
++                list->roi_attr = NULL;
++            }
 +            break;
 +        }
 +        list = list->next;
@@ -2928,6 +3057,10 @@ index 0000000000..8db920305e
 +        }
 +
 +        av_frame_free(&frame->frame);
++        if (frame->roi_attr) {
++            free(frame->roi_attr);
++            frame->roi_attr = NULL;
++        }
 +        av_freep(&frame);
 +    }
 +}
@@ -3028,6 +3161,8 @@ index 0000000000..8db920305e
 +
 +    CFG_SET_S32(cfg, "venc:hor_stride", stride[0]);
 +    CFG_SET_S32(cfg, "venc:ver_stride", FFALIGN(avctx->height, cxt->v_stride_align > 0 ? cxt->v_stride_align : 1));
++    CFG_SET_S32(cfg, "venc:max_width", cxt->max_width);
++    CFG_SET_S32(cfg, "venc:max_height", cxt->max_height);
 +
 +    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
 +        avctx->profile = cxt->profile;
@@ -3036,6 +3171,7 @@ index 0000000000..8db920305e
 +        CFG_SET_S32(cfg, "venc:level", avctx->level);
 +        if (avctx->codec_id == AV_CODEC_ID_HEVC) {
 +            CFG_SET_S32_IF_USER_SET(cfg, "venc:tier", cxt->tier, -1);
++            CFG_SET_S32(cfg, "venc:preset", cxt->preset);
 +        }
 +        if (cxt->bitdepth == -1) {
 +            if (cxt->pix_fmt == AV_PIX_FMT_YUV420P10LE || cxt->pix_fmt == AV_PIX_FMT_P010LE) {
@@ -3413,6 +3549,11 @@ index 0000000000..8db920305e
 +            CFG_SET_U32(cfg, "dblk:dblk_disable", (cxt->enable_deblocking == 0) ? 1 : 0);
 +        }
 +
++        // vui
++        mpp_enc_cfg_set_s32(cfg, "vui:vui_present_flag", cxt->insert_vui);
++        mpp_enc_cfg_set_s32(cfg, "vui:sar_preset_flag", cxt->insert_sar_at_vui);
++        mpp_enc_cfg_set_s32(cfg, "vui:video_signal_type_present_flag", cxt->insert_video_signal_type_at_vui);
++
 +        if (avctx->color_range > AVCOL_RANGE_UNSPECIFIED && avctx->color_range < AVCOL_RANGE_NB) {
 +            mpp_enc_cfg_set_s32(
 +                cfg,
@@ -3471,7 +3612,7 @@ index 0000000000..8db920305e
 +
 +    // video protocal
 +    if (encoder_set_venc_protocal(cfg, avctx)) {
-+        av_log(avctx, AV_LOG_ERROR, "Failed to set_venc_rc config\n");
++        av_log(avctx, AV_LOG_ERROR, "Failed to set_venc_protocal config\n");
 +        return -1;
 +    }
 +
@@ -3759,6 +3900,100 @@ index 0000000000..8db920305e
 +    return NULL;
 +}
 +
++static int esmpp_init_roi_delta_qp(VENC_ROI_ATTR_S *roi_attr) {
++    for (int i = 0; i < ES_VENC_MAX_ROI_NUM; i++) {
++        roi_attr[i].bEnable = FALSE;
++        roi_attr[i].bAbsQP = FALSE;
++        roi_attr[i].QP = 0;
++        roi_attr[i].rect.x = 0;
++        roi_attr[i].rect.y = 0;
++        roi_attr[i].rect.width = 0;
++        roi_attr[i].rect.height = 0;
++    }
++
++    return 0;
++}
++
++static int esmpp_setup_roi(AVCodecContext *avctx,
++                           const AVFrame *frame,
++                           ESMPPEncFrame *mpp_enc_frame,
++                           AVFrameSideData *sd) {
++    ESMPPEncContext *cxt = avctx->priv_data;
++    MppCodingType coding_type = esmpp_get_coding_type(avctx);
++
++    if (MPP_VIDEO_CodingMJPEG != coding_type && mpp_enc_frame && mpp_enc_frame->mpp_frame) {
++        MppMetaPtr meta = NULL;
++        meta = mpp_frame_get_meta(mpp_enc_frame->mpp_frame);
++        if (meta) {
++            if (!mpp_enc_frame->roi_attr) {
++                mpp_enc_frame->roi_attr = calloc(ES_VENC_MAX_ROI_NUM, sizeof(VENC_ROI_ATTR_S));
++            } else {
++                esmpp_init_roi_delta_qp(mpp_enc_frame->roi_attr);
++            }
++            if (!sd) {
++                if (cxt->roi_attr_pre) {
++                    free(cxt->roi_attr_pre);
++                    cxt->roi_attr_pre = NULL;
++                    mpp_meta_set_ptr(meta, KEY_ROI_DATA, mpp_enc_frame->roi_attr);  // clear roi
++                } else {
++                    free(mpp_enc_frame->roi_attr);
++                    mpp_enc_frame->roi_attr = NULL;
++                }
++                return 0;
++            }
++            const uint8_t *data = sd->data;
++            const size_t size = sd->size;
++
++            AVRegionOfInterest *roi;
++            uint32_t roi_size;
++            int nb_rois;
++            roi = (const AVRegionOfInterest *)data;
++            roi_size = roi->self_size;
++            if (!roi_size || size % roi_size != 0) {
++                av_log(avctx, AV_LOG_ERROR, "Invalid AVRegionOfInterest.self_size.\n");
++                return AVERROR(EINVAL);
++            }
++
++            nb_rois = size / roi_size;
++
++            for (int i = nb_rois - 1; i >= 0; i--) {
++                roi = (const AVRegionOfInterest *)(data + roi_size * i);
++                if (roi->qoffset.den == 0) {
++                    av_log(avctx, AV_LOG_ERROR, "AVRegionOfInterest.qoffset.den must not be zero.\n");
++                    return AVERROR(EINVAL);
++                }
++                mpp_enc_frame->roi_attr[i].bEnable = TRUE;
++                mpp_enc_frame->roi_attr[i].bAbsQP = FALSE;
++                mpp_enc_frame->roi_attr[i].QP = roi->qoffset.num * H26X_MAX_QP / roi->qoffset.den;
++                mpp_enc_frame->roi_attr[i].QP = mpp_enc_frame->roi_attr[i].QP == -1 * H26X_MAX_QP
++                                                    ? -1 * (H26X_MAX_QP - 1)
++                                                    : mpp_enc_frame->roi_attr[i].QP;
++                mpp_enc_frame->roi_attr[i].rect.x = FFMIN(frame->width, roi->left);
++                mpp_enc_frame->roi_attr[i].rect.y = FFMIN(frame->height, roi->top);
++                mpp_enc_frame->roi_attr[i].rect.width =
++                    FFMIN(frame->width, roi->right) - mpp_enc_frame->roi_attr[i].rect.x;
++                mpp_enc_frame->roi_attr[i].rect.height =
++                    FFMIN(frame->height, roi->bottom) - mpp_enc_frame->roi_attr[i].rect.y;
++            }
++
++            if (cxt->roi_attr_pre
++                && !memcmp(cxt->roi_attr_pre, mpp_enc_frame->roi_attr, sizeof(mpp_enc_frame->roi_attr))) {
++                free(mpp_enc_frame->roi_attr);
++                mpp_enc_frame->roi_attr = NULL;
++                return 0;  // same roi attribution, do nothing.
++            }
++
++            if (!cxt->roi_attr_pre) {
++                cxt->roi_attr_pre = calloc(ES_VENC_MAX_ROI_NUM, sizeof(VENC_ROI_ATTR_S));
++            }
++            memcpy(cxt->roi_attr_pre, mpp_enc_frame->roi_attr, sizeof(mpp_enc_frame->roi_attr));
++            mpp_meta_set_ptr(meta, KEY_ROI_DATA, mpp_enc_frame->roi_attr);
++        }
++    }
++
++    return 0;
++}
++
 +static int esmpp_encode_frame(AVCodecContext *avctx, AVPacket *packet, const AVFrame *frame, int *got_packet) {
 +    ESMPPEncContext *cxt = avctx->priv_data;
 +    ESMPPEncFrame *mpp_enc_frame = NULL;
@@ -3782,6 +4017,15 @@ index 0000000000..8db920305e
 +    if (!mpp_enc_frame) {
 +        av_log(avctx, AV_LOG_ERROR, "Failed to submit input frame\n");
 +        return AVERROR(ENOMEM);
++    }
++
++    if (frame) {
++        AVFrameSideData *sd;
++        sd = av_frame_get_side_data(frame, AV_FRAME_DATA_REGIONS_OF_INTEREST);
++        ret = esmpp_setup_roi(avctx, frame, mpp_enc_frame, sd);
++        if (ret < 0) {
++            return ret;
++        }
 +    }
 +
 +send_frm:
@@ -3850,6 +4094,10 @@ index 0000000000..8db920305e
 +
 +    cxt->cfg_init = 0;
 +    cxt->async_frames = 0;
++    if (cxt->roi_attr_pre) {
++        free(cxt->roi_attr_pre);
++        cxt->roi_attr_pre = NULL;
++    }
 +    if (cxt->mcfg) {
 +        mpp_enc_cfg_deinit(cxt->mcfg);
 +    }
@@ -4033,6 +4281,15 @@ index 0000000000..8db920305e
 +    cxt->async_frames = 0;
 +    cxt->sent_frm_cnt = 0;
 +    cxt->got_pkt_cnt = 0;
++    cxt->device_idx = -1;
++
++    if (avctx->hw_device_ctx) {
++        AVHWDeviceContext *hwdev = avctx->hw_device_ctx->data;
++        AVESMPPDeviceContext *hwctx = hwdev->hwctx;
++        cxt->die_idx = hwctx->die_idx;
++        cxt->device_idx = hwctx->device_idx;
++        av_log(avctx, AV_LOG_INFO, "%s set device: %d, die_idx: %d.\n", __func__, cxt->device_idx, cxt->die_idx);
++    }
 +
 +    buf_type = mpp_buffer_get_type(buf_type, cxt->die_idx);
 +    ret = mpp_buffer_group_get_internal(&cxt->frame_grp, buf_type);
@@ -4049,6 +4306,12 @@ index 0000000000..8db920305e
 +
 +    pix_fmt = (avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME) ? avctx->sw_pix_fmt : avctx->pix_fmt;
 +    cxt->pix_fmt = pix_fmt;
++    if (avctx->max_b_frames >= 1 || avctx->max_b_frames <= 3) {
++        cxt->b_frm_num = avctx->max_b_frames;
++    } else {
++        cxt->b_frm_num = 2;
++        av_log(avctx, AV_LOG_WARNING, "Unsupported max_b_frames: %d, correct it as 2\n", avctx->max_b_frames);
++    }
 +
 +    if ((ret = esmpp_create(&cxt->mctx, MPP_CTX_ENC, coding_type, cxt->die_idx)) != MPP_OK) {
 +        av_log(avctx, AV_LOG_ERROR, "Failed to create mpp context and api: %d\n", ret);
@@ -4138,10 +4401,10 @@ index 0000000000..8db920305e
 +DEFINE_ESMPP_ENCODER(mjpeg, MJPEG, mjpeg)
 diff --git a/libavcodec/esmppenc.h b/libavcodec/esmppenc.h
 new file mode 100644
-index 0000000000..0b293f29eb
+index 0000000000..d6892f6232
 --- /dev/null
 +++ b/libavcodec/esmppenc.h
-@@ -0,0 +1,537 @@
+@@ -0,0 +1,599 @@
 +#ifndef AVCODEC_ESMPPENC_H
 +#define AVCODEC_ESMPPENC_H
 +
@@ -4160,17 +4423,26 @@ index 0000000000..0b293f29eb
 +
 +#include "libavutil/opt.h"
 +#include "libavutil/pixdesc.h"
++#include "libavutil/hwcontext_esmpp.h"
 +
 +#define H26X_HEADER_SIZE 1024
 +#define H26X_ASYNC_FRAMES 5  // current max gop size 4
 +#define MJPEG_ASYNC_FRAMES 8
 +#define ALIGN_DOWN(a, b) ((a) & ~((b) - 1))
++#define H26X_MAX_QP 32
++#define TRUE 1
++#define FALSE 0
++
++#define MAX_HEIGHT_VIDEO 8192
++#define MAX_WIDTH_VIDEO 8192
 +
 +typedef struct ESMPPEncFrame {
 +    AVFrame *frame;
 +    MppFramePtr mpp_frame;
 +    struct ESMPPEncFrame *next;
 +    int queued;
++
++    VENC_ROI_ATTR_S *roi_attr;
 +} ESMPPEncFrame;
 +
 +typedef struct ESMPPEncContext {
@@ -4215,6 +4487,8 @@ index 0000000000..0b293f29eb
 +    int qp_min;
 +    int qp_max_i;
 +    int qp_min_i;
++
++    int preset;
 +    // mjpeg
 +    int qfactor;
 +    int qfactor_max;
@@ -4228,18 +4502,24 @@ index 0000000000..0b293f29eb
 +    int bg_interval;
 +    int bg_qp_delta;
 +    int vi_qp_delta;
-+    int b_frm_num;
++    int b_frm_num;  // range [1,3]
 +    int b_qp_delta;
 +    int i_qp_delta;
 +
 +    // protocal
 +    int enable_deblocking;
++    int insert_vui;
++    int insert_video_signal_type_at_vui;
++    int insert_sar_at_vui;
 +    char *mastering_display;
 +    char *content_light;
 +
 +    // multiple dies
 +    int die_idx;
++    int device_idx;
 +
++    int max_width;
++    int max_height;
 +    // dump
 +    char *dump_path;
 +    int32_t dump_frame_enable;
@@ -4253,6 +4533,8 @@ index 0000000000..0b293f29eb
 +    time_t dump_start_time;
 +
 +    MppBufferGroupPtr frame_grp;
++
++    VENC_ROI_ATTR_S *roi_attr_pre;
 +} ESMPPEncContext;
 +
 +static const AVRational mpp_tb = {1, 1000000};
@@ -4316,11 +4598,27 @@ index 0000000000..0b293f29eb
 +         2,                                                                                                           \
 +         VE,                                                                                                          \
 +         "rc_mode"},                                                                                                  \
-+        {"CBR", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, 0, 0, VE, "rc_mode"},                                         \
-+        {"VBR", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, 0, 0, VE, "rc_mode"},                                         \
-+        {"CQP", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, 0, 0, VE, "rc_mode"},                                         \
-+        {"stat_time", "[1, 60]", OFFSET(stat_time), AV_OPT_TYPE_INT, {.i64 = 1}, 1, 60, VE, "stat_time"},             \
-+        {"start_qp", "[0, 51]", OFFSET(start_qp), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 51, VE, "start_qp"},              \
++        {"cbr", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 0}, 0, 0, VE, "rc_mode"},                                         \
++        {"vbr", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 1}, 0, 0, VE, "rc_mode"},                                         \
++        {"cqp", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = 2}, 0, 0, VE, "rc_mode"},                                         \
++        {"stat_time",                                                                                                 \
++         "Bit rate statistical time in second[1, 60]",                                                                \
++         OFFSET(stat_time),                                                                                           \
++         AV_OPT_TYPE_INT,                                                                                             \
++         {.i64 = 1},                                                                                                  \
++         1,                                                                                                           \
++         60,                                                                                                          \
++         VE,                                                                                                          \
++         "stat_time"},                                                                                                \
++        {"start_qp",                                                                                                  \
++         "Start QP value of the frame that is being encoded.[0, 51]",                                                 \
++         OFFSET(start_qp),                                                                                            \
++         AV_OPT_TYPE_INT,                                                                                             \
++         {.i64 = -1},                                                                                                 \
++         -1,                                                                                                          \
++         51,                                                                                                          \
++         VE,                                                                                                          \
++         "start_qp"},                                                                                                 \
 +        {"dump_path", "dump directory", OFFSET(dump_path), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},              \
 +        {"frame_dump", "frame dump enable", OFFSET(dump_frame_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VE},        \
 +        {"packet_dump", "packet dump enable", OFFSET(dump_pkt_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VE},        \
@@ -4332,40 +4630,63 @@ index 0000000000..0b293f29eb
 +         0,                                                                                                           \
 +         INT_MAX,                                                                                                     \
 +         VE},                                                                                                         \
-+    {                                                                                                                 \
-+        "packet_dump_time", "the time length of dumpping packet", OFFSET(dump_pkt_time), AV_OPT_TYPE_INT, {.i64 = 0}, \
-+            0, INT_MAX, VE                                                                                            \
++        {"packet_dump_time",                                                                                          \
++         "the time length of dumpping packet",                                                                        \
++         OFFSET(dump_pkt_time),                                                                                       \
++         AV_OPT_TYPE_INT,                                                                                             \
++         {.i64 = 0},                                                                                                  \
++         0,                                                                                                           \
++         INT_MAX,                                                                                                     \
++         VE},                                                                                                         \
++        {"max_width", "set the max width", OFFSET(max_width), AV_OPT_TYPE_INT, {.i64 = 0}, 0, MAX_WIDTH_VIDEO, VE}, { \
++        "max_height", "set the max height", OFFSET(max_height), AV_OPT_TYPE_INT, {.i64 = 0}, 0, MAX_HEIGHT_VIDEO, VE  \
 +    }
 +
-+#define ESMPP_ENC_VIDEO_COMMON_OPTS                                                                       \
-+    {"bitdepth",                                                                                          \
-+     "Bitdepth. 8=8-bit, 10=10-bit.",                                                                     \
-+     OFFSET(bitdepth),                                                                                    \
-+     AV_OPT_TYPE_INT,                                                                                     \
-+     {.i64 = -1},                                                                                         \
-+     -1,                                                                                                  \
-+     BIT_DEPTH_10BIT,                                                                                     \
-+     VE,                                                                                                  \
-+     "bitdepth"},                                                                                         \
-+        {"enable_deblock",                                                                                \
-+         "Enable deblock filter",                                                                         \
-+         OFFSET(enable_deblocking),                                                                       \
-+         AV_OPT_TYPE_INT,                                                                                 \
-+         {.i64 = -1},                                                                                     \
-+         -1,                                                                                              \
-+         1,                                                                                               \
-+         VE},                                                                                             \
-+        {"mastering_display",                                                                             \
-+         "mastering_display 'R(x,y)G(x,y)B(x,y)WP(x,y)L(x,y)'",                                           \
-+         OFFSET(mastering_display),                                                                       \
-+         AV_OPT_TYPE_STRING,                                                                              \
-+         {.str = NULL},                                                                                   \
-+         0,                                                                                               \
-+         0,                                                                                               \
-+         VE},                                                                                             \
-+    {                                                                                                     \
-+        "content_light", "content_light 'maxcll:N,maxfall:N'", OFFSET(content_light), AV_OPT_TYPE_STRING, \
-+            {.str = NULL}, 0, 0, VE                                                                       \
++#define ESMPP_ENC_VIDEO_COMMON_OPTS                                                                                \
++    {"bitdepth",                                                                                                   \
++     "Bitdepth. 8=8-bit, 10=10-bit.",                                                                              \
++     OFFSET(bitdepth),                                                                                             \
++     AV_OPT_TYPE_INT,                                                                                              \
++     {.i64 = -1},                                                                                                  \
++     -1,                                                                                                           \
++     BIT_DEPTH_10BIT,                                                                                              \
++     VE,                                                                                                           \
++     "bitdepth"},                                                                                                  \
++        {"enable_deblock",                                                                                         \
++         "Enable deblock filter",                                                                                  \
++         OFFSET(enable_deblocking),                                                                                \
++         AV_OPT_TYPE_INT,                                                                                          \
++         {.i64 = -1},                                                                                              \
++         -1,                                                                                                       \
++         1,                                                                                                        \
++         VE},                                                                                                      \
++        {"mastering_display",                                                                                      \
++         "mastering_display 'R(x,y)G(x,y)B(x,y)WP(x,y)L(x,y)'",                                                    \
++         OFFSET(mastering_display),                                                                                \
++         AV_OPT_TYPE_STRING,                                                                                       \
++         {.str = NULL},                                                                                            \
++         0,                                                                                                        \
++         0,                                                                                                        \
++         VE},                                                                                                      \
++        {"content_light",                                                                                          \
++         "content_light 'maxcll:N,maxfall:N'",                                                                     \
++         OFFSET(content_light),                                                                                    \
++         AV_OPT_TYPE_STRING,                                                                                       \
++         {.str = NULL},                                                                                            \
++         0,                                                                                                        \
++         0,                                                                                                        \
++         VE},                                                                                                      \
++        {"insert_vui", "enable/disable insert vui", OFFSET(insert_vui), AV_OPT_TYPE_INT, {.i64 = 1}, 0, 1, VE},    \
++        {"insert_video_signal_type_at_vui",                                                                        \
++         "insert video signal type at vui",                                                                        \
++         OFFSET(insert_video_signal_type_at_vui),                                                                  \
++         AV_OPT_TYPE_INT,                                                                                          \
++         {.i64 = 1},                                                                                               \
++         0,                                                                                                        \
++         1,                                                                                                        \
++         VE},                                                                                                      \
++    {                                                                                                              \
++        "insert_sar_at_vui", "insert sar at vui", OFFSET(insert_sar_at_vui), AV_OPT_TYPE_INT, {.i64 = 1}, 0, 1, VE \
 +    }
 +
 +#define ESMPP_ENC_VIDEO_GOP_OPTS                                                                                     \
@@ -4375,7 +4696,7 @@ index 0000000000..0b293f29eb
 +     AV_OPT_TYPE_INT,                                                                                                \
 +     {.i64 = VENC_GOPMODE_NORMALP},                                                                                  \
 +     VENC_GOPMODE_NORMALP,                                                                                           \
-+     VENC_GOPMODE_BUTT,                                                                                              \
++     VENC_GOPMODE_LOWDELAYB,                                                                                         \
 +     VE,                                                                                                             \
 +     "gop_mode"},                                                                                                    \
 +        {"ip_qp_delta",                                                                                              \
@@ -4432,15 +4753,6 @@ index 0000000000..0b293f29eb
 +         51,                                                                                                         \
 +         VE,                                                                                                         \
 +         "vi_qp_delta"},                                                                                             \
-+        {"b_frm_num",                                                                                                \
-+         "[1,3]; Number of B frames.",                                                                               \
-+         OFFSET(b_frm_num),                                                                                          \
-+         AV_OPT_TYPE_INT,                                                                                            \
-+         {.i64 = 2},                                                                                                 \
-+         1,                                                                                                          \
-+         3,                                                                                                          \
-+         VE,                                                                                                         \
-+         "b_frm_num"},                                                                                               \
 +        {"b_qp_delta",                                                                                               \
 +         "[-51,51]; QP variance between P frame and B frame.",                                                       \
 +         OFFSET(b_qp_delta),                                                                                         \
@@ -4457,9 +4769,9 @@ index 0000000000..0b293f29eb
 +
 +#define ESMPP_ENC_VIDEO_RC_OPTS                                                                                      \
 +    {"cpb_size", "[10, 800000]", OFFSET(cpb_size), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 800000, VE, "cpb_size"},        \
-+        {"iqp", "[0, 51]", OFFSET(iqp), AV_OPT_TYPE_INT, {.i64 = 30}, 0, 51, VE, "iqp"},                             \
-+        {"pqp", "[0, 51]", OFFSET(pqp), AV_OPT_TYPE_INT, {.i64 = 32}, 0, 51, VE, "pqp"},                             \
-+        {"bqp", "[0, 51]", OFFSET(bqp), AV_OPT_TYPE_INT, {.i64 = 32}, 0, 51, VE, "bqp"},                             \
++        {"iqp", "Set qp of I-frame", OFFSET(iqp), AV_OPT_TYPE_INT, {.i64 = 30}, 0, 51, VE, "iqp"},                   \
++        {"pqp", "Set qp of P-frame", OFFSET(pqp), AV_OPT_TYPE_INT, {.i64 = 32}, 0, 51, VE, "pqp"},                   \
++        {"bqp", "Set qp of B-frame", OFFSET(bqp), AV_OPT_TYPE_INT, {.i64 = 32}, 0, 51, VE, "bqp"},                   \
 +        {"iprop",                                                                                                    \
 +         "[50, 100]: Set ratio of I-frames to P-frames",                                                             \
 +         OFFSET(iprop),                                                                                              \
@@ -4511,7 +4823,7 @@ index 0000000000..0b293f29eb
 +     OFFSET(profile),
 +     AV_OPT_TYPE_INT,
 +     {.i64 = PROFILE_H264_HIGH},
-+     -1,
++     PROFILE_H264_BASELINE,
 +     PROFILE_H264_HIGH10,
 +     VE,
 +     "profile"},
@@ -4556,6 +4868,19 @@ index 0000000000..0b293f29eb
 +    ESMPP_ENC_VIDEO_GOP_OPTS,
 +    ESMPP_ENC_COMMON_OPTS,
 +    ESMPP_ENC_VIDEO_COMMON_OPTS,
++    {"preset",
++     "Set the encoding preset",
++     OFFSET(preset),
++     AV_OPT_TYPE_INT,
++     {.i64 = MPP_ENC_PRESET_DEFAULT},
++     MPP_ENC_PRESET_DEFAULT,
++     MPP_ENC_PRESET_SLOW,
++     VE,
++     "preset"},
++    {"default", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = MPP_ENC_PRESET_DEFAULT}, INT_MIN, INT_MAX, VE, "preset"},
++    {"fast", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = MPP_ENC_PRESET_FAST}, INT_MIN, INT_MAX, VE, "preset"},
++    {"medium", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = MPP_ENC_PRESET_MEDIUM}, INT_MIN, INT_MAX, VE, "preset"},
++    {"slow", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = MPP_ENC_PRESET_SLOW}, INT_MIN, INT_MAX, VE, "preset"},
 +    {"profile",
 +     "Set the encoding profile",
 +     OFFSET(profile),
@@ -4651,7 +4976,7 @@ index 0000000000..0b293f29eb
 +    NULL,
 +};
 +
-+static const FFCodecDefault esmpp_enc_defaults[] = {{"b", "2M"}, {"g", "75"}, {NULL}};
++static const FFCodecDefault esmpp_enc_defaults[] = {{"b", "2M"}, {"g", "75"}, {"bf", "2"}, {NULL}};
 +
 +#define DEFINE_ESMPP_ENCODER(x, X, xx)                                                 \
 +    static const AVClass x##_esmpp_encoder_class = {                                   \
@@ -4720,13 +5045,41 @@ index cf2f355c89..6dca379b97 100644
      fs->parent = parent;
 diff --git a/libavfilter/vf_esmpp_common.c b/libavfilter/vf_esmpp_common.c
 new file mode 100644
-index 0000000000..2f53fdf375
+index 0000000000..d6039711f0
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_common.c
-@@ -0,0 +1,595 @@
+@@ -0,0 +1,677 @@
 +#include "vf_esmpp_common.h"
 +
 +#define MAX_FILE_PATH (200)
++
++static inline void set_id_used(int id, uint32_t *id_bitmap) {
++    id_bitmap[id / BITS_PER_UNIT] |= (1U << (id % BITS_PER_UNIT));
++}
++
++static inline void clear_id_used(int id, uint32_t *id_bitmap) {
++    id_bitmap[id / BITS_PER_UNIT] &= ~(1U << (id % BITS_PER_UNIT));
++}
++
++static inline int is_id_used(int id, uint32_t *id_bitmap) {
++    return (id_bitmap[id / BITS_PER_UNIT] & (1U << (id % BITS_PER_UNIT))) != 0;
++}
++
++int allocate_min_id(uint32_t *id_bitmap) {
++    for (int i = 0; i < MAX_ID; i++) {
++        if (!is_id_used(i, id_bitmap)) {
++            set_id_used(i, id_bitmap);
++            return i;
++        }
++    }
++    return -1;
++}
++
++void release_id(int id, uint32_t *id_bitmap) {
++    if (id >= 0 && id < MAX_ID) {
++        clear_id_used(id, id_bitmap);
++    }
++}
 +
 +ES_BOOL write_buffer_to_file(const void *buffer,
 +                             ES_S32 size,
@@ -5183,14 +5536,8 @@ index 0000000000..2f53fdf375
 +        ret = FAILURE;
 +        goto exit;
 +    }
-+    output_frame_size = get_pic_buf_info(frame_fmt,
-+                                         width,
-+                                         height,
-+                                         get_alignment_by_format(frame_fmt),
-+                                         2,
-+                                         stride,
-+                                         offset,
-+                                         &plane);
++    output_frame_size =
++        get_pic_buf_info(frame_fmt, width, height, get_alignment_by_format(frame_fmt), 2, stride, offset, &plane);
 +    av_log(ctx,
 +           AV_LOG_TRACE,
 +           "dst_frame info size:%ld plane:%d stride:%d-%d-%d, offset:%d-%d-%d fmt:%d.\n",
@@ -5319,19 +5666,81 @@ index 0000000000..2f53fdf375
 +           offset[3]);
 +    return SUCCESS;
 +}
++
++int init_hwcontext_buf(AVFilterLink *filterlink,
++                       AVBufferRef **hw_device_ref,
++                       AVBufferRef **hw_frm_ref,
++                       int pixelfmt,
++                       int device_idx,
++                       int die_idx) {
++    AVFilterContext *ctx = filterlink->dst;
++    AVHWFramesContext *hwfc = NULL;
++    AVHWDeviceContext *hwdev;
++    AVESMPPDeviceContext *hwctx;
++    AVBufferRef *hw_device_ref_p, *hw_frm_ref_p;
++    int flags = MPP_BUFFER_TYPE_DMA_HEAP;
++    int ret = 0;
++
++    if (*hw_frm_ref) {
++        return 0;
++    }
++
++    if ((ret = av_hwdevice_ctx_create(&hw_device_ref_p, AV_HWDEVICE_TYPE_ESMPP, "esmpp", NULL, flags)) < 0) {
++        av_log(ctx, AV_LOG_ERROR, "Failed to create a ESMPP hardware device: %d\n", ret);
++        goto err;
++    }
++
++    hw_frm_ref_p = av_hwframe_ctx_alloc(hw_device_ref_p);
++    if (!hw_frm_ref_p) {
++        av_log(ctx, AV_LOG_ERROR, "av_hwframe_ctx_alloc failed \n");
++        goto err;
++    }
++
++    hwfc = (AVHWFramesContext *)hw_frm_ref_p->data;
++    hwfc->format = AV_PIX_FMT_DRM_PRIME;
++    hwfc->sw_format = pixelfmt;
++
++    hwfc->width = filterlink->w;
++    hwfc->height = filterlink->h;
++
++    hwdev = hwfc->device_ctx;
++    hwctx = hwdev->hwctx;
++    hwctx->die_idx = die_idx;
++    hwctx->device_idx = device_idx;
++    av_log(ctx, AV_LOG_INFO, "%s set device: %d, die_idx: %d.\n", __func__, device_idx, die_idx);
++    if ((ret = av_hwframe_ctx_init(hw_frm_ref_p)) < 0) {
++        av_log(ctx, AV_LOG_ERROR, "Failed to init ESMPP frame pool\n");
++        goto err;
++    }
++
++    *hw_device_ref = hw_device_ref_p;
++    *hw_frm_ref = hw_frm_ref_p;
++
++    return ret;
++err:
++    if (hw_frm_ref_p) {
++        av_buffer_unref(&hw_frm_ref_p);
++    }
++    if (hw_device_ref_p) {
++        av_buffer_unref(&hw_device_ref_p);
++    }
++    return ret;
++}
 \ No newline at end of file
 diff --git a/libavfilter/vf_esmpp_common.h b/libavfilter/vf_esmpp_common.h
 new file mode 100644
-index 0000000000..535bd8d5f0
+index 0000000000..1979aac1d0
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_common.h
-@@ -0,0 +1,129 @@
+@@ -0,0 +1,148 @@
 +#ifndef VF_ESMPP_COMMON
 +#define VF_ESMPP_COMMON
 +
 +#include <stdio.h>
 +#include <string.h>
 +#include <dlfcn.h>
++#include <stdint.h>
++#include <limits.h>
 +#include "libavutil/avstring.h"
 +#include "libavutil/common.h"
 +#include "libavutil/hwcontext.h"
@@ -5398,7 +5807,17 @@ index 0000000000..535bd8d5f0
 +    int rand_logo_sent;
 +    int rand_logo_pos;
 +    RECT_S disp_rect;
++
++    int die_idx;
++    int device_idx;
 +} MppFilterContext;
++
++#define MAX_ID 1024  // max id
++#define BITS_PER_UNIT (sizeof(uint32_t) * CHAR_BIT)
++
++int allocate_min_id(uint32_t *id_bitmap);
++
++void release_id(int id, uint32_t *id_bitmap);
 +
 +ES_BOOL write_buffer_to_file(const void *buffer,
 +                             ES_S32 size,
@@ -5454,14 +5873,21 @@ index 0000000000..535bd8d5f0
 +int esmpp_stack_get_offset_stride(
 +    const AVFrame *in, enum AVPixelFormat fmt, int *stride, int *offset, uint32_t *pic_size);
 +
++int init_hwcontext_buf(AVFilterLink *filterlink,
++                       AVBufferRef **hw_device_ref,
++                       AVBufferRef **hw_frm_ref,
++                       int pixelfmt,
++                       int device_idx,
++                       int die_idx);
++
 +#endif
 \ No newline at end of file
 diff --git a/libavfilter/vf_esmpp_complex.c b/libavfilter/vf_esmpp_complex.c
 new file mode 100644
-index 0000000000..3d75a10d4c
+index 0000000000..1b6965c599
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_complex.c
-@@ -0,0 +1,1103 @@
+@@ -0,0 +1,1080 @@
 +#include <stdio.h>
 +#include <string.h>
 +#include <dlfcn.h>
@@ -5474,6 +5900,7 @@ index 0000000000..3d75a10d4c
 +#include "libavutil/pixdesc.h"
 +#include "libavutil/pixfmt.h"
 +#include "libavutil/imgutils.h"
++#include "libavutil/time.h"
 +#include "formats.h"
 +#include "framesync.h"
 +#include "internal.h"
@@ -5511,60 +5938,20 @@ index 0000000000..3d75a10d4c
 +        AV_PIX_FMT_DRM_PRIME,
 +        AV_PIX_FMT_NONE,
 +    };
-+    return ff_set_common_formats_from_list(ctx, pixel_formats);
-+}
 +
-+static int init_hwcontext_buf(AVFilterLink *filterlink,
-+                              AVBufferRef **hw_device_ref,
-+                              AVBufferRef **hw_frm_ref,
-+                              int pixelfmt) {
-+    AVFilterContext *ctx = filterlink->dst;
-+    AVHWFramesContext *hwfc = NULL;
-+    AVESMPPFramesContext *mppfc;
-+    AVBufferRef *hw_device_ref_p, *hw_frm_ref_p;
-+    int flags = MPP_BUFFER_TYPE_DMA_HEAP;
-+    int ret = 0;
-+
-+    if (*hw_frm_ref) {
-+        return 0;
++    int ret;
++    for (int i = 0; i < ctx->nb_inputs; i++) {
++        if ((ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->inputs[i]->outcfg.formats)) < 0) {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_spaces(), &ctx->inputs[i]->outcfg.color_spaces)) < 0) {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_ranges(), &ctx->inputs[i]->outcfg.color_ranges)) < 0) {
++            return ret;
++        }
 +    }
-+
-+    if ((ret = av_hwdevice_ctx_create(&hw_device_ref_p, AV_HWDEVICE_TYPE_ESMPP, "esmpp", NULL, flags)) < 0) {
-+        av_log(ctx, AV_LOG_ERROR, "Failed to create a ESMPP hardware device: %d\n", ret);
-+        goto err;
-+    }
-+
-+    hw_frm_ref_p = av_hwframe_ctx_alloc(hw_device_ref_p);
-+    if (!hw_frm_ref_p) {
-+        av_log(ctx, AV_LOG_ERROR, "av_hwframe_ctx_alloc failed \n");
-+        goto err;
-+    }
-+
-+    hwfc = (AVHWFramesContext *)hw_frm_ref_p->data;
-+    hwfc->format = AV_PIX_FMT_DRM_PRIME;
-+    hwfc->sw_format = pixelfmt;
-+
-+    hwfc->width = filterlink->w;
-+    hwfc->height = filterlink->h;
-+
-+    mppfc = hwfc->hwctx;
-+    mppfc->die_idx = 0;  // TODO: adapt multi-dies
-+    if ((ret = av_hwframe_ctx_init(hw_frm_ref_p)) < 0) {
-+        av_log(ctx, AV_LOG_ERROR, "Failed to init ESMPP frame pool\n");
-+        goto err;
-+    }
-+
-+    *hw_device_ref = hw_device_ref_p;
-+    *hw_frm_ref = hw_frm_ref_p;
-+
-+    return ret;
-+err:
-+    if (hw_frm_ref_p) {
-+        av_buffer_unref(&hw_frm_ref_p);
-+    }
-+    if (hw_device_ref_p) {
-+        av_buffer_unref(&hw_device_ref_p);
-+    }
++    ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->outputs[0]->incfg.formats);
 +    return ret;
 +}
 +
@@ -5579,6 +5966,8 @@ index 0000000000..3d75a10d4c
 +    s->src_global_alpha = -1;
 +    s->dst_global_alpha = -1;
 +    s->nb_inputs = 1;
++    s->device_idx = -1;
++    s->die_idx = 0;
 +    if (s->enable_logo) {
 +        s->blend_mode_set = 4;
 +        s->rand_logo_frames = 0;
@@ -5967,6 +6356,7 @@ index 0000000000..3d75a10d4c
 +            if (ctx->inputs[1] && s->rand_logo_duration > 0) {
 +                s->rand_logo_count--;
 +                if (s->rand_logo_count <= 0) {
++                    srand(av_gettime());
 +                    s->rand_logo_count = s->rand_logo_frames;
 +                    s->rand_logo_sent = 0;
 +                    s->rand_logo_pos = rand() & 0x3;
@@ -6104,7 +6494,8 @@ index 0000000000..3d75a10d4c
 +                                                    s->dst_rotation,
 +                                                    s->dst_global_alpha,
 +                                                    s->out_fmt,
-+                                                    s->buf_grp) < 0) {
++                                                    s->buf_grp)
++                          < 0) {
 +                    av_log(ctx, AV_LOG_ERROR, "snap shot clone frame failed. ret = %d\n", ret);
 +                    goto exit0;
 +                } else {
@@ -6151,8 +6542,9 @@ index 0000000000..3d75a10d4c
 +            return ret;
 +        }
 +    }
++    ret = esmpp_complex_filter_frame(ctx->nb_inputs, ctx->inputs, in);
 +
-+    return esmpp_complex_filter_frame(ctx->nb_inputs, ctx->inputs, in);
++    return ret;
 +}
 +
 +static int complex_init_output_bufgroup(AVFilterLink *outlink) {
@@ -6164,7 +6556,8 @@ index 0000000000..3d75a10d4c
 +    if (inlink->hw_frames_ctx) {
 +        AVHWFramesContext *hwfc = NULL;
 +        AVESMPPFramesContext *mppfc;
-+        ret = init_hwcontext_buf(outlink, &s->out_hw_device_ref, &s->out_hw_frm_ref, s->out_fmt);
++        ret = init_hwcontext_buf(
++            outlink, &s->out_hw_device_ref, &s->out_hw_frm_ref, s->out_fmt, s->device_idx, s->die_idx);
 +        if (ret) {
 +            return ret;
 +        }
@@ -6223,7 +6616,7 @@ index 0000000000..3d75a10d4c
 +    ES_DOUBLE in_frame_rate = 0.0;
 +
 +    // for blend: clip/o_w/0_h work for dst frame, other opt for src frame.
-+    if (!inlink_overlay) {
++    if (ctx->nb_inputs == 1) {
 +        s->src_rect.x = 0;
 +        s->src_rect.y = 0;
 +        s->src_rect.width = inlink_main->w;
@@ -6290,11 +6683,20 @@ index 0000000000..3d75a10d4c
 +    }
 +
 +    if (inlink_main->format == AV_PIX_FMT_DRM_PRIME && inlink_main->hw_frames_ctx) {
-+        AVHWFramesContext *input_hw_frm_ctx = (AVHWFramesContext *)inlink_main->hw_frames_ctx->data;
++        AVHWFramesContext *input_hw_frm_ctx = NULL;
++        AVHWDeviceContext *hwdev = NULL;
++        AVESMPPDeviceContext *hwctx = NULL;
++        input_hw_frm_ctx = (AVHWFramesContext *)inlink_main->hw_frames_ctx->data;
 +        s->in_fmt = input_hw_frm_ctx->sw_format;
 +        set_output_fmt(s);
 +        outlink->format = inlink_main->format;
 +        adjust_width_height_by_format(s->out_fmt, &outlink->w, &outlink->h);
++
++        hwdev = input_hw_frm_ctx->device_ctx;
++        hwctx = hwdev->hwctx;
++        s->die_idx = hwctx->die_idx;
++        s->device_idx = hwctx->device_idx;
++        av_log(ctx, AV_LOG_INFO, "%s set device: %d, die_idx: %d.\n", __func__, s->device_idx, s->die_idx);
 +
 +        if (!s->buf_grp) {
 +            complex_init_output_bufgroup(outlink);
@@ -6358,6 +6760,7 @@ index 0000000000..3d75a10d4c
 +        s->disp_rect.width = s->src_rect.width;
 +        s->disp_rect.height = s->src_rect.height;
 +    }
++
 +    return SUCCESS;
 +}
 +
@@ -6567,10 +6970,10 @@ index 0000000000..3d75a10d4c
 +};
 diff --git a/libavfilter/vf_stack_esmpp.c b/libavfilter/vf_stack_esmpp.c
 new file mode 100644
-index 0000000000..8c2c7368f2
+index 0000000000..602b2368d7
 --- /dev/null
 +++ b/libavfilter/vf_stack_esmpp.c
-@@ -0,0 +1,1381 @@
+@@ -0,0 +1,1412 @@
 +#include "config_components.h"
 +
 +#include "libavutil/opt.h"
@@ -6585,6 +6988,7 @@ index 0000000000..8c2c7368f2
 +#include "libavutil/mathematics.h"
 +#include "libavutil/parseutils.h"
 +#include "libavutil/pixfmt.h"
++#include "libavutil/time.h"
 +
 +#include "internal.h"
 +#include "filters.h"
@@ -6612,13 +7016,8 @@ index 0000000000..8c2c7368f2
 +typedef struct _ESMPPContext {
 +    MppBufferGroupPtr buf_grp;
 +
-+    AVBufferRef *hw_device_ref;
-+    AVBufferRef *in_hw_frame_ref;
 +    AVBufferRef *out_hw_frame_ref;
-+
-+    AVESMPPFramesContext *hw_dev_ctx;
-+    AVHWFramesContext *in_hw_frame_ctx;
-+    AVHWFramesContext *out_hw_frame_ctx;
++    AVBufferRef *out_hw_device_ref;
 +
 +    int nb_inputs;
 +
@@ -6627,6 +7026,9 @@ index 0000000000..8c2c7368f2
 +    enum AVPixelFormat format;
 +    int output_width;
 +    int output_height;
++
++    int die_idx;
++    int device_idx;
 +} ESMPPContext;
 +
 +#define ESMPP_STACK_DUMP (0)
@@ -6781,6 +7183,7 @@ index 0000000000..8c2c7368f2
 +    if (s->rand_logo_duration > 0) {  // random logo
 +        s->rand_logo_count--;
 +        if (s->rand_logo_count <= 0) {
++            srand(av_gettime());
 +            s->rand_logo_count = s->rand_logo_frames;
 +            s->rand_logo_sent = 0;
 +            s->rand_logo_pos = rand() & 0x3;
@@ -7001,7 +7404,7 @@ index 0000000000..8c2c7368f2
 +               offset[1],
 +               offset[2]);
 +
-+        if (esctx->out_hw_frame_ctx && oframe->buf[0]) {
++        if (esctx->out_hw_frame_ref && oframe->buf[0]) {
 +            dst_mpp_buf = (MppBufferPtr)oframe->buf[0]->data;
 +            if (!dst_mpp_buf) {
 +                av_log(ctx, AV_LOG_ERROR, "dst_mpp_buf is NULL\n");
@@ -7020,7 +7423,7 @@ index 0000000000..8c2c7368f2
 +        mpp_frame_set_buffer(dst_mpp_frame, dst_mpp_buf);
 +        mpp_frame_set_buf_size(dst_mpp_frame, output_frame_size);
 +
-+        if (esctx->out_hw_frame_ctx) {
++        if (esctx->out_hw_frame_ref) {
 +            esmpp_buffer_export_frame(out, dst_mpp_frame, plane, offset, stride);
 +        } else {
 +            buf = av_buffer_create(mpp_buffer_get_ptr(dst_mpp_buf),
@@ -7159,9 +7562,11 @@ index 0000000000..8c2c7368f2
 +        ret = ff_filter_frame(outlink, frame);
 +        if (ret >= 0) {
 +            s->snap_cnt++;
-+            av_log(avctx, AV_LOG_DEBUG, "stack snap send success.out cnt:%d, snap cnt:%d\n",s->out_cnt, s->snap_cnt);
++            av_log(avctx, AV_LOG_DEBUG, "stack snap send success.out cnt:%d, snap cnt:%d\n", s->out_cnt, s->snap_cnt);
 +        } else {
-+            av_log(avctx, AV_LOG_ERROR, "stack snap send failed. ret:%d, out cnt:%d, snap cnt:%d\n",
++            av_log(avctx,
++                   AV_LOG_ERROR,
++                   "stack snap send failed. ret:%d, out cnt:%d, snap cnt:%d\n",
 +                   ret,
 +                   s->out_cnt,
 +                   s->snap_cnt);
@@ -7271,11 +7676,11 @@ index 0000000000..8c2c7368f2
 +    }
 +
 +    ret = ff_filter_frame(outlink, oframe);
-+    if (ret >=0 ) {
++    if (ret >= 0) {
 +        ctx->out_cnt++;
-+        av_log(avctx, AV_LOG_DEBUG, "filter frame send success. statistic cnt:%d\n",ctx->out_cnt);
++        av_log(avctx, AV_LOG_DEBUG, "filter frame send success. statistic cnt:%d\n", ctx->out_cnt);
 +    } else {
-+        av_log(avctx, AV_LOG_ERROR, "filter frame send failed in frame num:%d ret:%d\n",ctx->out_cnt, ret);
++        av_log(avctx, AV_LOG_ERROR, "filter frame send failed in frame num:%d ret:%d\n", ctx->out_cnt, ret);
 +    }
 +
 +    bneed_snap = ctx->snap_interval ? 0 == ctx->out_cnt % ctx->snap_interval : ES_FALSE;
@@ -7292,7 +7697,8 @@ index 0000000000..8c2c7368f2
 +                                                ROTATION_0,
 +                                                -1,
 +                                                esctx->out_sw_fmt,
-+                                                esctx->buf_grp) < 0) {
++                                                esctx->buf_grp)
++                      < 0) {
 +                av_log(avctx, AV_LOG_ERROR, "snap shot clone frame failed. ret = %d\n", ret);
 +                goto exit0;
 +            } else {
@@ -7300,8 +7706,11 @@ index 0000000000..8c2c7368f2
 +                goto exit;
 +            }
 +        } else {
-+            av_log(avctx, AV_LOG_ERROR, "need snap but no snap shot outpad,snap_interval=%d, nb_outputs=%d\n",
-+                   ctx->snap_interval, avctx->nb_outputs);
++            av_log(avctx,
++                   AV_LOG_ERROR,
++                   "need snap but no snap shot outpad,snap_interval=%d, nb_outputs=%d\n",
++                   ctx->snap_interval,
++                   avctx->nb_outputs);
 +        }
 +    }
 +
@@ -7497,8 +7906,7 @@ index 0000000000..8c2c7368f2
 +    outlink->sample_aspect_ratio = inlink0->sample_aspect_ratio;
 +
 +    in_frame_rate = av_q2d(inlink0->frame_rate);
-+    av_log(ctx, AV_LOG_DEBUG, "[out1] w:%d h:%d @%.2f\n",
-+           outlink->w, outlink->h, in_frame_rate / sctx->snap_interval);
++    av_log(ctx, AV_LOG_DEBUG, "[out1] w:%d h:%d @%.2f\n", outlink->w, outlink->h, in_frame_rate / sctx->snap_interval);
 +    outlink->frame_rate = av_d2q(in_frame_rate / sctx->snap_interval, 1000);
 +
 +    av_log(ctx, AV_LOG_DEBUG, "config_output snap outlink->w: %d, snap outlink->h: %d.\n", outlink->w, outlink->h);
@@ -7516,16 +7924,53 @@ index 0000000000..8c2c7368f2
 +    return ret;
 +}
 +
++static int esmpp_init_output_bufgroup(AVFilterLink *outlink) {
++    AVFilterContext *ctx = outlink->src;
++    ESMPPContext *esctx = ctx->priv;
++    AVFilterLink *inlink0 = ctx->inputs[0];
++
++    int ret = 0;
++
++    if (inlink0->hw_frames_ctx) {
++        AVHWFramesContext *hwfc = NULL;
++        AVESMPPFramesContext *mppfc;
++        ret = init_hwcontext_buf(outlink,
++                                 &esctx->out_hw_device_ref,
++                                 &esctx->out_hw_frame_ref,
++                                 esctx->out_sw_fmt,
++                                 esctx->device_idx,
++                                 esctx->die_idx);
++        if (ret) {
++            return ret;
++        }
++
++        hwfc = (AVHWFramesContext *)esctx->out_hw_frame_ref->data;
++        mppfc = hwfc->hwctx;
++        esctx->buf_grp = mppfc->buf_group;
++        av_buffer_unref(&outlink->hw_frames_ctx);
++        outlink->hw_frames_ctx = av_buffer_ref(esctx->out_hw_frame_ref);
++    } else {
++        ret = mpp_buffer_group_get_internal(&esctx->buf_grp, MPP_BUFFER_TYPE_DMA_HEAP);
++        if (ret) {
++            av_log(ctx, AV_LOG_ERROR, "Create buffer group with type %d failed: %d.\n", MPP_BUFFER_TYPE_DMA_HEAP, ret);
++            return FAILURE;
++        }
++        ret = mpp_buffer_group_limit_config(esctx->buf_grp, 0, 0);
++        if (ret) {
++            av_log(ctx, AV_LOG_ERROR, "Limit buffer group with no limit failed: %d.\n", ret);
++            return FAILURE;
++        }
++    }
++
++    return ret;
++}
++
 +static int config_output(AVFilterLink *outlink) {
 +    AVFilterContext *ctx = outlink->src;
 +    StackESMPPContext *sctx = ctx->priv;
 +    ESMPPContext *esctx = ctx->priv;
 +    AVFilterLink *inlink0 = ctx->inputs[0];
 +    int ret;
-+
-+    AVESMPPFramesContext *hw_device_ctx = NULL;
-+    AVHWFramesContext *in_hw_frames_ctx = NULL;
-+    AVHWFramesContext *out_hw_frames_ctx = NULL;
 +
 +    av_log(ctx, AV_LOG_DEBUG, "config_output enter.\n");
 +
@@ -7547,34 +7992,13 @@ index 0000000000..8c2c7368f2
 +    if (ret < 0) return ret;
 +
 +    if (inlink0->format == AV_PIX_FMT_DRM_PRIME && inlink0->hw_frames_ctx) {
-+        in_hw_frames_ctx = (AVHWFramesContext *)inlink0->hw_frames_ctx->data;
-+        hw_device_ctx = in_hw_frames_ctx->device_ctx->hwctx;
++        AVHWFramesContext *in_hw_frames_ctx = (AVHWFramesContext *)inlink0->hw_frames_ctx->data;
++        AVHWDeviceContext *hwdev = in_hw_frames_ctx->device_ctx;
++        AVESMPPDeviceContext *hwctx = hwdev->hwctx;
++        esctx->die_idx = hwctx->die_idx;
++        esctx->device_idx = hwctx->device_idx;
++        av_log(ctx, AV_LOG_INFO, "%s set device: %d, die_idx: %d.\n", __func__, esctx->device_idx, esctx->die_idx);
 +
-+        av_log(ctx, AV_LOG_DEBUG, "config_output hw mode!\n");
-+
-+        esctx->in_hw_frame_ref = av_buffer_ref(inlink0->hw_frames_ctx);
-+        esctx->hw_device_ref = av_buffer_ref(in_hw_frames_ctx->device_ref);
-+
-+        esctx->hw_dev_ctx = hw_device_ctx;
-+        esctx->in_hw_frame_ctx = in_hw_frames_ctx;
-+
-+        av_buffer_unref(&esctx->out_hw_frame_ref);
-+        esctx->out_hw_frame_ref = av_hwframe_ctx_alloc(esctx->hw_device_ref);
-+        if (!esctx->out_hw_frame_ref) {
-+            av_log(ctx, AV_LOG_ERROR, "av_hwframe_ctx_alloc failed \n");
-+            if (!esctx->in_hw_frame_ref) av_buffer_unref(&esctx->in_hw_frame_ref);
-+            if (!esctx->out_hw_frame_ref) av_buffer_unref(&esctx->out_hw_frame_ref);
-+            if (!esctx->hw_device_ref) av_buffer_unref(&esctx->hw_device_ref);
-+            return AVERROR(EINVAL);
-+        }
-+        out_hw_frames_ctx = (AVHWFramesContext *)esctx->out_hw_frame_ref->data;
-+        esctx->out_hw_frame_ctx = out_hw_frames_ctx;
-+        out_hw_frames_ctx->format = AV_PIX_FMT_DRM_PRIME;
-+        out_hw_frames_ctx->sw_format = esctx->in_sw_fmt[0];
-+        out_hw_frames_ctx->width = outlink->w;
-+        out_hw_frames_ctx->height = outlink->h;
-+        av_buffer_unref(&outlink->hw_frames_ctx);
-+        outlink->hw_frames_ctx = av_buffer_ref(esctx->out_hw_frame_ref);
 +        outlink->format = inlink0->format;
 +        esctx->out_sw_fmt = esctx->in_sw_fmt[0];
 +    } else {
@@ -7582,6 +8006,7 @@ index 0000000000..8c2c7368f2
 +        outlink->format = esctx->out_sw_fmt;
 +        adjust_width_height_by_format(esctx->out_sw_fmt, &outlink->w, &outlink->h);
 +    }
++    esmpp_init_output_bufgroup(outlink);
 +
 +    for (int i = 0; i < sctx->nb_inputs; i++) {
 +        av_log(ctx,
@@ -7660,7 +8085,6 @@ index 0000000000..8c2c7368f2
 +        sctx->snap_cnt = 0;
 +    }
 +    sctx->out_cnt = 0;
-+
 +    return 0;
 +}
 +
@@ -7675,12 +8099,10 @@ index 0000000000..8c2c7368f2
 +    s = (StackESMPPContext *)ctx->priv;
 +    esctx = (ESMPPContext *)ctx->priv;
 +
-+    esctx->hw_device_ref = NULL;
-+    esctx->in_hw_frame_ref = NULL;
 +    esctx->out_hw_frame_ref = NULL;
-+    esctx->hw_dev_ctx = NULL;
-+    esctx->in_hw_frame_ctx = NULL;
-+    esctx->out_hw_frame_ctx = NULL;
++    esctx->out_hw_device_ref = NULL;
++    esctx->device_idx = -1;
++    esctx->die_idx = 0;
 +
 +    ret = esmpp_stack_init_parse(ctx);
 +    if (ret) return ret;
@@ -7750,15 +8172,13 @@ index 0000000000..8c2c7368f2
 +    if (s->regions) {
 +        av_freep(&s->regions);
 +    }
-+    if (esctx->in_hw_frame_ref) {
-+        av_buffer_unref(&esctx->in_hw_frame_ref);
-+    }
 +    if (esctx->out_hw_frame_ref) {
 +        av_buffer_unref(&esctx->out_hw_frame_ref);
 +    }
-+    if (esctx->hw_device_ref) {
-+        av_buffer_unref(&esctx->hw_device_ref);
++    if (esctx->out_hw_device_ref) {
++        av_buffer_unref(&esctx->out_hw_device_ref);
 +    }
++
 +    if (esctx->buf_grp) {
 +        mpp_buffer_group_put(esctx->buf_grp);
 +        esctx->buf_grp = NULL;
@@ -7766,6 +8186,7 @@ index 0000000000..8c2c7368f2
 +    if (esctx->in_sw_fmt) av_freep(&esctx->in_sw_fmt);
 +    if (s->in) av_freep(&s->in);
 +    if (s->regions) av_freep(&s->regions);
++
 +    av_log(ctx, AV_LOG_DEBUG, "esmpp_stack_uninit exit.\n");
 +}
 +
@@ -7790,7 +8211,20 @@ index 0000000000..8c2c7368f2
 +        AV_PIX_FMT_DRM_PRIME,
 +        AV_PIX_FMT_NONE,
 +    };
-+    return ff_set_common_formats_from_list(ctx, pixel_formats);
++    int ret;
++    for (int i = 0; i < ctx->nb_inputs; i++) {
++        if ((ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->inputs[i]->outcfg.formats)) < 0) {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_spaces(), &ctx->inputs[i]->outcfg.color_spaces)) < 0) {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_ranges(), &ctx->inputs[i]->outcfg.color_ranges)) < 0) {
++            return ret;
++        }
++    }
++    ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->outputs[0]->incfg.formats);
++    return ret;
 +}
 +
 +static int stack_activate(AVFilterContext *avctx) {
@@ -7834,7 +8268,7 @@ index 0000000000..8c2c7368f2
 +     "snapshot interval (number of frames).",
 +     OFFSET(snap_interval),
 +     AV_OPT_TYPE_INT,
-+     {.i64 = 0 },
++     {.i64 = 0},
 +     0,
 +     INT_MAX,
 +     FLAGS},
@@ -7952,7 +8386,6 @@ index 0000000000..8c2c7368f2
 +    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 +    .flags = AVFILTER_FLAG_DYNAMIC_INPUTS | FF_FILTER_FLAG_HWFRAME_AWARE,
 +};
-\ No newline at end of file
 diff --git a/libavutil/Makefile b/libavutil/Makefile
 index 6e6fa8d800..7fcb0fd9e8 100644
 --- a/libavutil/Makefile
@@ -8009,10 +8442,10 @@ index bac30debae..24f8e2eba9 100644
  /**
 diff --git a/libavutil/hwcontext_esmpp.c b/libavutil/hwcontext_esmpp.c
 new file mode 100644
-index 0000000000..37254a114e
+index 0000000000..50b34abc66
 --- /dev/null
 +++ b/libavutil/hwcontext_esmpp.c
-@@ -0,0 +1,638 @@
+@@ -0,0 +1,658 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -8213,6 +8646,8 @@ index 0000000000..37254a114e
 +static int esmpp_device_create(AVHWDeviceContext *hwdev, const char *device, AVDictionary *opts, int flags) {
 +    AVESMPPDeviceContext *hwctx = hwdev->hwctx;
 +    AVDictionaryEntry *opt_d = NULL;
++    hwctx->device_idx = -1;
++    hwctx->die_idx = 0;
 +
 +    hwctx->flags = flags;
 +
@@ -8221,6 +8656,26 @@ index 0000000000..37254a114e
 +
 +    opt_d = av_dict_get(opts, "cacheable", NULL, 0);
 +    if (opt_d && !strtol(opt_d->value, NULL, 10)) hwctx->flags &= ~MPP_BUFFER_FLAGS_CACHABLE;
++
++    opt_d = av_dict_get(opts, "device_idx", NULL, 0);
++    if (opt_d) {
++        hwctx->device_idx = strtol(opt_d->value, NULL, 10);
++        if(hwctx->device_idx < 0) {
++            av_log(hwdev, AV_LOG_ERROR, "%s set device_idx: %d invalid.\n", __func__, hwctx->device_idx);
++            return -1;
++        }
++        av_log(hwdev, AV_LOG_INFO, "%s set device_idx: %d.\n", __func__, hwctx->device_idx);
++    }
++
++    opt_d = av_dict_get(opts, "die_idx", NULL, 0);
++    if (opt_d) {
++        hwctx->die_idx = strtol(opt_d->value, NULL, 10);
++        if(hwctx->die_idx < 0 || hwctx->die_idx > 1) {
++            av_log(hwdev, AV_LOG_ERROR, "%s set die_idx: %d invalid.\n", __func__, hwctx->die_idx);
++            return -1;
++        }
++        av_log(hwdev, AV_LOG_INFO, "%s set die_idx: %d.\n", __func__, hwctx->die_idx);
++    }
 +
 +    if (device) {
 +        av_log(hwdev, AV_LOG_INFO, "device(%s), flags: 0x%x\n", device, hwctx->flags);
@@ -8303,7 +8758,6 @@ index 0000000000..37254a114e
 +    int ret;
 +    AVHWFramesContext *hwfc = opaque;
 +    AVESMPPFramesContext *avfc = hwfc->hwctx;
-+    AVESMPPDeviceContext *hwctx = hwfc->device_ctx->hwctx;
 +    AVESMPPDRMFrameDescriptor *desc;
 +    AVDRMLayerDescriptor *layer;
 +    AVBufferRef *ref;
@@ -8414,7 +8868,7 @@ index 0000000000..37254a114e
 +        }
 +    }
 +
-+    buf_type = mpp_buffer_get_type(buf_type, avfc->die_idx);
++    buf_type = mpp_buffer_get_type(buf_type, hwctx->die_idx);
 +    ret = mpp_buffer_group_get_internal(&avfc->buf_group, buf_type | hwctx->flags);
 +    if (ret != MPP_OK) {
 +        av_log(hwfc, AV_LOG_ERROR, "Failed to get MPP internal buffer group: %d\n", ret);
@@ -8465,7 +8919,6 @@ index 0000000000..37254a114e
 +} ESMPPDRMMapping;
 +
 +static void esmpp_unmap_frame(AVHWFramesContext *hwfc, HWMapDescriptor *hwmap) {
-+    AVESMPPDeviceContext *hwctx = hwfc->device_ctx->hwctx;
 +    ESMPPDRMMapping *map = hwmap->priv;
 +
 +    for (int i = 0; i < map->nb_regions; i++) {
@@ -8653,10 +9106,10 @@ index 0000000000..37254a114e
 +};
 diff --git a/libavutil/hwcontext_esmpp.h b/libavutil/hwcontext_esmpp.h
 new file mode 100644
-index 0000000000..700d45efcf
+index 0000000000..907159217b
 --- /dev/null
 +++ b/libavutil/hwcontext_esmpp.h
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,83 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -8723,7 +9176,6 @@ index 0000000000..700d45efcf
 +    AVESMPPDRMFrameDescriptor *frames;
 +    int nb_frames;
 +    size_t buf_size;
-+    int die_idx;
 +} AVESMPPFramesContext;
 +
 +/**
@@ -8736,6 +9188,8 @@ index 0000000000..700d45efcf
 +     * MPP buffer allocation flags.
 +     */
 +    int flags;
++    int die_idx;
++    int device_idx;
 +} AVESMPPDeviceContext;
 +
 +#endif /* AVUTIL_HWCONTEXT_ESMPP_H */
@@ -8751,5 +9205,5 @@ index e32b786238..2f0780c708 100644
  
  #endif /* AVUTIL_HWCONTEXT_INTERNAL_H */
 -- 
-2.45.2
+2.47.2
 

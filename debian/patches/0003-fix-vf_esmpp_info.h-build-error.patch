@@ -1,0 +1,57 @@
+From 321e9eeb693cd992696e43ce3c1c7ae8a3237ee1 Mon Sep 17 00:00:00 2001
+From: Han Gao <rabenda.cn@gmail.com>
+Date: Mon, 16 Jun 2025 16:51:09 +0800
+Subject: [PATCH 3/3] fix vf_esmpp_info.h & build error
+
+Signed-off-by: Han Gao <rabenda.cn@gmail.com>
+---
+ configure             | 4 ++--
+ libavcodec/esmppdec.c | 2 +-
+ libavcodec/esmppenc.c | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/configure b/configure
+index 7a174c66c4..9c54e26993 100755
+--- a/configure
++++ b/configure
+@@ -7184,9 +7184,9 @@ enabled esmpp               && {
+ }
+ 
+ if enabled es_report_info; then
+-    echo "#define TRANSCODE_INFO_REPORT 1" >> libavfilter/vf_esmpp_info.h
++    echo "#define TRANSCODE_INFO_REPORT 1" >> $source_path/libavfilter/vf_esmpp_info.h
+ else
+-    touch libavfilter/vf_esmpp_info.h
++    touch $source_path/libavfilter/vf_esmpp_info.h
+ fi
+ 
+ if enabled gcrypt; then
+diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
+index 6bb12efae7..040a9b45fe 100644
+--- a/libavcodec/esmppdec.c
++++ b/libavcodec/esmppdec.c
+@@ -224,7 +224,7 @@ static av_cold int mpp_decode_init(AVCodecContext *avctx) {
+     }
+ 
+     if (avctx->hw_device_ctx) {
+-        AVHWDeviceContext *hwdev = avctx->hw_device_ctx->data;
++        AVHWDeviceContext *hwdev = (AVHWDeviceContext*)(avctx->hw_device_ctx->data);
+         AVESMPPDeviceContext *hwctx = hwdev->hwctx;
+         r->die_idx = hwctx->die_idx;
+         r->device_idx = hwctx->device_idx;
+diff --git a/libavcodec/esmppenc.c b/libavcodec/esmppenc.c
+index e0d9396fe5..b38c293aa9 100644
+--- a/libavcodec/esmppenc.c
++++ b/libavcodec/esmppenc.c
+@@ -1328,7 +1328,7 @@ static int esmpp_encode_init(AVCodecContext *avctx) {
+     cxt->device_idx = -1;
+ 
+     if (avctx->hw_device_ctx) {
+-        AVHWDeviceContext *hwdev = avctx->hw_device_ctx->data;
++        AVHWDeviceContext *hwdev = (AVHWDeviceContext*)(avctx->hw_device_ctx->data);
+         AVESMPPDeviceContext *hwctx = hwdev->hwctx;
+         cxt->die_idx = hwctx->die_idx;
+         cxt->device_idx = hwctx->device_idx;
+-- 
+2.47.2
+
