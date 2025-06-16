@@ -1328,7 +1328,7 @@ static int esmpp_encode_init(AVCodecContext *avctx) {
     cxt->device_idx = -1;
 
     if (avctx->hw_device_ctx) {
-        AVHWDeviceContext *hwdev = avctx->hw_device_ctx->data;
+        AVHWDeviceContext *hwdev = (AVHWDeviceContext*)(avctx->hw_device_ctx->data);
         AVESMPPDeviceContext *hwctx = hwdev->hwctx;
         cxt->die_idx = hwctx->die_idx;
         cxt->device_idx = hwctx->device_idx;

@@ -224,7 +224,7 @@ static av_cold int mpp_decode_init(AVCodecContext *avctx) {
     }
 
     if (avctx->hw_device_ctx) {
-        AVHWDeviceContext *hwdev = avctx->hw_device_ctx->data;
+        AVHWDeviceContext *hwdev = (AVHWDeviceContext*)(avctx->hw_device_ctx->data);
         AVESMPPDeviceContext *hwctx = hwdev->hwctx;
         r->die_idx = hwctx->die_idx;
         r->device_idx = hwctx->device_idx;

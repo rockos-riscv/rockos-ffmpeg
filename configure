@@ -7184,9 +7184,9 @@ enabled esmpp               && {
 }
 
 if enabled es_report_info; then
-    echo "#define TRANSCODE_INFO_REPORT 1" >> libavfilter/vf_esmpp_info.h
+    echo "#define TRANSCODE_INFO_REPORT 1" >> $source_path/libavfilter/vf_esmpp_info.h
 else
-    touch libavfilter/vf_esmpp_info.h
+    touch $source_path/libavfilter/vf_esmpp_info.h
 fi
 
 if enabled gcrypt; then
