@@ -204,11 +204,11 @@ Build-Depends:
  nasm,
 # autodetected zlib
  zlib1g-dev,
- es-video-common (>= 1.7.0),
- es-hae (>= 1.7.0),
- es-mpp (>= 1.7.0),
- es-sdk-audio-codec (>= 1.7.0),
- es-sdk-common (>= 1.7.0),
+ es-video-common (>= 1.8.0),
+ es-hae (>= 1.8.0),
+ es-mpp (>= 1.8.0),
+ es-sdk-audio-codec (>= 1.8.0),
+ es-sdk-common (>= 1.8.0),
 
 Package: ffmpeg
 Architecture: any

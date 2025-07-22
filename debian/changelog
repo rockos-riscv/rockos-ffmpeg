@@ -1,3 +1,9 @@
+ffmpeg (7:7.0.2-3rockos12) unstable; urgency=medium
+
+  * Apply eswin patchset 20250630
+
+ -- Han Gao <rabenda.cn@gmail.com>  Mon, 21 Jul 2025 23:16:19 +0800
+
 ffmpeg (7:7.0.2-3rockos11) unstable; urgency=medium
 
   * Apply eswin patchset 20250530
