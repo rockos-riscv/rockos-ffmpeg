@@ -119,7 +119,7 @@ static int hw_device_setup_for_encode(OutputStream *ost, AVBufferRef *frames_ref
             ost->enc_ctx->hw_frames_ctx = av_buffer_ref(frames_ref);
             if (!ost->enc_ctx->hw_frames_ctx)
                 return AVERROR(ENOMEM);
-            return 0;
+            break;
         }
 
         if (!dev &&
