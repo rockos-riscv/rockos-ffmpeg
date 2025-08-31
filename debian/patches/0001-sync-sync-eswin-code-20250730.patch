@@ -1,12 +1,11 @@
-From c9f1b90e59fd8a87f82f76413f0b0e604b23961b Mon Sep 17 00:00:00 2001
+From eec0d970105cc0ca12de64ce723942b0286fb392 Mon Sep 17 00:00:00 2001
 From: Han Gao <rabenda.cn@gmail.com>
-Date: Mon, 21 Jul 2025 23:13:08 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20250630
+Date: Mon, 1 Sep 2025 00:37:36 +0800
+Subject: [PATCH 1/2] sync: sync eswin code 20250730
 
 Signed-off-by: Han Gao <rabenda.cn@gmail.com>
 ---
- build.sh                       |   42 +
- configure                      |  105 +++
+ configure                      |  105 ++
  fftools/ffmpeg.c               |   49 +
  fftools/ffmpeg_demux.c         |    6 +
  fftools/ffmpeg_enc.c           |    2 +-
@@ -16,28 +15,27 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  libavcodec/es_audio_enc.c      |  352 +++++++
  libavcodec/esmpp_comm.c        |  382 ++++++++
  libavcodec/esmpp_comm.h        |   74 ++
- libavcodec/esmppdec.c          | 1076 +++++++++++++++++++++
- libavcodec/esmppdec.h          |  243 +++++
- libavcodec/esmppenc.c          | 1460 +++++++++++++++++++++++++++++
+ libavcodec/esmppdec.c          | 1094 +++++++++++++++++++++
+ libavcodec/esmppdec.h          |  247 +++++
+ libavcodec/esmppenc.c          | 1543 ++++++++++++++++++++++++++++++
  libavcodec/esmppenc.h          |  599 ++++++++++++
  libavfilter/Makefile           |    1 +
  libavfilter/allfilters.c       |    3 +
  libavfilter/framesync.c        |    2 +-
- libavfilter/vf_esmpp_common.c  |  576 ++++++++++++
- libavfilter/vf_esmpp_common.h  |  155 ++++
- libavfilter/vf_esmpp_complex.c | 1256 +++++++++++++++++++++++++
- libavfilter/vf_stack_esmpp.c   | 1593 ++++++++++++++++++++++++++++++++
+ libavfilter/vf_esmpp_common.c  |  758 +++++++++++++++
+ libavfilter/vf_esmpp_common.h  |  173 ++++
+ libavfilter/vf_esmpp_complex.c | 1348 ++++++++++++++++++++++++++
+ libavfilter/vf_stack_esmpp.c   | 1641 ++++++++++++++++++++++++++++++++
  libavutil/Makefile             |    2 +
- libavutil/esmpp_transfer.c     |  102 ++
- libavutil/esmpp_transfer.h     |   16 +
+ libavutil/esmpp_utils.c        |  102 ++
+ libavutil/esmpp_utils.h        |   51 +
  libavutil/hwcontext.c          |    4 +
  libavutil/hwcontext.h          |    1 +
- libavutil/hwcontext_esmpp.c    |  677 ++++++++++++++
+ libavutil/hwcontext_esmpp.c    |  644 +++++++++++++
  libavutil/hwcontext_esmpp.h    |   83 ++
  libavutil/hwcontext_internal.h |    1 +
  libavutil/libavutil.v          |    2 +
- 31 files changed, 9337 insertions(+), 2 deletions(-)
- create mode 100755 build.sh
+ 30 files changed, 9742 insertions(+), 2 deletions(-)
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
  create mode 100644 libavcodec/esmpp_comm.c
@@ -50,59 +48,11 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  create mode 100644 libavfilter/vf_esmpp_common.h
  create mode 100644 libavfilter/vf_esmpp_complex.c
  create mode 100644 libavfilter/vf_stack_esmpp.c
- create mode 100644 libavutil/esmpp_transfer.c
- create mode 100644 libavutil/esmpp_transfer.h
+ create mode 100644 libavutil/esmpp_utils.c
+ create mode 100644 libavutil/esmpp_utils.h
  create mode 100644 libavutil/hwcontext_esmpp.c
  create mode 100644 libavutil/hwcontext_esmpp.h
 
-diff --git a/build.sh b/build.sh
-new file mode 100755
-index 0000000000..acc32fd2ed
---- /dev/null
-+++ b/build.sh
-@@ -0,0 +1,42 @@
-+#!/bin/bash
-+
-+GIT_DIR=$(git rev-parse --show-toplevel)
-+ROOT_DIR=$(realpath "$GIT_DIR")
-+
-+if ! [ -d "$1" ]; then
-+    echo "set default FF_INSTALL_DIR: "$ROOT_DIR"/ffmpeg_build"
-+    if [ ! -d $ROOT_DIR/ffmpeg_build ]; then
-+        mkdir -p $ROOT_DIR/ffmpeg_build
-+    fi
-+    FF_INSTALL_DIR=$ROOT_DIR/ffmpeg_build
-+else
-+    FF_INSTALL_DIR=$1
-+fi
-+
-+if ! [ -d "$2" ]; then
-+    INC_DIR=/usr/include
-+    echo "include: " \""$INC_DIR"\"
-+else
-+    INC_DIR=$2
-+    echo "include: " \""$INC_DIR"\"
-+fi
-+
-+if ! [ -d "$3" ]; then
-+    LIB_DIR=/usr/lib64
-+	echo "lib: " \""$LIB_DIR"\"
-+else
-+    LIB_DIR=$3
-+    echo "lib: " \""$LIB_DIR"\"
-+fi
-+
-+export LD_LIBRARY_PATH=$LIB_DIR:$INC_DIR:$LD_LIBRARY_PATH
-+
-+if  [ "$4" = "docker" ]; then
-+    echo "build ffmpeg in docker."
-+    ./configure --prefix="$FF_INSTALL_DIR" --target-os=linux --enable-stripping --enable-static --enable-shared --extra-cflags="-DTRANSCODE_HOST=1 -DTRANSCODE_INFO_REPORT" --extra-cflags="-I"$INC_DIR"" --extra-ldflags="-L"$LIB_DIR" -les_mpp -lescltde -lesclrpc -lesclmemory -lesclplatform -lesclvdec -lesclvenc -lescllogger -les_host_query_cap -les-ipcm" --enable-avfilter --disable-version3 --enable-logging --enable-optimizations --disable-extra-warnings --enable-avdevice --enable-avcodec --enable-avformat --enable-network --disable-gray --enable-swscale-alpha --disable-small --disable-dxva2 --enable-runtime-cpudetect --disable-hardcoded-tables --disable-mipsdsp --disable-mipsdspr2 --disable-msa --enable-hwaccels --disable-cuda --disable-cuvid --disable-nvenc --disable-avisynth --disable-frei0r --disable-libopencore-amrnb --disable-libopencore-amrwb --disable-libdc1394 --disable-libgsm --disable-libilbc --disable-libvo-amrwbenc --disable-symver --disable-doc --disable-gpl --disable-nonfree --enable-ffmpeg --disable-ffplay --disable-libv4l2 --enable-ffprobe --disable-libxcb --disable-postproc --enable-swscale --enable-indevs --disable-alsa --enable-outdevs --enable-esmpp --enable-pthreads --enable-zlib --enable-bzlib --disable-libfdk-aac --disable-libcdio --disable-gnutls --disable-libdrm --disable-libopenh264 --disable-vaapi --disable-vdpau --disable-mmal --disable-omx --disable-omx-rpi --disable-libopencv --disable-libopus --disable-libvpx --disable-libass --disable-libbluray --disable-libvpl --disable-libmfx --disable-librtmp --disable-libmp3lame --disable-libmodplug --disable-libspeex --disable-libtheora --disable-iconv --disable-libfreetype --disable-fontconfig --disable-libopenjpeg --disable-libx264 --disable-libx265 --disable-libdav1d --disable-x86asm --disable-mmx --disable-sse --disable-sse2 --disable-sse3 --disable-ssse3 --disable-sse4 --disable-sse42 --disable-avx --disable-avx2 --disable-armv6 --disable-armv6t2 --disable-vfp --disable-neon --disable-altivec --enable-pic
-+else
-+    echo "build ffmpeg in ctyunos"
-+    ./configure --prefix="$FF_INSTALL_DIR" --target-os=linux --enable-stripping --enable-static --enable-shared --extra-cflags="-DTRANSCODE_HOST=1 -DTRANSCODE_INFO_REPORT" --extra-cflags="-I"$INC_DIR"" --extra-ldflags="-L"$LIB_DIR" -les_mpp -lescltde -lesclrpc -lesclmemory -lesclplatform -lesclvdec -lesclvenc -lescllogger -les_host_query_cap -les-ipcm" --enable-avfilter --disable-version3 --enable-logging --enable-optimizations --disable-extra-warnings --enable-avdevice --enable-avcodec --enable-avformat --enable-network --disable-gray --enable-swscale-alpha --disable-small --disable-dxva2 --enable-runtime-cpudetect --disable-hardcoded-tables --disable-mipsdsp --disable-mipsdspr2 --disable-msa --enable-hwaccels --disable-cuda --disable-cuvid --disable-nvenc --disable-avisynth --disable-frei0r --disable-libopencore-amrnb --disable-libopencore-amrwb --disable-libdc1394 --disable-libgsm --disable-libilbc --disable-libvo-amrwbenc --disable-symver --disable-doc --enable-gpl --enable-nonfree --enable-ffmpeg --disable-ffplay --disable-libv4l2 --enable-ffprobe --disable-libxcb --enable-postproc --enable-swscale --enable-indevs --disable-alsa --enable-outdevs --enable-esmpp --enable-pthreads --enable-zlib --enable-bzlib --disable-libfdk-aac --disable-libcdio --disable-gnutls --disable-libdrm --disable-libopenh264 --disable-vaapi --disable-vdpau --disable-mmal --disable-omx --disable-omx-rpi --disable-libopencv --disable-libopus --disable-libvpx --disable-libass --disable-libbluray --disable-libvpl --disable-libmfx --disable-librtmp --disable-libmp3lame --disable-libmodplug --disable-libspeex --disable-libtheora --disable-iconv --disable-libfreetype --disable-fontconfig --disable-libopenjpeg --enable-libx264 --enable-libx265 --disable-libdav1d --disable-x86asm --disable-mmx --disable-sse --disable-sse2 --disable-sse3 --disable-ssse3 --disable-sse4 --disable-sse42 --disable-avx --disable-avx2 --disable-armv6 --disable-armv6t2 --disable-vfp --disable-neon --disable-altivec --enable-pic
-+fi
-+make
-+make install
 diff --git a/configure b/configure
 index 86425130bd..eb99b1f8e0 100755
 --- a/configure
@@ -1235,7 +1185,7 @@ index 0000000000..8010dfe0e6
 +
 diff --git a/libavcodec/esmpp_comm.c b/libavcodec/esmpp_comm.c
 new file mode 100644
-index 0000000000..1a2ae0d384
+index 0000000000..e37cab3dca
 --- /dev/null
 +++ b/libavcodec/esmpp_comm.c
 @@ -0,0 +1,382 @@
@@ -1258,6 +1208,7 @@ index 0000000000..1a2ae0d384
 +        case AV_LOG_WARNING:
 +            mpp_set_log_level(MPP_LOG_WARN);
 +            break;
++        case AV_LOG_VERBOSE:
 +        case AV_LOG_INFO:
 +            mpp_set_log_level(MPP_LOG_INFO);
 +            break;
@@ -1265,7 +1216,6 @@ index 0000000000..1a2ae0d384
 +            mpp_set_log_level(MPP_LOG_DEBUG);
 +            break;
 +        case AV_LOG_TRACE:
-+        case AV_LOG_VERBOSE:
 +            mpp_set_log_level(MPP_LOG_VERBOSE);
 +            break;
 +        case AV_LOG_QUIET:
@@ -1623,7 +1573,7 @@ index 0000000000..1a2ae0d384
 +}
 diff --git a/libavcodec/esmpp_comm.h b/libavcodec/esmpp_comm.h
 new file mode 100644
-index 0000000000..692a3f1c04
+index 0000000000..ddb8ef06ed
 --- /dev/null
 +++ b/libavcodec/esmpp_comm.h
 @@ -0,0 +1,74 @@
@@ -1692,22 +1642,22 @@ index 0000000000..692a3f1c04
 +                       uint32_t *para_picture_size);
 +
 +uint64_t esmpp_get_picbufinfo(enum AVPixelFormat pix_fmt,
-+                            uint32_t width,
-+                            uint32_t height,
-+                            uint32_t align,
-+                            uint32_t alignHeight,
-+                            uint32_t *pStride,
-+                            uint32_t *pOffset,
-+                            uint32_t *pPlane);
++                              uint32_t width,
++                              uint32_t height,
++                              uint32_t align,
++                              uint32_t alignHeight,
++                              uint32_t *pStride,
++                              uint32_t *pOffset,
++                              uint32_t *pPlane);
 +
 +#endif
 \ No newline at end of file
 diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
 new file mode 100644
-index 0000000000..31e3b3129e
+index 0000000000..48fbb88d05
 --- /dev/null
 +++ b/libavcodec/esmppdec.c
-@@ -0,0 +1,1076 @@
+@@ -0,0 +1,1094 @@
 +#include "config.h"
 +#include "config_components.h"
 +#include <stdbool.h>
@@ -1716,7 +1666,7 @@ index 0000000000..31e3b3129e
 +#include "esmpp_comm.h"
 +#include <mpp_frame.h>
 +#include <mpp_vdec_cfg.h>
-+#include "libavutil/esmpp_transfer.h"
++#include "libavutil/esmpp_utils.h"
 +
 +#define ESMPP_DEC_WAIT_TIME 10000  // us
 +
@@ -1787,7 +1737,9 @@ index 0000000000..31e3b3129e
 +}
 +
 +static av_cold int mpp_decode_close(AVCodecContext *avctx) {
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
 +    ESMPPDecContext *r = avctx->priv_data;
++    ES_RETURN_VAL_IF_FAIL(r, AVERROR(EINVAL));
 +    esmpp_set_device(r->mctx);
 +
 +    r->eof = 0;
@@ -1798,8 +1750,6 @@ index 0000000000..31e3b3129e
 +    if (r->mctx) {
 +        esmpp_reset(r->mctx);
 +        esmpp_close(r->mctx);
-+        esmpp_destroy(r->mctx);
-+        r->mctx = NULL;
 +    }
 +
 +    if (r->hwframe) {
@@ -1818,6 +1768,11 @@ index 0000000000..31e3b3129e
 +    if (r->last_pkt.size > 0) {
 +        av_packet_unref(&r->last_pkt);
 +        r->last_pkt.size = 0;
++    }
++
++    if (r->mctx) {
++        esmpp_destroy(r->mctx);
++        r->mctx = NULL;
 +    }
 +
 +    return 0;
@@ -1893,6 +1848,12 @@ index 0000000000..31e3b3129e
 +    if (r->stride_align) {
 +        mpp_dec_cfg_set_s32(dec_cfg, "stride_align", r->stride_align);
 +    }
++    if (r->disable_ec) {
++        mpp_dec_cfg_set_s32(dec_cfg, "disable_ec", r->disable_ec);
++    }
++    if (r->drop_err_frame) {
++        mpp_dec_cfg_set_s32(dec_cfg, "drop_err_frame", r->drop_err_frame);
++    }
 +
 +    // crop
 +    if (!mpp_decode_get_crop(r)) {
@@ -1931,7 +1892,9 @@ index 0000000000..31e3b3129e
 +}
 +
 +static av_cold int mpp_decode_init(AVCodecContext *avctx) {
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
 +    ESMPPDecContext *r = avctx->priv_data;
++    ES_RETURN_VAL_IF_FAIL(r, AVERROR(EINVAL));
 +    MppCodingType coding_type = MPP_VIDEO_CodingUnused;
 +    const char *opts_env = NULL;
 +    int ret;
@@ -2695,7 +2658,10 @@ index 0000000000..31e3b3129e
 +}
 +
 +static int mpp_decode_receive_frame(AVCodecContext *avctx, AVFrame *frame) {
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(frame, AVERROR(EINVAL));
 +    ESMPPDecContext *r = avctx->priv_data;
++    ES_RETURN_VAL_IF_FAIL(r, AVERROR(EINVAL));
 +    AVPacket *pkt = &r->last_pkt;
 +    int ret = 0;
 +
@@ -2766,7 +2732,9 @@ index 0000000000..31e3b3129e
 +}
 +
 +static void mpp_decode_flush(AVCodecContext *avctx) {
++    ES_RETURN_IF_FAIL(avctx);
 +    ESMPPDecContext *r = avctx->priv_data;
++    ES_RETURN_IF_FAIL(r);
 +    int ret;
 +
 +    av_log(avctx, AV_LOG_INFO, "Decoder flushing\n");
@@ -2786,10 +2754,10 @@ index 0000000000..31e3b3129e
 +DEFINE_ESMPP_DECODER(mjpeg, MJPEG, "mjpeg2jpeg")
 diff --git a/libavcodec/esmppdec.h b/libavcodec/esmppdec.h
 new file mode 100644
-index 0000000000..063fc172d3
+index 0000000000..1e36c2b227
 --- /dev/null
 +++ b/libavcodec/esmppdec.h
-@@ -0,0 +1,243 @@
+@@ -0,0 +1,247 @@
 +#ifndef AVCODEC_ESMPPDEC_H
 +#define AVCODEC_ESMPPDEC_H
 +
@@ -2829,6 +2797,8 @@ index 0000000000..063fc172d3
 +    int stride_align;
 +    int buf_cache_mode;
 +    int dfd;
++    int disable_ec; // disable hardware error concealment
++    int drop_err_frame;
 +    // crop
 +    char *crop;
 +    int crop_xoffset;
@@ -2939,6 +2909,8 @@ index 0000000000..063fc172d3
 +         VD,                                                                                                           \
 +         "wait_key_frame"},                                                                                            \
 +        {"dfd", "force drm format output", OFFSET(dfd), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VD},                        \
++        {"disable_ec", "disable hw error concealment", OFFSET(disable_ec), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VD},     \
++        {"drop_err_frame", "drop error frames", OFFSET(drop_err_frame), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, VD},        \
 +        {"dec_pixfmt",                                                                                                 \
 +         "set decode output pixfmt",                                                                                   \
 +         OFFSET(output_fmt),                                                                                           \
@@ -3035,16 +3007,17 @@ index 0000000000..063fc172d3
 +#endif /* AVCODEC_ESMPPDEC_H */
 diff --git a/libavcodec/esmppenc.c b/libavcodec/esmppenc.c
 new file mode 100644
-index 0000000000..ad5c050a02
+index 0000000000..a0b5e2bb33
 --- /dev/null
 +++ b/libavcodec/esmppenc.c
-@@ -0,0 +1,1460 @@
+@@ -0,0 +1,1543 @@
 +#include "esmppenc.h"
 +#include <es_venc_def.h>
 +#include <es_mpp_video.h>
 +
 +#include "libavutil/imgutils.h"
 +#include "libavutil/mastering_display_metadata.h"
++#include "libavutil/esmpp_utils.h"
 +
 +static MppCodingType esmpp_get_coding_type(AVCodecContext *avctx) {
 +    switch (avctx->codec_id) {
@@ -3224,8 +3197,13 @@ index 0000000000..ad5c050a02
 +    } while (0)
 +
 +static int encoder_set_venc(MppEncCfgPtr cfg, AVCodecContext *avctx) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +    uint32_t plane = 0, offset[3] = {0}, stride[3] = {0};
++
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(cfg, AVERROR(EINVAL));
++    cxt = avctx->priv_data;
 +
 +    CFG_SET_S32(cfg, "venc:input_buffer_num", cxt->async_frames);
 +    CFG_SET_S32(cfg, "venc:time_base_den", avctx->time_base.den);
@@ -3273,8 +3251,14 @@ index 0000000000..ad5c050a02
 +
 +// only for h264/hevc
 +static int encoder_set_venc_gop(MppEncCfgPtr cfg, AVCodecContext *avctx) {
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(cfg, AVERROR(EINVAL));
++
 +    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
-+        ESMPPEncContext *cxt = avctx->priv_data;
++        ESMPPEncContext *cxt;
++
++        ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++        cxt = avctx->priv_data;
 +
 +        CFG_SET_S32_IF_USER_SET(cfg, "gop:gop_mode", cxt->gop_mode, VENC_GOPMODE_BUTT);
 +        switch (cxt->gop_mode) {
@@ -3391,10 +3375,15 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int encoder_set_venc_rc(MppEncCfgPtr cfg, AVCodecContext *avctx) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +    VENC_RC_MODE_E rc_mode;
 +    unsigned int bitrate;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(cfg, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
 +    rc_mode = encoder_get_venc_rc_mode(cxt->rc_mode, avctx->codec_id);
 +    if (rc_mode < VENC_RC_MODE_H264CBR || rc_mode >= VENC_RC_MODE_BUTT) {
 +        av_log(avctx, AV_LOG_WARNING, "unsupported rc:mode %d\n", rc_mode);
@@ -3540,8 +3529,12 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int encoder_set_venc_prp(MppEncCfgPtr cfg, AVCodecContext *avctx) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
 +    if (cxt->rotation >= 0) {
 +        CFG_SET_S32(cfg, "pp:rotation", encoder_get_rotation(cxt->rotation));
 +    }
@@ -3567,6 +3560,7 @@ index 0000000000..ad5c050a02
 +    char *p;
 +    uint32_t x = 0, y = 0;
 +
++    ES_RETURN_VAL_IF_FAIL(cfg, -1);
 +    if (!str) {
 +        return 0;
 +    }
@@ -3612,6 +3606,7 @@ index 0000000000..ad5c050a02
 +static int encoder_set_venc_content_light(MppEncCfgPtr cfg, const char *str) {
 +    char *p;
 +
++    ES_RETURN_VAL_IF_FAIL(cfg, -1);
 +    if (!str) {
 +        return 0;
 +    }
@@ -3627,8 +3622,13 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int encoder_set_venc_protocal(MppEncCfgPtr cfg, AVCodecContext *avctx) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(cfg, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
 +    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
 +        if (cxt->enable_deblocking > -1) {
 +            CFG_SET_U32(cfg, "dblk:dblk_disable", (cxt->enable_deblocking == 0) ? 1 : 0);
@@ -3661,10 +3661,15 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int esmpp_set_enc_cfg(AVCodecContext *avctx) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
-+    MppEncCfgPtr cfg = cxt->mcfg;
++    ESMPPEncContext *cxt;
++    MppEncCfgPtr cfg;
 +    int ret = MPP_OK;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
++    cfg = cxt->mcfg;
 +    if ((ret = esmpp_control(cxt->mctx, MPP_ENC_GET_CFG, cfg)) != MPP_OK) {
 +        av_log(avctx, AV_LOG_ERROR, "Failed to get encoder config: %d\n", ret);
 +        ret = AVERROR_EXTERNAL;
@@ -3709,10 +3714,14 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int esmpp_send_frame(AVCodecContext *avctx, ESMPPEncFrame *mpp_enc_frame) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +    MppFramePtr mpp_frame = NULL;
 +    int ret;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
 +    if (mpp_enc_frame) {
 +        mpp_frame = mpp_enc_frame->mpp_frame;
 +    }
@@ -3739,13 +3748,17 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int esmpp_get_packet_internal(AVCodecContext *avctx, AVPacket *packet, int timeout) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +    MppPacketPtr mpp_pkt = NULL;
 +    MppMetaPtr mpp_meta = NULL;
 +    MppFramePtr mpp_frame = NULL;
 +    MppBufferPtr mpp_buf = NULL;
 +    int ret;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
 +    if ((ret = esmpp_get_packet(cxt->mctx, &mpp_pkt, timeout)) != MPP_OK) {
 +        int log_level = (ret == MPP_ERR_TIMEOUT) ? AV_LOG_DEBUG : AV_LOG_ERROR;
 +        ret = (ret == MPP_ERR_TIMEOUT) ? AVERROR(EAGAIN) : AVERROR_EXTERNAL;
@@ -3838,7 +3851,7 @@ index 0000000000..ad5c050a02
 +}
 +
 +static ESMPPEncFrame *esmpp_submit_frame(AVCodecContext *avctx, AVFrame *frame) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +    AVFrame *es_frame = NULL;
 +    MppFramePtr mpp_frame = NULL;
 +    MppBufferPtr mpp_buf = NULL;
@@ -3848,6 +3861,10 @@ index 0000000000..ad5c050a02
 +    int stride[4] = {0}, offset[4] = {0}, offset_sum = 0;
 +    uint32_t luma_size = 0, chroma_size = 0, pic_size = 0, i = 0;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, NULL);
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, NULL);
++
++    cxt = avctx->priv_data;
 +    if (frame) {
 +        enum AVPixelFormat pix_fmt = avctx->pix_fmt == AV_PIX_FMT_DRM_PRIME ? avctx->sw_pix_fmt : avctx->pix_fmt;
 +        av_pix_fmt_get_chroma_sub_sample(pix_fmt, &hshift, &vshift);
@@ -3993,6 +4010,8 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int esmpp_init_roi_delta_qp(VENC_ROI_ATTR_S *roi_attr) {
++    ES_RETURN_VAL_IF_FAIL(roi_attr, -1);
++
 +    for (int i = 0; i < ES_VENC_MAX_ROI_NUM; i++) {
 +        roi_attr[i].bEnable = FALSE;
 +        roi_attr[i].bAbsQP = FALSE;
@@ -4010,8 +4029,18 @@ index 0000000000..ad5c050a02
 +                           const AVFrame *frame,
 +                           ESMPPEncFrame *mpp_enc_frame,
 +                           AVFrameSideData *sd) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
-+    MppCodingType coding_type = esmpp_get_coding_type(avctx);
++    ESMPPEncContext *cxt;
++    MppCodingType coding_type;
++
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
++    coding_type = esmpp_get_coding_type(avctx);
++    if (coding_type == MPP_VIDEO_CodingUnused) {
++        av_log(avctx, AV_LOG_ERROR, "Unsupported codec id: %d\n", avctx->codec_id);
++        return AVERROR(ENOSYS);
++    }
 +
 +    if (MPP_VIDEO_CodingMJPEG != coding_type && mpp_enc_frame && mpp_enc_frame->mpp_frame) {
 +        MppMetaPtr meta = NULL;
@@ -4087,9 +4116,14 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int esmpp_encode_frame(AVCodecContext *avctx, AVPacket *packet, const AVFrame *frame, int *got_packet) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +    ESMPPEncFrame *mpp_enc_frame = NULL;
 +    int ret = 0;
++
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(packet, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
 +
 +    esmpp_set_device(cxt->mctx);
 +    int timeout = (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC
@@ -4183,8 +4217,11 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int esmpp_encode_close(AVCodecContext *avctx) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
 +    esmpp_set_device(cxt->mctx);
 +    cxt->cfg_init = 0;
 +    cxt->async_frames = 0;
@@ -4215,6 +4252,10 @@ index 0000000000..ad5c050a02
 +
 +static int esmpp_encode_get_header_packet(AVCodecContext *avctx, MppPacketPtr *mpp_pkt) {
 +    int ret = 0;
++
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(mpp_pkt, AVERROR(EINVAL));
++
 +    if (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC) {
 +        ESMPPEncContext *cxt = avctx->priv_data;
 +        MppPacketPtr tmp_pkt;
@@ -4264,6 +4305,9 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int handle_mdcv(AVCodecContext *avctx, const AVMasteringDisplayMetadata *mdcv, MppEncCfgPtr cfg) {
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(mdcv, AVERROR(EINVAL));
++
 +    if (!mdcv->has_primaries && !mdcv->has_luminance) return 0;
 +
 +    if (mdcv->has_primaries) {
@@ -4326,6 +4370,9 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int handle_side_data(AVCodecContext *avctx, ESMPPEncContext *params) {
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(params, AVERROR(EINVAL));
++
 +    const AVFrameSideData *cll_sd = av_frame_side_data_get(
 +        avctx->decoded_side_data, avctx->nb_decoded_side_data, AV_FRAME_DATA_CONTENT_LIGHT_LEVEL);
 +    const AVFrameSideData *mdcv_sd = av_frame_side_data_get(
@@ -4362,13 +4409,17 @@ index 0000000000..ad5c050a02
 +}
 +
 +static int esmpp_encode_init(AVCodecContext *avctx) {
-+    ESMPPEncContext *cxt = avctx->priv_data;
++    ESMPPEncContext *cxt;
 +    enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE;
 +    MppCodingType coding_type = MPP_VIDEO_CodingUnused;
 +    MppPacketPtr mpp_pkt = NULL;
 +    ES_S32 buf_type = MPP_BUFFER_TYPE_DMA_HEAP;
 +    int ret = 0;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv_data, AVERROR(EINVAL));
++
++    cxt = avctx->priv_data;
 +    esmpp_set_log_level();
 +
 +    cxt->cfg_init = 0;
@@ -4379,7 +4430,11 @@ index 0000000000..ad5c050a02
 +
 +    if (avctx->hw_device_ctx) {
 +        AVHWDeviceContext *hwdev = (AVHWDeviceContext *)(avctx->hw_device_ctx->data);
-+        AVESMPPDeviceContext *hwctx = hwdev->hwctx;
++        AVESMPPDeviceContext *hwctx;
++        ES_RETURN_VAL_IF_FAIL(hwdev, AVERROR(EINVAL));
++        hwctx = hwdev->hwctx;
++        ES_RETURN_VAL_IF_FAIL(hwctx, AVERROR(EINVAL));
++
 +        cxt->die_idx = hwctx->die_idx;
 +        cxt->device_idx = hwctx->device_idx;
 +        av_log(avctx, AV_LOG_INFO, "%s set device: %d, die_idx: %d.\n", __func__, cxt->device_idx, cxt->die_idx);
@@ -5145,43 +5200,15 @@ index cf2f355c89..6dca379b97 100644
      fs->parent = parent;
 diff --git a/libavfilter/vf_esmpp_common.c b/libavfilter/vf_esmpp_common.c
 new file mode 100644
-index 0000000000..ed91fedf73
+index 0000000000..9c8844c7b5
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_common.c
-@@ -0,0 +1,576 @@
+@@ -0,0 +1,758 @@
 +#include "vf_esmpp_common.h"
 +#include <sys/time.h>
 +#include <time.h>
 +
 +#define MAX_FILE_PATH (200)
-+
-+static inline void set_id_used(int id, uint32_t *id_bitmap) {
-+    id_bitmap[id / BITS_PER_UNIT] |= (1U << (id % BITS_PER_UNIT));
-+}
-+
-+static inline void clear_id_used(int id, uint32_t *id_bitmap) {
-+    id_bitmap[id / BITS_PER_UNIT] &= ~(1U << (id % BITS_PER_UNIT));
-+}
-+
-+static inline int is_id_used(int id, uint32_t *id_bitmap) {
-+    return (id_bitmap[id / BITS_PER_UNIT] & (1U << (id % BITS_PER_UNIT))) != 0;
-+}
-+
-+int allocate_min_id(uint32_t *id_bitmap) {
-+    for (int i = 0; i < MAX_ID; i++) {
-+        if (!is_id_used(i, id_bitmap)) {
-+            set_id_used(i, id_bitmap);
-+            return i;
-+        }
-+    }
-+    return -1;
-+}
-+
-+void release_id(int id, uint32_t *id_bitmap) {
-+    if (id >= 0 && id < MAX_ID) {
-+        clear_id_used(id, id_bitmap);
-+    }
-+}
 +
 +ES_BOOL write_buffer_to_file(const void *buffer,
 +                             ES_S32 size,
@@ -5197,9 +5224,9 @@ index 0000000000..ed91fedf73
 +    size_t totalSize = 0;
 +    size_t writeSize = size;
 +
-+    if (!buffer || size <= 0) {
-+        return ES_FALSE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(buffer, ES_FALSE);
++    ES_RETURN_VAL_IF_FAIL(size > 0, ES_FALSE);
++
 +    snprintf(file_path,
 +             MAX_FILE_PATH,
 +             "%s/out_%d_%ux%u_%s.raw",
@@ -5251,10 +5278,7 @@ index 0000000000..ed91fedf73
 +    int height = 0;
 +    int total_size = 0;
 +
-+    if (!in) {
-+        av_log(NULL, AV_LOG_ERROR, "esmpp_get_frame_data_size invaild paras, in: %p\n", in);
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(in, FAILURE);
 +
 +    desc = av_pix_fmt_desc_get(fmt);
 +    if (!desc) {
@@ -5282,6 +5306,9 @@ index 0000000000..ed91fedf73
 +    int cp_size = 0;
 +    int totol_size = 0;
 +
++    ES_RETURN_VAL_IF_FAIL(in, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(out_vir, FAILURE);
++
 +    desc = av_pix_fmt_desc_get(fmt);
 +    if (!desc) {
 +        av_log(NULL,
@@ -5306,6 +5333,11 @@ index 0000000000..ed91fedf73
 +    AVFrame *frame, uint8_t *data, int size, void (*free)(void *opaque, uint8_t *data), void *opaque, int flags) {
 +    int i;
 +
++    ES_RETURN_VAL_IF_FAIL(frame, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(data, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(free, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(opaque, FAILURE);
++
 +    for (i = 0; i < AV_NUM_DATA_POINTERS; i++) {
 +        if (!frame->buf[i]) {
 +            frame->buf[i] = av_buffer_create(data, size, free, opaque, flags);
@@ -5321,6 +5353,10 @@ index 0000000000..ed91fedf73
 +    AVESMPPDRMFrameDescriptor *desc = NULL;
 +    AVDRMLayerDescriptor *layer = NULL;
 +    int ret;
++
++    ES_RETURN_VAL_IF_FAIL(mpp_frame, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(offset, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(stride, FAILURE);
 +
 +    mpp_buf = mpp_frame_get_buffer(mpp_frame);
 +    if (!mpp_buf) {
@@ -5571,6 +5607,9 @@ index 0000000000..ed91fedf73
 +void adjust_width_height_by_format(enum AVPixelFormat fmt, int *width, int *height) {
 +    int align = get_alignment_by_format(fmt);
 +
++    ES_RETURN_IF_FAIL(width);
++    ES_RETURN_IF_FAIL(height);
++
 +    *width = FFALIGN(*width, align);
 +    *height = FFALIGN(*height, 2);
 +}
@@ -5600,10 +5639,9 @@ index 0000000000..ed91fedf73
 +    int offset_sum = 0;
 +    uint32_t i = 0;
 +
-+    if (!in || !stride || !offset) {
-+        av_log(NULL, AV_LOG_ERROR, "input invaild params, frame: %p,stride: %p, stride: %p\n", in, stride, offset);
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(in, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(stride, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(offset, FAILURE);
 +
 +    av_pix_fmt_get_chroma_sub_sample(fmt, &hshift, &vshift);
 +    planes = av_pix_fmt_count_planes(fmt);
@@ -5634,13 +5672,20 @@ index 0000000000..ed91fedf73
 +                       int pixelfmt,
 +                       int device_idx,
 +                       int die_idx) {
-+    AVFilterContext *ctx = filterlink->dst;
++    AVFilterContext *ctx = NULL;
 +    AVHWFramesContext *hwfc = NULL;
 +    AVHWDeviceContext *hwdev;
 +    AVESMPPDeviceContext *hwctx;
 +    AVBufferRef *hw_device_ref_p, *hw_frm_ref_p;
 +    int flags = MPP_BUFFER_TYPE_DMA_HEAP;
 +    int ret = 0;
++
++    ES_RETURN_VAL_IF_FAIL(filterlink, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(filterlink->dst, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(hw_device_ref, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(hw_frm_ref, FAILURE);
++
++    ctx = filterlink->dst;
 +
 +    if (*hw_frm_ref) {
 +        return 0;
@@ -5688,7 +5733,7 @@ index 0000000000..ed91fedf73
 +    return ret;
 +}
 +
-+uint64_t get_ticks_by_ms() {
++uint64_t get_ticks_by_ms(void) {
 +    struct timeval tv;
 +    /* Return the time of day in milliseconds. */
 +    gettimeofday(&tv, NULL);
@@ -5725,13 +5770,205 @@ index 0000000000..ed91fedf73
 +
 +    return;
 +}
++
++static ES_BOOL chck_if_yuv(enum AVPixelFormat fmt) {
++    int planes = 0;
++
++    planes = av_pix_fmt_count_planes(fmt);
++    if (planes == 1 && (fmt != AV_PIX_FMT_YUYV422 && fmt != AV_PIX_FMT_UYVY422 && fmt != AV_PIX_FMT_YVYU422))
++        return ES_FALSE;
++
++    return ES_TRUE;
++}
++
++int check_rect_if_valid(RECT_S *rect, int frm_width, int frm_height, enum AVPixelFormat fmt) {
++    ES_RETURN_VAL_IF_FAIL(rect, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(rect->x >= 0, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(rect->y >= 0, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(rect->width > 0, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(rect->height > 0, FAILURE);
++
++    if ((rect->x + rect->width > frm_width) || ((rect->y + rect->height) > frm_height)) {
++        av_log(NULL,
++               AV_LOG_ERROR,
++               "invalid rect: x: %d, y: %d, width: %d, height: %d, frma width: %d, frmae height: %d.\n",
++               rect->x,
++               rect->y,
++               rect->width,
++               rect->height,
++               frm_width,
++               frm_height);
++        return FAILURE;
++    }
++    if (chck_if_yuv(fmt) && (rect->x % 2 || rect->y % 2 || rect->width % 2 || rect->height % 2)) {
++        av_log(NULL,
++               AV_LOG_ERROR,
++               "invalid rect: x: %d, y: %d, width: %d, height: %d, fmt is yuv, must be aligned with 2.\n",
++               rect->x,
++               rect->y,
++               rect->width,
++               rect->height);
++        return FAILURE;
++    }
++
++    return SUCCESS;
++}
++
++ES_BOOL esmpp_check_snapshot(int interval, int output_count, int snapshot_output) {
++    if (interval && (0 == output_count % interval)) {
++        if (snapshot_output) {
++            return ES_TRUE;
++        } else {
++            av_log(NULL,
++                   AV_LOG_ERROR,
++                   "need snapshot but no outpad, interval=%d, output_count=%d, snapshot_output=%d\n",
++                   interval,
++                   output_count,
++                   snapshot_output);
++            return ES_FALSE;
++        }
++    }
++
++    return ES_FALSE;
++}
++
++int esmpp_snapshot_send_frame(AVFilterLink *outlink, AVFrame *outframe) {
++    AVFrame *frame_snapshot = NULL;
++    int ret = FAILURE;
++
++    ES_RETURN_VAL_IF_FAIL(outlink, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(outframe, FAILURE);
++
++    frame_snapshot = av_frame_alloc();
++    if (NULL == frame_snapshot) {
++        return FAILURE;
++    }
++
++    if (av_frame_ref(frame_snapshot, outframe) >= 0) {
++        ret = ff_filter_frame(outlink, frame_snapshot);
++        if (ret >= 0) {
++            ret = SUCCESS;
++        } else {
++            av_log(NULL, AV_LOG_ERROR, "snapshot ff_filter_frame failed\n");
++        }
++    } else {
++        av_log(NULL, AV_LOG_ERROR, "snapshot av_frame_ref failed\n");
++    }
++
++    if (ret != SUCCESS) {
++        av_frame_free(&frame_snapshot);
++    }
++
++    return ret;
++}
++
++static int parse_normalization_rgb(char *str, TdeRgb *rgb_info) {
++    if (!str || !rgb_info) {
++        return FAILURE;
++    }
++
++    if (sscanf(str,
++              "%x/%x/%x",
++               &rgb_info->r,
++               &rgb_info->g,
++               &rgb_info->b) != 3) {
++        return FAILURE;
++    }
++
++    return SUCCESS;
++}
++
++int parse_normalization(MppFilterContext *s) {
++    int ret = SUCCESS;
++
++    ES_RETURN_VAL_IF_FAIL(s, FAILURE);
++
++    s->nor_set = 0;
++
++    if (s->nor_mode != 0 && s->nor_mode != 1) {
++        av_log(NULL, AV_LOG_INFO, "do not normalization, nor_mode: %d\n", s->nor_mode);
++        return SUCCESS;
++    }
++
++    if (s->nor_mode == 0 && (!s->nor_min || !s->nor_mm_r)) {
++        av_log(NULL, AV_LOG_ERROR, "nor_mode is min_max, nor_min: %p, nor_mm_r: %p\n", s->nor_min, s->nor_mm_r);
++        return FAILURE;
++    }
++
++    if (s->nor_mode == 1 && (!s->nor_mean || !s->nor_std_r)) {
++        av_log(NULL, AV_LOG_ERROR, "nor_mode is z_score, nor_mean: %p, nor_std_r: %p\n", s->nor_mean, s->nor_std_r);
++        return FAILURE;
++    }
++
++    s->nor_params.nn_mode = s->nor_mode;
++    s->nor_params.step_reciprocal = s->nor_step_r;
++
++    if (s->nor_mm_r) {
++        ret = parse_normalization_rgb(s->nor_mm_r, &s->nor_params.min_max_reciprocal);
++        if (ret < 0) {
++            av_log(NULL, AV_LOG_ERROR, "para min_max_reciprocal failed\n");
++            return FAILURE;
++        }
++    }
++    if (s->nor_min) {
++        ret = parse_normalization_rgb(s->nor_min, &s->nor_params.min_value);
++        if (ret < 0) {
++            av_log(NULL, AV_LOG_ERROR, "para min_value failed\n");
++            return FAILURE;
++        }
++    }
++    if (s->nor_mean) {
++        ret = parse_normalization_rgb(s->nor_mean, &s->nor_params.mean_value);
++        if (ret < 0) {
++            av_log(NULL, AV_LOG_ERROR, "para mean_value failed\n");
++            return FAILURE;
++        }
++    }
++    if (s->nor_std_r) {
++        ret = parse_normalization_rgb(s->nor_std_r, &s->nor_params.std_reciprocal);
++        if (ret < 0) {
++            av_log(NULL, AV_LOG_ERROR, "para std_reciprocal failed\n");
++            return FAILURE;
++        }
++    }
++
++    s->nor_set = 1;
++
++    av_log(NULL, AV_LOG_DEBUG, "normalizationMode: %d,stepReciprocal: %x\n", s->nor_mode, s->nor_step_r);
++    av_log(NULL,
++           AV_LOG_DEBUG,
++           "min_value.r: %x, min_value.g: %x, min_value.b: %x\n",
++           s->nor_params.min_value.r,
++           s->nor_params.min_value.g,
++           s->nor_params.min_value.b);
++    av_log(NULL,
++           AV_LOG_DEBUG,
++           "maxMinReciprocal.r: %x, maxMinReciprocal.g: %x, maxMinReciprocal.b: %x\n",
++           s->nor_params.min_max_reciprocal.r,
++           s->nor_params.min_max_reciprocal.g,
++           s->nor_params.min_max_reciprocal.b);
++    av_log(NULL,
++           AV_LOG_DEBUG,
++           "meanValue.r: %x, meanValue.g: %x, meanValue.b: %x\n",
++           s->nor_params.mean_value.r,
++           s->nor_params.mean_value.g,
++           s->nor_params.mean_value.b);
++    av_log(NULL,
++           AV_LOG_DEBUG,
++           "stdReciprocal.r: %x, stdReciprocal.g: %x, stdReciprocal.b: %x\n",
++           s->nor_params.std_reciprocal.r,
++           s->nor_params.std_reciprocal.g,
++           s->nor_params.std_reciprocal.b);
++
++    return SUCCESS;
++}
 \ No newline at end of file
 diff --git a/libavfilter/vf_esmpp_common.h b/libavfilter/vf_esmpp_common.h
 new file mode 100644
-index 0000000000..6b2025a905
+index 0000000000..a5551e04d7
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_common.h
-@@ -0,0 +1,155 @@
+@@ -0,0 +1,173 @@
 +#ifndef VF_ESMPP_COMMON
 +#define VF_ESMPP_COMMON
 +
@@ -5757,6 +5994,7 @@ index 0000000000..6b2025a905
 +#include "mpp_tde_api.h"
 +#include "mpp_buffer.h"
 +#include "mpp_type.h"
++#include "libavutil/esmpp_utils.h"
 +
 +#define SUCCESS (0)
 +#define FAILURE (-1)
@@ -5794,9 +6032,9 @@ index 0000000000..6b2025a905
 +    int32_t dst_global_alpha_set;
 +    int32_t blend_mode_set;
 +    int32_t in_eof;
-+    int32_t snap_interval;
++    int32_t snapshot_interval;
 +    int32_t out_cnt;
-+    int32_t snap_cnt;
++    int32_t snapshot_cnt;
 +
 +    int enable_logo;
 +    int logo_x_dir;
@@ -5810,12 +6048,20 @@ index 0000000000..6b2025a905
 +    int rand_logo_pos;
 +    RECT_S disp_rect;
 +
++    char *nor_mm_r;       // normalization maxMinReciprocal
++    char *nor_min;        // normalization minValue
++    char *nor_mean;       // normalization meanValue
++    char *nor_std_r;      // normalization stdReciprocal
++    uint32_t nor_step_r;  // normalization stepReciprocal
++    int32_t nor_mode;     // normalization mode
++    TdeNnParam nor_params;
++    int32_t nor_set;
++
 +#ifdef TRANSCODE_INFO_REPORT
 +    TdeReportInfo report_info;
 +    ES_S32 in_buffer_num;
 +    ES_S32 out_buffer_num;
 +    ES_S32 fail_buffer_num;
-+    ES_S32 snapshot_cnt;
 +    ES_BOOL process_started;
 +#endif
 +    int die_idx;
@@ -5825,12 +6071,15 @@ index 0000000000..6b2025a905
 +    void *handle;
 +} MppFilterContext;
 +
++// normalization rgb
++typedef struct _NorRgb {
++    uint32_t R;
++    uint32_t G;
++    uint32_t B;
++} NorRgb;
++
 +#define MAX_ID 1024  // max id
 +#define BITS_PER_UNIT (sizeof(uint32_t) * CHAR_BIT)
-+
-+int allocate_min_id(uint32_t *id_bitmap);
-+
-+void release_id(int id, uint32_t *id_bitmap);
 +
 +ES_BOOL write_buffer_to_file(const void *buffer,
 +                             ES_S32 size,
@@ -5882,18 +6131,24 @@ index 0000000000..6b2025a905
 +                       int die_idx);
 +void get_dev_info(AVBufferRef *hw_device_ctx, AVBufferRef *hw_frames_ctx, int *dev_id, int *die_id);
 +
-+uint64_t get_ticks_by_ms();
++int check_rect_if_valid(RECT_S *rect, int frm_width, int frm_height, enum AVPixelFormat fmt);
 +
-+uint64_t get_ticks_by_ms();
++uint64_t get_ticks_by_ms(void);
 +
++// snapshot
++ES_BOOL esmpp_check_snapshot(int interval, int output_count, int snapshot_output);
++int esmpp_snapshot_send_frame(AVFilterLink *outlink, AVFrame *outframe);
++
++// normalization
++int parse_normalization(MppFilterContext *s);
 +#endif
 \ No newline at end of file
 diff --git a/libavfilter/vf_esmpp_complex.c b/libavfilter/vf_esmpp_complex.c
 new file mode 100644
-index 0000000000..65a6ec31ce
+index 0000000000..24d0bda4dd
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_complex.c
-@@ -0,0 +1,1256 @@
+@@ -0,0 +1,1348 @@
 +#include <stdio.h>
 +#include <string.h>
 +#include <dlfcn.h>
@@ -5915,7 +6170,7 @@ index 0000000000..65a6ec31ce
 +#include "video.h"
 +#include "vf_esmpp_common.h"
 +#include "filters.h"
-+#include "libavutil/esmpp_transfer.h"
++#include "libavutil/esmpp_utils.h"
 +#include "es_mpp.h"
 +
 +#define OFFSET(x) offsetof(MppFilterContext, x)
@@ -5927,6 +6182,9 @@ index 0000000000..65a6ec31ce
 +static const AVFilterPad complex_snapshot_output;
 +
 +static int complex_query_formats(AVFilterContext *ctx) {
++    ES_RETURN_VAL_IF_FAIL(ctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(ctx->priv, AVERROR(EINVAL));
++
 +    static const enum AVPixelFormat pixel_formats[] = {
 +        AV_PIX_FMT_NV12,
 +        AV_PIX_FMT_NV21,
@@ -5965,13 +6223,15 @@ index 0000000000..65a6ec31ce
 +}
 +
 +static int init_mpp_tde(AVFilterContext *ctx) {
-+    MppFilterContext *s = (MppFilterContext *)ctx->priv;
++    MppFilterContext *s;
 +    MppTdeCfgPtr tde_cfg;
 +    int ret = SUCCESS;
 +
-+    if (!ctx || !ctx->priv) {
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(ctx, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(ctx->priv, FAILURE);
++
++    s = (MppFilterContext *)ctx->priv;
++
 +    if (s->mpp_init) {
 +        return MPP_OK;
 +    }
@@ -6033,12 +6293,10 @@ index 0000000000..65a6ec31ce
 +
 +static av_cold int init(AVFilterContext *ctx) {
 +    MppFilterContext *s = NULL;
-+    MppTdeCfgPtr tde_cfg;
 +    int ret = SUCCESS;
 +
-+    if (!ctx || !ctx->priv) {
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(ctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(ctx->priv, AVERROR(EINVAL));
 +
 +    s = (MppFilterContext *)ctx->priv;
 +    s->src_global_alpha = -1;
@@ -6069,7 +6327,7 @@ index 0000000000..65a6ec31ce
 +        if (ff_append_inpad_free_name(ctx, &pad) < 0) return FAILURE;
 +    }
 +
-+    if (s->snap_interval) {
++    if (s->snapshot_interval) {
 +        AVFilterPad pad = complex_snapshot_output;
 +
 +        if (ret = ff_append_outpad(ctx, &pad) < 0) {
@@ -6078,7 +6336,7 @@ index 0000000000..65a6ec31ce
 +        } else {
 +            av_log(ctx, AV_LOG_DEBUG, "snapshot add outpad success.\n");
 +        }
-+        s->snap_cnt = 0;
++        s->snapshot_cnt = 0;
 +    }
 +    s->out_cnt = 0;
 +#ifdef TRANSCODE_INFO_REPORT
@@ -6090,12 +6348,15 @@ index 0000000000..65a6ec31ce
 +}
 +
 +static av_cold void uninit(AVFilterContext *ctx) {
-+    MppFilterContext *s = (MppFilterContext *)ctx->priv;
++    MppFilterContext *s;
 +    ES_BOOL use_hwaccel = ES_FALSE;
 +
-+    if (!ctx || !ctx->priv) {
-+        return;
-+    }
++    ES_RETURN_IF_FAIL(ctx);
++    ES_RETURN_IF_FAIL(ctx->priv);
++
++    s = (MppFilterContext *)ctx->priv;
++
++    esmpp_set_device(s->mctx);
 +
 +    if (s->fs_init) {
 +        ff_framesync_uninit(&s->fs);
@@ -6125,18 +6386,17 @@ index 0000000000..65a6ec31ce
 +}
 +
 +static int set_output_fmt(MppFilterContext *s) {
-+    if (!s) {
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(s, FAILURE);
++
 +    s->out_fmt = (s->output_fmt_set == -1) ? s->in_fmt : (enum AVPixelFormat)s->output_fmt_set;
 +    av_log(NULL, AV_LOG_DEBUG, "output format is %s\n", av_get_pix_fmt_name(s->out_fmt));
 +    return SUCCESS;
 +}
 +
 +static int parse_rect(const char *rect_cmd, RECT_S *rect) {
-+    if (!rect_cmd || !rect) {
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(rect_cmd, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(rect, FAILURE);
++
 +    if (sscanf(rect_cmd, "%dx%dx%dx%d", &rect->x, &rect->y, &rect->width, &rect->height) == 4) {
 +        return SUCCESS;
 +    }
@@ -6144,9 +6404,9 @@ index 0000000000..65a6ec31ce
 +}
 +
 +static int parse_rotation(const char *rotation_cmd, ROTATION_E *rotation) {
-+    if (!rotation_cmd || !rotation) {
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(rotation_cmd, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(rotation, FAILURE);
++
 +    if (!av_strcasecmp(rotation_cmd, "90")) {
 +        *rotation = ROTATION_90;
 +    } else if (!av_strcasecmp(rotation_cmd, "180")) {
@@ -6166,9 +6426,8 @@ index 0000000000..65a6ec31ce
 +}
 +
 +static int parse_blend_mode(int blend_mode_cmd, int *mode) {
-+    if (!mode) {
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(mode, FAILURE);
++
 +    switch (blend_mode_cmd) {
 +        case 0:
 +            av_log(NULL, AV_LOG_DEBUG, "Alpha blending mode is 'SRC'");
@@ -6220,40 +6479,15 @@ index 0000000000..65a6ec31ce
 +    return SUCCESS;
 +}
 +
-+static int esmpp_complex_send_snapshot_frame(AVFilterLink *outlink, AVFrame *frame, AVFilterContext *avctx) {
-+    MppFilterContext *s = (MppFilterContext *)avctx->priv;
-+    int ret = FAILURE;
-+
-+    if (outlink && frame) {
-+        ret = ff_filter_frame(outlink, frame);
-+        if (ret >= 0) {
-+            s->snap_cnt++;
-+            av_log(avctx, AV_LOG_DEBUG, "snap send success. out1 cnt:%d, snap cnt:%d\n", s->out_cnt, s->snap_cnt);
-+        } else {
-+            av_log(avctx,
-+                   AV_LOG_ERROR,
-+                   "snap send failed. ret:%d, out1 send cnt:%d, snap send cnt:%d\n",
-+                   ret,
-+                   s->out_cnt,
-+                   s->snap_cnt);
-+        }
-+    } else {
-+        av_log(avctx, AV_LOG_ERROR, "snap send failed.\n");
-+    }
-+
-+    return ret;
-+}
-+
 +static int esmpp_complex_filter_frame(int input_nb, AVFilterLink **link, AVFrame **in) {
-+    AVFilterLink *link_src = link[0];
++    AVFilterLink *link_src = NULL;
 +    AVFrame *in_src = NULL, *in_dst = NULL;
-+    AVFilterContext *ctx = link_src->dst;
-+    MppFilterContext *s = (MppFilterContext *)ctx->priv;
-+    AVFilterLink *outlink = ctx->outputs[0];
-+    AVFilterLink *outlink_snap = NULL;
++    AVFilterContext *ctx = NULL;
++    MppFilterContext *s = NULL;
++    AVFilterLink *outlink;
++    AVFilterLink *outlink_snapshot = NULL;
 +    AVFrame *out = NULL;
-+    AVFrame *frame_snap = NULL;
-+    ES_BOOL bneed_snap = ES_FALSE;
++    ES_BOOL bneed_snapshot = ES_FALSE;
 +    int ret = SUCCESS;
 +    MPP_RET mpp_ret = MPP_OK;
 +    MppFramePtr src_mpp_frame = NULL;
@@ -6264,6 +6498,14 @@ index 0000000000..65a6ec31ce
 +    size_t in_frame_size = 0, output_frame_size = 0;
 +    uint32_t pic_size = 0;
 +    int plane = 0, stride[4] = {0}, offset[4] = {0};
++
++    ES_RETURN_VAL_IF_FAIL(link, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(in, FAILURE);
++
++    link_src = link[0];
++    ctx = link_src->dst;
++    s = (MppFilterContext *)ctx->priv;
++    outlink = ctx->outputs[0];
 +
 +    // overlay
 +    if (input_nb == 2) {
@@ -6540,11 +6782,34 @@ index 0000000000..65a6ec31ce
 +                       s->rand_logo_frames);
 +            }
 +        }
-+        mpp_ret = esmpp_process_frame_sync(
-+            s->mctx, src_mpp_frame, 0, dst_mpp_frame, &s->src_rect, ES_NULL, &s->disp_rect, usage | TDE_USAGE_LOGO);
++        if (check_rect_if_valid(
++                &s->disp_rect, mpp_frame_get_width(dst_mpp_frame), mpp_frame_get_height(dst_mpp_frame), s->out_fmt)) {
++            av_log(ctx, AV_LOG_ERROR, "vf[esmpp_complex] check discp rect failed.\n");
++            ret = FAILURE;
++            goto exit3;
++        }
++        mpp_ret = esmpp_process_frame_sync(s->mctx,
++                                           src_mpp_frame,
++                                           0,
++                                           dst_mpp_frame,
++                                           &s->src_rect,
++                                           ES_NULL,
++                                           &s->disp_rect,
++                                           ES_NULL,
++                                           usage | TDE_USAGE_LOGO);
++    } else if (s->nor_set) {
++        mpp_ret = esmpp_process_frame_sync(s->mctx,
++                                           src_mpp_frame,
++                                           0,
++                                           dst_mpp_frame,
++                                           &s->src_rect,
++                                           &s->dst_rect,
++                                           ES_NULL,
++                                           (void *)&s->nor_params,
++                                           TDE_USAGE_NORMALIZATION);
 +    } else {
 +        mpp_ret = esmpp_process_frame_sync(
-+            s->mctx, src_mpp_frame, 0, dst_mpp_frame, &s->src_rect, &s->dst_rect, ES_NULL, TDE_USAGE_COMPLEX);
++            s->mctx, src_mpp_frame, 0, dst_mpp_frame, &s->src_rect, &s->dst_rect, ES_NULL, ES_NULL, TDE_USAGE_COMPLEX);
 +    }
 +    if (mpp_ret != MPP_OK) {
 +        ret = FAILURE;
@@ -6601,36 +6866,39 @@ index 0000000000..65a6ec31ce
 +    }
 +
 +    if (ret == SUCCESS) {
++        // do snapshot
++        bneed_snapshot = esmpp_check_snapshot(s->snapshot_interval, s->out_cnt + 1, (ctx->nb_outputs > 1));
++        if (bneed_snapshot) {
++            outlink_snapshot = ctx->outputs[1];
++
++            if (esmpp_snapshot_send_frame(outlink_snapshot, out) >= 0) {
++                s->snapshot_cnt++;
++                av_log(ctx,
++                       AV_LOG_DEBUG,
++                       "snapshot send success. outframe cnt:%d, snapshot cnt:%d\n",
++                       s->out_cnt + 1,
++                       s->snapshot_cnt);
++#ifdef TRANSCODE_INFO_REPORT
++                s->report_info.snapshotCnt = s->snapshot_cnt;
++                s->report_info.snapshotTotalBits = 0;
++#endif
++            } else {
++                av_log(ctx,
++                       AV_LOG_ERROR,
++                       "snapshot send failed. ret:%d, outframe cnt:%d, snapshot send cnt:%d\n",
++                       ret,
++                       s->out_cnt + 1,
++                       s->snapshot_cnt);
++            }
++        }
++
++        // send output frame to next
 +        ret = ff_filter_frame(outlink, out);
 +        if (ret >= 0) {
 +            s->out_cnt++;
 +            av_log(ctx, AV_LOG_DEBUG, "filter frame send success. statistic cnt:%d\n", s->out_cnt);
 +        } else {
 +            av_log(ctx, AV_LOG_ERROR, "filter frame send failed in frame num:%d ret:%d\n", s->out_cnt, ret);
-+        }
-+
-+        bneed_snap = s->snap_interval ? 0 == s->out_cnt % s->snap_interval : ES_FALSE;
-+        if (bneed_snap) {
-+            if (ctx->nb_outputs > 1) {
-+                outlink_snap = ctx->outputs[1];
-+                frame_snap = av_frame_alloc();
-+                if (av_frame_ref(frame_snap, out) >= 0) {
-+                    esmpp_complex_send_snapshot_frame(outlink_snap, frame_snap, ctx);
-+#ifdef TRANSCODE_INFO_REPORT
-+                    s->report_info.snapshotCnt = ++s->snapshot_cnt;
-+                    s->report_info.snapshotTotalBits = 0;
-+#endif
-+                } else {
-+                    av_frame_free(&frame_snap);
-+                    av_log(ctx, AV_LOG_ERROR, "snap av_frame_ref failed\n");
-+                }
-+            } else {
-+                av_log(ctx,
-+                       AV_LOG_ERROR,
-+                       "need snap but no snap shot outpad,snap_interval=%d, nb_outputs=%d\n",
-+                       s->snap_interval,
-+                       ctx->nb_outputs);
-+            }
 +        }
 +    } else {
 +        av_log(ctx, AV_LOG_ERROR, "complex filtered frame sends to next link failed\n");
@@ -6640,10 +6908,18 @@ index 0000000000..65a6ec31ce
 +}
 +
 +static int process_frame(FFFrameSync *fs) {
-+    AVFilterContext *ctx = fs->parent;
-+    MppFilterContext *s = fs->opaque;
++    AVFilterContext *ctx;
++    MppFilterContext *s;
 +    AVFrame *in[MAX_INPUT_NB] = {0};
 +    int i, ret;
++
++    ES_RETURN_VAL_IF_FAIL(fs, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(fs->opaque, FAILURE);
++
++    ctx = fs->parent;
++    s = fs->opaque;
++
++    esmpp_set_device(s->mctx);
 +
 +    for (i = 0; i < ctx->nb_inputs; i++) {
 +        if ((ret = ff_framesync_get_frame(&s->fs, i, &in[i], 0)) < 0) {
@@ -6679,10 +6955,17 @@ index 0000000000..65a6ec31ce
 +}
 +
 +static int complex_init_output_bufgroup(AVFilterLink *outlink) {
-+    AVFilterContext *ctx = outlink->src;
-+    AVFilterLink *inlink = ctx->inputs[0];
-+    MppFilterContext *s = (MppFilterContext *)ctx->priv;
++    AVFilterContext *ctx;
++    AVFilterLink *inlink;
++    MppFilterContext *s;
 +    int ret = 0;
++
++    ES_RETURN_VAL_IF_FAIL(outlink, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(outlink->src, FAILURE);
++
++    ctx = outlink->src;
++    inlink = ctx->inputs[0];
++    s = (MppFilterContext *)ctx->priv;
 +
 +    if (inlink->hw_frames_ctx) {
 +        AVHWFramesContext *hwfc = NULL;
@@ -6713,8 +6996,13 @@ index 0000000000..65a6ec31ce
 +}
 +
 +static int init_framesync(AVFilterContext *avctx) {
-+    MppFilterContext *s = (MppFilterContext *)avctx->priv;
++    MppFilterContext *s;
 +    int ret = 0;
++
++    ES_RETURN_VAL_IF_FAIL(avctx, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(avctx->priv, FAILURE);
++
++    s = (MppFilterContext *)avctx->priv;
 +
 +    if (s->fs_init) return 0;
 +
@@ -6747,7 +7035,7 @@ index 0000000000..65a6ec31ce
 +#ifdef TRANSCODE_INFO_REPORT
 +static TdeFuncType get_func_types(AVFilterLink *outlink) {
 +    AVFilterContext *ctx = outlink->src;
-+    AVFilterLink *inlink = ctx->inputs[0], *inlink_dst = ctx->inputs[1];
++    AVFilterLink *inlink = ctx->inputs[0];
 +    MppFilterContext *s = (MppFilterContext *)ctx->priv;
 +
 +    TdeFuncType type = TDE_FUNC_TYPE_BUTT;
@@ -6789,6 +7077,9 @@ index 0000000000..65a6ec31ce
 +    MppFilterContext *s = (MppFilterContext *)ctx->priv;
 +    const ES_S32 output = outlink->srcpad - ctx->output_pads;
 +    ES_DOUBLE in_frame_rate = 0.0;
++
++    ES_RETURN_VAL_IF_FAIL(ctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(ctx->priv, AVERROR(EINVAL));
 +
 +    // for blend: clip/o_w/0_h work for dst frame, other opt for src frame.
 +    if (ctx->nb_inputs == 1) {
@@ -6910,8 +7201,8 @@ index 0000000000..65a6ec31ce
 +               in_frame_rate,
 +               outlink->w,
 +               outlink->h,
-+               in_frame_rate / s->snap_interval);
-+        outlink->frame_rate = av_d2q(in_frame_rate / s->snap_interval, 1000);
++               in_frame_rate / s->snapshot_interval);
++        outlink->frame_rate = av_d2q(in_frame_rate / s->snapshot_interval, 1000);
 +    }
 +
 +    init_framesync(ctx);
@@ -6933,6 +7224,20 @@ index 0000000000..65a6ec31ce
 +        s->disp_rect.height = s->src_rect.height;
 +    }
 +
++    if (check_rect_if_valid(&s->src_rect, inlink_main->w, inlink_main->h, s->in_fmt)) {
++        av_log(ctx, AV_LOG_ERROR, "vf[esmpp_complex] check src rect failed.\n");
++        return FAILURE;
++    }
++    if (check_rect_if_valid(&s->dst_rect, outlink->w, outlink->h, s->out_fmt)) {
++        av_log(ctx, AV_LOG_ERROR, "vf[esmpp_complex] check dst rect failed.\n");
++        return FAILURE;
++    }
++
++    if (parse_normalization(s)) {
++        av_log(ctx, AV_LOG_ERROR, "vf[esmpp_complex] set normalization failed.\n");
++        return FAILURE;
++    }
++
 +    // if (esmpp_select_dev(s->mctx, s->device_idx, s->die_idx) != MPP_OK) {
 +    //     av_log(ctx, AV_LOG_ERROR, "Failed to select MPP dev\n");
 +    // }
@@ -6947,7 +7252,12 @@ index 0000000000..65a6ec31ce
 +}
 +
 +static int esmpp_complex_filter_activate(AVFilterContext *ctx) {
-+    MppFilterContext *s = ctx->priv;
++    MppFilterContext *s;
++
++    ES_RETURN_VAL_IF_FAIL(ctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(ctx->priv, AVERROR(EINVAL));
++
++    s = ctx->priv;
 +
 +    if (s->fs.eof) {
 +        av_log(ctx, AV_LOG_DEBUG, "All input streams have ended.\n");
@@ -6999,7 +7309,7 @@ index 0000000000..65a6ec31ce
 +    {
 +        "snapi",
 +        "snapshot interval (number of frames).",
-+        OFFSET(snap_interval),
++        OFFSET(snapshot_interval),
 +        AV_OPT_TYPE_INT,
 +        {.i64 = 0},
 +        0,
@@ -7111,6 +7421,43 @@ index 0000000000..65a6ec31ce
 +     0,
 +     1,
 +     FLAGS},
++    {"nor_mode",
++     "set normalization mode",
++     OFFSET(nor_mode),
++     AV_OPT_TYPE_INT,
++     {.i64 = -1},
++     -1,
++     INT_MAX,
++     FLAGS,
++     "nor_mode"},
++    {"min_max", "Set the normalization meanValue", 0, AV_OPT_TYPE_CONST, {.i64 = 0}, 0, INT_MAX, FLAGS, "nor_mode"},
++    {"z_score", "Set the normalization z_score", 0, AV_OPT_TYPE_CONST, {.i64 = 1}, 0, INT_MAX, FLAGS, "nor_mode"},
++    {"nor_mm_r",
++     "set normalization maxMinReciprocal, such as:R/G/B",
++     OFFSET(nor_mm_r),
++     AV_OPT_TYPE_STRING,
++     {.str = NULL},
++     0,
++     0,
++     FLAGS},
++    {"nor_min", "set normalization minValue, such as:R/G/B", OFFSET(nor_min), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS},
++    {"nor_mean",
++     "set normalization meanValue, such as:R/G/B",
++     OFFSET(nor_mean),
++     AV_OPT_TYPE_STRING,
++     {.str = NULL},
++     0,
++     0,
++     FLAGS},
++    {"nor_std_r",
++     "set normalization stdReciprocal, such as:R/G/B",
++     OFFSET(nor_std_r),
++     AV_OPT_TYPE_STRING,
++     {.str = NULL},
++     0,
++     0,
++     FLAGS},
++    {"nor_step_r", "set normalization stepReciprocal", OFFSET(nor_step_r), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, FLAGS},
 +    {NULL},
 +};
 +
@@ -7150,12 +7497,13 @@ index 0000000000..65a6ec31ce
 +    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 +    .flags = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_HWDEVICE,
 +};
+\ No newline at end of file
 diff --git a/libavfilter/vf_stack_esmpp.c b/libavfilter/vf_stack_esmpp.c
 new file mode 100644
-index 0000000000..cefaa8b251
+index 0000000000..18ab453dce
 --- /dev/null
 +++ b/libavfilter/vf_stack_esmpp.c
-@@ -0,0 +1,1593 @@
+@@ -0,0 +1,1641 @@
 +#include "config_components.h"
 +
 +#include "libavutil/opt.h"
@@ -7184,7 +7532,7 @@ index 0000000000..cefaa8b251
 +#include "mpp_buffer.h"
 +#include "mpp_tde_cfg.h"
 +#include "vf_esmpp_common.h"
-+#include "libavutil/esmpp_transfer.h"
++#include "libavutil/esmpp_utils.h"
 +
 +#define OFFSET(x) offsetof(StackHWContext, x)
 +#define FLAGS (AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_FILTERING_PARAM)
@@ -7269,14 +7617,13 @@ index 0000000000..cefaa8b251
 +    int rand_logo_pos;
 +    int32_t snap_interval;
 +    int32_t out_cnt;
-+    int32_t snap_cnt;
++    int32_t snapshot_cnt;
 +#ifdef TRANSCODE_INFO_REPORT
 +    TdeReportInfo report_info;
 +    ES_BOOL process_started;
 +    ES_S32 in_buffer_num;
 +    ES_S32 out_buffer_num;
 +    ES_S32 fail_buffer_num;
-+    ES_S32 snapshot_cnt;
 +#endif
 +} StackESMPPContext;
 +
@@ -7295,6 +7642,11 @@ index 0000000000..cefaa8b251
 +                                     int *stride,
 +                                     int *offset,
 +                                     enum AVPixelFormat fmt) {
++    ES_RETURN_VAL_IF_FAIL(mpp_frame, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(in, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(stride, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(offset, AVERROR(EINVAL));
++
 +    mpp_frame_set_stride(mpp_frame, stride);
 +    mpp_frame_set_offset(mpp_frame, offset);
 +    mpp_frame_set_width(mpp_frame, in->width);
@@ -7309,8 +7661,8 @@ index 0000000000..cefaa8b251
 +                                    AVFilterLink *logo_inlink,
 +                                    AVFrame *logo_frame,
 +                                    MppFramePtr dst_mpp_frame) {
-+    StackESMPPContext *s = avctx->priv;
-+    ESMPPContext *esctx = avctx->priv;
++    StackESMPPContext *s;
++    ESMPPContext *esctx;
 +    MppFramePtr logo_mpp_frame;
 +    MppBufferPtr logo_mpp_buf = NULL;
 +    int stride[4] = {0}, offset[4] = {0};
@@ -7322,9 +7674,16 @@ index 0000000000..cefaa8b251
 +    MPP_RET mpp_ret = MPP_OK;
 +    int ret = SUCCESS;
 +
++    ES_RETURN_VAL_IF_FAIL(avctx, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(avctx->priv, FAILURE);
++    s = avctx->priv;
++    esctx = avctx->priv;
 +    if (!s->enable_logo) {
 +        return ret;
 +    }
++
++    ES_RETURN_VAL_IF_FAIL(logo_frame, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(dst_mpp_frame, FAILURE);
 +
 +    if (!logo_inlink || (logo_inlink->format == AV_PIX_FMT_DRM_PRIME && !logo_inlink->hw_frames_ctx)) {
 +        av_log(avctx, AV_LOG_ERROR, "Private format used, input frame must have hardware context.\n");
@@ -7454,6 +7813,14 @@ index 0000000000..cefaa8b251
 +               s->logo_disp_rect.width,
 +               s->logo_disp_rect.height);
 +    }
++
++    if (check_rect_if_valid(
++            &logo_rect, mpp_frame_get_width(dst_mpp_frame), mpp_frame_get_height(dst_mpp_frame), esctx->out_sw_fmt)) {
++        av_log(esctx, AV_LOG_ERROR, "stack check logo rect failed.\n");
++        ret = FAILURE;
++        goto exit;
++    }
++
 +    mpp_ret = esmpp_process_frame_sync(esctx->mctx,
 +                                       logo_mpp_frame,
 +                                       0,
@@ -7461,6 +7828,7 @@ index 0000000000..cefaa8b251
 +                                       &logo_rect,
 +                                       ES_NULL,
 +                                       &s->logo_disp_rect,
++                                       ES_NULL,
 +                                       TDE_USAGE_BLEND_SRC_IN | TDE_USAGE_LOGO);
 +
 +exit:
@@ -7486,19 +7854,13 @@ index 0000000000..cefaa8b251
 +    MppFramePtr dst_mpp_frame = NULL;
 +    MppBufferPtr *src_mpp_buf = NULL;
 +    MppBufferPtr dst_mpp_buf = NULL;
-+    ES_BOOL is_hw = ES_FALSE;
 +    size_t *in_frame_size = NULL, output_frame_size = 0;
 +    int plane = 0, stride[3] = {0}, offset[3] = {0};
 +
-+    if (!avctx || !inParams || !oframe) {
-+        av_log(NULL,
-+               AV_LOG_ERROR,
-+               "esmpp_stack_filter_frame input invaild params, avctx: %p, inParams: %p, oframe: %p\n",
-+               avctx,
-+               inParams,
-+               oframe);
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(avctx, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(avctx->priv, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(inParams, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(oframe, FAILURE);
 +
 +    in_src = inParams->in;
 +    ctx = avctx;
@@ -7542,7 +7904,6 @@ index 0000000000..cefaa8b251
 +        esmpp_stack_get_offset_stride(in_src[i], esctx->in_sw_fmt[i], stride, offset, &pic_size);
 +        esmpp_stack_set_mpp_frame(mpp_frame, in_src[i], 0, -1, stride, offset, esctx->in_sw_fmt[i]);
 +        if (esctx->format == AV_PIX_FMT_DRM_PRIME && in_src[i]->hw_frames_ctx) {
-+            is_hw = ES_TRUE;
 +            if (in_src[i]->buf[0]) {
 +                mpp_buf = (MppBufferPtr)in_src[i]->buf[0]->data;
 +                if (!mpp_buf) {
@@ -7689,7 +8050,7 @@ index 0000000000..cefaa8b251
 +        rect_info.thickness = 0;
 +
 +        mpp_ret = esmpp_process_frame_sync(
-+            esctx->mctx, ES_NULL, 1, dst_mpp_frame, ES_NULL, &rect_info, ES_NULL, TDE_USAGE_COLOR_FILL);
++            esctx->mctx, ES_NULL, 1, dst_mpp_frame, ES_NULL, &rect_info, ES_NULL, ES_NULL, TDE_USAGE_COLOR_FILL);
 +        if (mpp_ret != MPP_OK) {
 +            ret = FAILURE;
 +            av_log(ctx, AV_LOG_ERROR, "es_tde_fill_rect_array failed, ret: %d\n", mpp_ret);
@@ -7705,6 +8066,7 @@ index 0000000000..cefaa8b251
 +                                       dst_mpp_frame,
 +                                       inParams->src_rects,
 +                                       inParams->dst_rects,
++                                       ES_NULL,
 +                                       ES_NULL,
 +                                       TDE_USAGE_MULTISOURCE);
 +    if (mpp_ret != MPP_OK) {
@@ -7766,10 +8128,20 @@ index 0000000000..cefaa8b251
 +}
 +
 +static int esmpp_sort_frame_by_layer(AVFilterContext *avctx, RECT_S *src_rects, RECT_S *dst_rects, AVFrame **in) {
-+    StackESMPPContext *sctx = avctx->priv;
++    StackESMPPContext *sctx;
 +    int index = 0;
 +    int layer = 0;
-+    int next_layer = sctx->regions[0].layer;
++    int next_layer = 0;
++
++    ES_RETURN_VAL_IF_FAIL(avctx, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(avctx->priv, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(src_rects, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(dst_rects, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(in, FAILURE);
++
++    sctx = avctx->priv;
++    next_layer = sctx->regions[0].layer;
++
 +    for (int i = 0; i < sctx->nb_inputs; i++) {
 +        next_layer = next_layer > sctx->regions[i].layer ? sctx->regions[0].layer : next_layer;
 +    }
@@ -7801,30 +8173,6 @@ index 0000000000..cefaa8b251
 +    return 0;
 +}
 +
-+static int esmpp_stack_send_snapshot_frame(AVFilterLink *outlink, AVFrame *frame, AVFilterContext *avctx) {
-+    StackESMPPContext *s = (StackESMPPContext *)avctx->priv;
-+    int ret = FAILURE;
-+
-+    if (outlink && frame) {
-+        ret = ff_filter_frame(outlink, frame);
-+        if (ret >= 0) {
-+            s->snap_cnt++;
-+            av_log(avctx, AV_LOG_DEBUG, "stack snap send success.out cnt:%d, snap cnt:%d\n", s->out_cnt, s->snap_cnt);
-+        } else {
-+            av_log(avctx,
-+                   AV_LOG_ERROR,
-+                   "stack snap send failed. ret:%d, out cnt:%d, snap cnt:%d\n",
-+                   ret,
-+                   s->out_cnt,
-+                   s->snap_cnt);
-+        }
-+    } else {
-+        av_log(avctx, AV_LOG_ERROR, "stack snap send failed.\n");
-+    }
-+
-+    return ret;
-+}
-+
 +static int process_frame(FFFrameSync *fs) {
 +    AVFilterContext *avctx = fs->parent;
 +    AVFilterLink *outlink = avctx->outputs[0];
@@ -7833,12 +8181,13 @@ index 0000000000..cefaa8b251
 +    ESMPPContext *esctx = fs->opaque;
 +    MppInputParams iparams = {0};
 +    AVFrame *oframe, *iframe;
-+    AVFrame *frame_snap = NULL;
 +    ES_BOOL bneed_snap = ES_FALSE;
 +    int ret = 0;
 +#ifdef TRANSCODE_INFO_REPORT
 +    ctx->report_info.inBufferNum = ++ctx->in_buffer_num;
 +#endif
++
++    esmpp_set_device(esctx->mctx);
 +
 +    oframe = av_frame_alloc();
 +    if (!oframe) {
@@ -7936,36 +8285,39 @@ index 0000000000..cefaa8b251
 +        goto fail;
 +    }
 +
++    // do snapshot
++    bneed_snap = esmpp_check_snapshot(ctx->snap_interval, ctx->out_cnt + 1, (avctx->nb_outputs > 1));
++    if (bneed_snap) {
++        outlink_snap = avctx->outputs[1];
++        ret = esmpp_snapshot_send_frame(outlink_snap, oframe);
++        if (ret >= 0) {
++            ctx->snapshot_cnt++;
++            av_log(avctx,
++                   AV_LOG_DEBUG,
++                   "stack send success. outframe cnt:%d, snapshot cnt:%d\n",
++                   ctx->out_cnt + 1,
++                   ctx->snapshot_cnt);
++#ifdef TRANSCODE_INFO_REPORT
++            ctx->report_info.snapshotCnt = ctx->snapshot_cnt;
++            ctx->report_info.snapshotTotalBits = 0;
++#endif
++        } else {
++            av_log(avctx,
++                   AV_LOG_ERROR,
++                   "stack snapshot send failed. ret:%d, outframe cnt:%d, snapshot cnt:%d\n",
++                   ret,
++                   ctx->out_cnt + 1,
++                   ctx->snapshot_cnt);
++        }
++    }
++
++    // send output frame to next
 +    ret = ff_filter_frame(outlink, oframe);
 +    if (ret >= 0) {
 +        ctx->out_cnt++;
 +        av_log(avctx, AV_LOG_DEBUG, "filter frame send success. statistic cnt:%d\n", ctx->out_cnt);
 +    } else {
 +        av_log(avctx, AV_LOG_ERROR, "filter frame send failed in frame num:%d ret:%d\n", ctx->out_cnt, ret);
-+    }
-+
-+    bneed_snap = ctx->snap_interval ? 0 == ctx->out_cnt % ctx->snap_interval : ES_FALSE;
-+    if (bneed_snap) {
-+        if (avctx->nb_outputs > 1) {
-+            outlink_snap = avctx->outputs[1];
-+            frame_snap = av_frame_alloc();
-+            if (av_frame_ref(frame_snap, oframe) >= 0) {
-+                esmpp_stack_send_snapshot_frame(outlink_snap, frame_snap, avctx);
-+#ifdef TRANSCODE_INFO_REPORT
-+                ctx->report_info.snapshotCnt = ++ctx->snapshot_cnt;
-+                ctx->report_info.snapshotTotalBits = 0;
-+#endif
-+            } else {
-+                av_frame_free(&frame_snap);
-+                av_log(avctx, AV_LOG_ERROR, "snap av_frame_ref failed\n");
-+            }
-+        } else {
-+            av_log(avctx,
-+                   AV_LOG_ERROR,
-+                   "need snap but no snap shot outpad,snap_interval=%d, nb_outputs=%d\n",
-+                   ctx->snap_interval,
-+                   avctx->nb_outputs);
-+        }
 +    }
 +
 +fail:
@@ -7983,8 +8335,13 @@ index 0000000000..cefaa8b251
 +}
 +
 +static int esmpp_init_framesync(AVFilterContext *avctx) {
-+    StackESMPPContext *sctx = avctx->priv;
++    StackESMPPContext *sctx;
 +    int ret;
++
++    ES_RETURN_VAL_IF_FAIL(avctx, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(avctx->priv, FAILURE);
++
++    sctx = avctx->priv;
 +
 +    if (sctx->fs_init) return 0;
 +
@@ -8010,12 +8367,19 @@ index 0000000000..cefaa8b251
 +}
 +
 +static int esmpp_output_parse(AVFilterLink *outlink) {
-+    AVFilterContext *avctx = outlink->src;
-+    StackESMPPContext *sctx = avctx->priv;
-+    AVFilterLink *inlink0 = avctx->inputs[0];
++    AVFilterContext *avctx;
++    StackESMPPContext *sctx;
++    AVFilterLink *inlink0;
 +    int width, height;
 +    int layer = 0;
 +    int ret;
++
++    ES_RETURN_VAL_IF_FAIL(outlink, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(outlink->src, FAILURE);
++
++    avctx = outlink->src;
++    sctx = avctx->priv;
++    inlink0 = avctx->inputs[0];
 +
 +    if (sctx->mode == STACK_H) {
 +        height = sctx->tile_height;
@@ -8082,10 +8446,11 @@ index 0000000000..cefaa8b251
 +
 +        args = layout_str;
 +        while ((arg = av_strtok(args, "|", &tokenizer))) {
-+            args = NULL;
-+            layer = 0;
 +            ESRegion *region = &sctx->regions[index];
 +            ES_S32 w = 0, h = 0, left = 0, top = 0;
++            args = NULL;
++            layer = 0;
++
 +            av_log(avctx, AV_LOG_DEBUG, "%d arg=%s tokenizer=%s\n", __LINE__, arg, tokenizer);
 +            while ((arg0 = av_strtok(arg, " ", &tokenizer0))) {
 +                arg = NULL;
@@ -8147,12 +8512,20 @@ index 0000000000..cefaa8b251
 +}
 +
 +static int config_output_snap(AVFilterLink *outlink) {
-+    AVFilterContext *ctx = outlink->src;
-+    StackESMPPContext *sctx = ctx->priv;
-+    AVFilterLink *inlink0 = ctx->inputs[0];
++    AVFilterContext *ctx;
++    StackESMPPContext *sctx;
++    AVFilterLink *inlink0;
 +    ES_DOUBLE in_frame_rate = 0.0;
 +    int ret = 0;
++
++    ES_RETURN_VAL_IF_FAIL(outlink, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(outlink->src, FAILURE);
++
 +    av_log(ctx, AV_LOG_DEBUG, "config_output_snap enter.\n");
++
++    ctx = outlink->src;
++    sctx = ctx->priv;
++    inlink0 = ctx->inputs[0];
 +
 +    outlink->w = sctx->o_width;
 +    outlink->h = sctx->o_height;
@@ -8179,11 +8552,17 @@ index 0000000000..cefaa8b251
 +}
 +
 +static int esmpp_init_output_bufgroup(AVFilterLink *outlink) {
-+    AVFilterContext *ctx = outlink->src;
-+    ESMPPContext *esctx = ctx->priv;
-+    AVFilterLink *inlink0 = ctx->inputs[0];
-+
++    AVFilterContext *ctx;
++    ESMPPContext *esctx;
++    AVFilterLink *inlink0;
 +    int ret = 0;
++
++    ES_RETURN_VAL_IF_FAIL(outlink, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(outlink->src, FAILURE);
++
++    ctx = outlink->src;
++    esctx = ctx->priv;
++    inlink0 = ctx->inputs[0];
 +
 +    if (inlink0->hw_frames_ctx) {
 +        AVHWFramesContext *hwfc = NULL;
@@ -8240,13 +8619,12 @@ index 0000000000..cefaa8b251
 +
 +static int init_mpp_tde(AVFilterContext *ctx) {
 +    int ret = 0;
-+    StackESMPPContext *s = NULL;
 +    ESMPPContext *esctx = NULL;
++    MppTdeCfgPtr tde_cfg;
 +
-+    if (!ctx || !ctx->priv) {
-+        return FAILURE;
-+    }
-+    s = (StackESMPPContext *)ctx->priv;
++    ES_RETURN_VAL_IF_FAIL(ctx, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(ctx->priv, FAILURE);
++
 +    esctx = (ESMPPContext *)ctx->priv;
 +
 +    if (esctx->mpp_init) {
@@ -8270,7 +8648,6 @@ index 0000000000..cefaa8b251
 +        goto error;
 +    }
 +
-+    MppTdeCfgPtr tde_cfg;
 +    if ((ret = mpp_tde_cfg_init(&tde_cfg)) != MPP_OK) {
 +        av_log(ctx, AV_LOG_ERROR, "Failed to init mpp_tde_cfg_ret: %d\n", ret);
 +        ret = AVERROR_EXTERNAL;
@@ -8309,11 +8686,19 @@ index 0000000000..cefaa8b251
 +}
 +
 +static int config_output(AVFilterLink *outlink) {
-+    AVFilterContext *ctx = outlink->src;
-+    StackESMPPContext *sctx = ctx->priv;
-+    ESMPPContext *esctx = ctx->priv;
-+    AVFilterLink *inlink0 = ctx->inputs[0];
++    AVFilterContext *ctx;
++    StackESMPPContext *sctx;
++    ESMPPContext *esctx;
++    AVFilterLink *inlink0;
 +    int ret;
++
++    ES_RETURN_VAL_IF_FAIL(outlink, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(outlink->src, AVERROR(EINVAL));
++
++    ctx = outlink->src;
++    sctx = ctx->priv;
++    esctx = ctx->priv;
++    inlink0 = ctx->inputs[0];
 +
 +    av_log(ctx, AV_LOG_DEBUG, "config_output enter.\n");
 +
@@ -8349,6 +8734,11 @@ index 0000000000..cefaa8b251
 +    esmpp_init_output_bufgroup(outlink);
 +
 +    for (int i = 0; i < sctx->nb_inputs; i++) {
++        RECT_S rect = {sctx->regions[i].x, sctx->regions[i].y, sctx->regions[i].width, sctx->regions[i].height};
++        if (check_rect_if_valid(&rect, outlink->w, outlink->h, esctx->out_sw_fmt)) {
++            av_log(ctx, AV_LOG_ERROR, "stack config_output check region failed.\n");
++            return FAILURE;
++        }
 +        av_log(ctx,
 +               AV_LOG_DEBUG,
 +               "stack dst rect[%d]: %d,%d,%d,%d.\n",
@@ -8375,8 +8765,13 @@ index 0000000000..cefaa8b251
 +}
 +
 +static int esmpp_stack_init_parse(AVFilterContext *avctx) {
-+    StackESMPPContext *sctx = avctx->priv;
++    StackESMPPContext *sctx;
 +    int ret;
++
++    ES_RETURN_VAL_IF_FAIL(avctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avctx->priv, AVERROR(EINVAL));
++
++    sctx = avctx->priv;
 +
 +    if (sctx->mode == STACK_X) {
 +        int is_grid;
@@ -8429,7 +8824,7 @@ index 0000000000..cefaa8b251
 +        } else {
 +            av_log(avctx, AV_LOG_DEBUG, "esmpp stack snapshot add outpad success.\n");
 +        }
-+        sctx->snap_cnt = 0;
++        sctx->snapshot_cnt = 0;
 +    }
 +    sctx->out_cnt = 0;
 +    return 0;
@@ -8440,9 +8835,9 @@ index 0000000000..cefaa8b251
 +    StackESMPPContext *s = NULL;
 +    ESMPPContext *esctx = NULL;
 +
-+    if (!ctx || !ctx->priv) {
-+        return FAILURE;
-+    }
++    ES_RETURN_VAL_IF_FAIL(ctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(ctx->priv, AVERROR(EINVAL));
++
 +    s = (StackESMPPContext *)ctx->priv;
 +    esctx = (ESMPPContext *)ctx->priv;
 +
@@ -8509,14 +8904,15 @@ index 0000000000..cefaa8b251
 +    StackESMPPContext *s = NULL;
 +    ES_BOOL use_hwaccel = ES_FALSE;
 +
-+    if (!ctx || !ctx->priv) {
-+        return;
-+    }
++    ES_RETURN_IF_FAIL(ctx);
++    ES_RETURN_IF_FAIL(ctx->priv);
 +
 +    av_log(ctx, AV_LOG_DEBUG, "esmpp_stack_uninit enter.\n");
 +
 +    esctx = (ESMPPContext *)ctx->priv;
 +    s = (StackESMPPContext *)ctx->priv;
++
++    esmpp_set_device(esctx->mctx);
 +
 +    if (s->fs_init) {
 +        ff_framesync_uninit(&s->fs);
@@ -8749,15 +9145,16 @@ index 0000000000..cefaa8b251
 +    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 +    .flags = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_HWDEVICE,
 +};
+\ No newline at end of file
 diff --git a/libavutil/Makefile b/libavutil/Makefile
-index 6e6fa8d800..e21c63cd05 100644
+index 6e6fa8d800..9e9736011f 100644
 --- a/libavutil/Makefile
 +++ b/libavutil/Makefile
 @@ -205,6 +205,7 @@ OBJS-$(CONFIG_VAAPI)                    += hwcontext_vaapi.o
  OBJS-$(CONFIG_VIDEOTOOLBOX)             += hwcontext_videotoolbox.o
  OBJS-$(CONFIG_VDPAU)                    += hwcontext_vdpau.o
  OBJS-$(CONFIG_VULKAN)                   += hwcontext_vulkan.o vulkan.o
-+OBJS-$(CONFIG_ESMPP)                    += hwcontext_esmpp.o esmpp_transfer.o
++OBJS-$(CONFIG_ESMPP)                    += hwcontext_esmpp.o esmpp_utils.o
  
  OBJS-$(!CONFIG_VULKAN)                  += hwcontext_stub.o
  
@@ -8765,17 +9162,17 @@ index 6e6fa8d800..e21c63cd05 100644
  SKIPHEADERS-$(CONFIG_VULKAN)           += hwcontext_vulkan.h vulkan.h   \
                                            vulkan_functions.h            \
                                            vulkan_loader.h
-+SKIPHEADERS-$(CONFIG_ESMPP)            += hwcontext_esmpp.h esmpp_transfer.h
++SKIPHEADERS-$(CONFIG_ESMPP)            += hwcontext_esmpp.h esmpp_utils.h
  
  TESTPROGS = adler32                                                     \
              aes                                                         \
-diff --git a/libavutil/esmpp_transfer.c b/libavutil/esmpp_transfer.c
+diff --git a/libavutil/esmpp_utils.c b/libavutil/esmpp_utils.c
 new file mode 100644
-index 0000000000..2f36623249
+index 0000000000..134c05aa14
 --- /dev/null
-+++ b/libavutil/esmpp_transfer.c
++++ b/libavutil/esmpp_utils.c
 @@ -0,0 +1,102 @@
-+#include "esmpp_transfer.h"
++#include "esmpp_utils.h"
 +#include "pixdesc.h"
 +#include "mpp_buffer.h"
 +
@@ -8877,19 +9274,54 @@ index 0000000000..2f36623249
 +    av_frame_unref(dst_frame);
 +    return ret;
 +}
-diff --git a/libavutil/esmpp_transfer.h b/libavutil/esmpp_transfer.h
+diff --git a/libavutil/esmpp_utils.h b/libavutil/esmpp_utils.h
 new file mode 100644
-index 0000000000..586b50a198
+index 0000000000..c5c20ae8dc
 --- /dev/null
-+++ b/libavutil/esmpp_transfer.h
-@@ -0,0 +1,16 @@
-+#ifndef AVUTIL_ESMPP_TRANSFER_H
-+#define AVUTIL_ESMPP_TRANSFER_H
++++ b/libavutil/esmpp_utils.h
+@@ -0,0 +1,51 @@
++#ifndef AVUTIL_ESMPP_UTILS_H
++#define AVUTIL_ESMPP_UTILS_H
 +#include "frame.h"
 +
 +#ifdef __cplusplus
 +extern "C" {
 +#endif
++
++/* When type of function is void and expr is false, return. */
++#define ES_RETURN_IF_FAIL(expr)                                                                                   \
++    do {                                                                                                          \
++        if (!(expr)) {                                                                                            \
++            av_log(NULL, AV_LOG_ERROR, "Func:%s, Line:%d, expr \"%s\" failed.\n", __FUNCTION__, __LINE__, #expr); \
++            return;                                                                                               \
++        }                                                                                                         \
++    } while (0)
++
++/* When expr is false, return error info. */
++#define ES_RETURN_VAL_IF_FAIL(expr, ret)                                                                          \
++    do {                                                                                                          \
++        if (!(expr)) {                                                                                            \
++            av_log(NULL, AV_LOG_ERROR, "Func:%s, Line:%d, expr \"%s\" failed.\n", __FUNCTION__, __LINE__, #expr); \
++            return ret;                                                                                           \
++        }                                                                                                         \
++    } while (0)
++
++/* When func return is false, return ret. */
++#define ES_RETURN_FUNC_FAIL(func)                                       \
++    do {                                                                \
++        ret = func;                                                     \
++        if (ret) {                                                      \
++            av_log(NULL,                                                \
++                   AV_LOG_ERROR,                                        \
++                   "Func:%s, Line:%d, call %s failed, ret = %d(%#x)\n", \
++                   __FUNCTION__,                                        \
++                   __LINE__,                                            \
++                   #func,                                               \
++                   ret,                                                 \
++                   ret);                                                \
++            return ret;                                                 \
++        }                                                               \
++    } while (0)
 +
 +int esmpp_hwframe_transfer(AVFrame *dst_frame, const AVFrame *src_frame);
 +int esmpp_hwframe_transfer_bysize(AVFrame *dst_frame, const AVFrame *src_frame, size_t size);
@@ -8936,10 +9368,10 @@ index bac30debae..24f8e2eba9 100644
  /**
 diff --git a/libavutil/hwcontext_esmpp.c b/libavutil/hwcontext_esmpp.c
 new file mode 100644
-index 0000000000..9120434fd2
+index 0000000000..a45af394d2
 --- /dev/null
 +++ b/libavutil/hwcontext_esmpp.c
-@@ -0,0 +1,677 @@
+@@ -0,0 +1,644 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -8971,15 +9403,19 @@ index 0000000000..9120434fd2
 +#include "hwcontext_internal.h"
 +#include "imgutils.h"
 +#include "mem.h"
++#include "esmpp_utils.h"
 +#ifdef TRANSCODE_HOST
 +#include "es_host_query_cap.h"
 +#endif
 +
-+#if LIBDRM_VERSION_NUMBER < 0x02046400L
++#if !defined(LIBDRM_VERSION_NUMBER) || LIBDRM_VERSION_NUMBER < 0x02046400L
 +#define DRM_FORMAT_P010 fourcc_code('P', '0', '1', '0')
 +#define DRM_FORMAT_P210 fourcc_code('P', '2', '1', '0')
 +#endif
 +
++
++#define DEV_SELECT_MAX_LOOP 100
++#define FIND_DEV_SLEEP_FOR_NEXT_LOCK 100000
 +static const struct {
 +    enum AVPixelFormat pixfmt;
 +    uint32_t drm_format;
@@ -8987,167 +9423,57 @@ index 0000000000..9120434fd2
 +    /* grayscale */
 +    {AV_PIX_FMT_GRAY8, DRM_FORMAT_R8},
 +    /* fully-planar YUV */
-+    {
-+        AV_PIX_FMT_YUV420P,
-+        DRM_FORMAT_YUV420,
-+    },
-+    {
-+        AV_PIX_FMT_YUV422P,
-+        DRM_FORMAT_YUV422,
-+    },
-+    {
-+        AV_PIX_FMT_YUV444P,
-+        DRM_FORMAT_YUV444,
-+    },
++    {AV_PIX_FMT_YUV420P, DRM_FORMAT_YUV420},
++    {AV_PIX_FMT_YUV422P, DRM_FORMAT_YUV422},
++    {AV_PIX_FMT_YUV444P, DRM_FORMAT_YUV444},
 +    /* semi-planar YUV */
-+    {
-+        AV_PIX_FMT_NV12,
-+        DRM_FORMAT_NV12,
-+    },
-+    {
-+        AV_PIX_FMT_NV21,
-+        DRM_FORMAT_NV21,
-+    },
-+    {
-+        AV_PIX_FMT_NV16,
-+        DRM_FORMAT_NV16,
-+    },
-+    {
-+        AV_PIX_FMT_NV24,
-+        DRM_FORMAT_NV24,
-+    },
++    {AV_PIX_FMT_NV12, DRM_FORMAT_NV12},
++    {AV_PIX_FMT_NV21, DRM_FORMAT_NV21},
++    {AV_PIX_FMT_NV16, DRM_FORMAT_NV16},
++    {AV_PIX_FMT_NV24, DRM_FORMAT_NV24},
 +    /* semi-planar YUV 10-bit */
-+    {
-+        AV_PIX_FMT_P010,
-+        DRM_FORMAT_P010,
-+    },
-+    {
-+        AV_PIX_FMT_P210,
-+        DRM_FORMAT_P210,
-+    },
++    {AV_PIX_FMT_P010, DRM_FORMAT_P010},
++    {AV_PIX_FMT_P210, DRM_FORMAT_P210},
 +    /* packed YUV */
-+    {
-+        AV_PIX_FMT_YUYV422,
-+        DRM_FORMAT_YUYV,
-+    },
-+    {
-+        AV_PIX_FMT_YVYU422,
-+        DRM_FORMAT_YVYU,
-+    },
-+    {
-+        AV_PIX_FMT_UYVY422,
-+        DRM_FORMAT_UYVY,
-+    },
++    {AV_PIX_FMT_YUYV422, DRM_FORMAT_YUYV},
++    {AV_PIX_FMT_YVYU422, DRM_FORMAT_YVYU},
++    {AV_PIX_FMT_UYVY422, DRM_FORMAT_UYVY},
 +    /* packed RGB */
-+    {
-+        AV_PIX_FMT_RGB444LE,
-+        DRM_FORMAT_XRGB4444,
-+    },
-+    {
-+        AV_PIX_FMT_RGB444BE,
-+        DRM_FORMAT_XRGB4444 | DRM_FORMAT_BIG_ENDIAN,
-+    },
-+    {
-+        AV_PIX_FMT_BGR444LE,
-+        DRM_FORMAT_XBGR4444,
-+    },
-+    {
-+        AV_PIX_FMT_BGR444BE,
-+        DRM_FORMAT_XBGR4444 | DRM_FORMAT_BIG_ENDIAN,
-+    },
-+    {
-+        AV_PIX_FMT_RGB555LE,
-+        DRM_FORMAT_XRGB1555,
-+    },
-+    {
-+        AV_PIX_FMT_RGB555BE,
-+        DRM_FORMAT_XRGB1555 | DRM_FORMAT_BIG_ENDIAN,
-+    },
-+    {
-+        AV_PIX_FMT_BGR555LE,
-+        DRM_FORMAT_XBGR1555,
-+    },
-+    {
-+        AV_PIX_FMT_BGR555BE,
-+        DRM_FORMAT_XBGR1555 | DRM_FORMAT_BIG_ENDIAN,
-+    },
-+    {
-+        AV_PIX_FMT_RGB565LE,
-+        DRM_FORMAT_RGB565,
-+    },
-+    {
-+        AV_PIX_FMT_RGB565BE,
-+        DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN,
-+    },
-+    {
-+        AV_PIX_FMT_BGR565LE,
-+        DRM_FORMAT_BGR565,
-+    },
-+    {
-+        AV_PIX_FMT_BGR565BE,
-+        DRM_FORMAT_BGR565 | DRM_FORMAT_BIG_ENDIAN,
-+    },
-+    {
-+        AV_PIX_FMT_RGB24,
-+        DRM_FORMAT_RGB888,
-+    },
-+    {
-+        AV_PIX_FMT_BGR24,
-+        DRM_FORMAT_BGR888,
-+    },
-+    {
-+        AV_PIX_FMT_RGBA,
-+        DRM_FORMAT_ABGR8888,
-+    },
-+    {
-+        AV_PIX_FMT_RGB0,
-+        DRM_FORMAT_XBGR8888,
-+    },
-+    {
-+        AV_PIX_FMT_BGRA,
-+        DRM_FORMAT_ARGB8888,
-+    },
-+    {
-+        AV_PIX_FMT_BGR0,
-+        DRM_FORMAT_XRGB8888,
-+    },
-+    {
-+        AV_PIX_FMT_ARGB,
-+        DRM_FORMAT_BGRA8888,
-+    },
-+    {
-+        AV_PIX_FMT_0RGB,
-+        DRM_FORMAT_BGRX8888,
-+    },
-+    {
-+        AV_PIX_FMT_ABGR,
-+        DRM_FORMAT_RGBA8888,
-+    },
-+    {
-+        AV_PIX_FMT_0BGR,
-+        DRM_FORMAT_RGBX8888,
-+    },
-+    {
-+        AV_PIX_FMT_X2RGB10LE,
-+        DRM_FORMAT_XRGB2101010,
-+    },
-+    {
-+        AV_PIX_FMT_X2RGB10BE,
-+        DRM_FORMAT_XRGB2101010 | DRM_FORMAT_BIG_ENDIAN,
-+    },
-+    {
-+        AV_PIX_FMT_X2BGR10LE,
-+        DRM_FORMAT_XBGR2101010,
-+    },
-+    {
-+        AV_PIX_FMT_X2BGR10BE,
-+        DRM_FORMAT_XBGR2101010 | DRM_FORMAT_BIG_ENDIAN,
-+    },
-+};
++    {AV_PIX_FMT_RGB444LE, DRM_FORMAT_XRGB4444},
++    {AV_PIX_FMT_RGB444BE, DRM_FORMAT_XRGB4444 | DRM_FORMAT_BIG_ENDIAN},
++    {AV_PIX_FMT_BGR444LE, DRM_FORMAT_XBGR4444},
++    {AV_PIX_FMT_BGR444BE, DRM_FORMAT_XBGR4444 | DRM_FORMAT_BIG_ENDIAN},
++    {AV_PIX_FMT_RGB555LE, DRM_FORMAT_XRGB1555},
++    {AV_PIX_FMT_RGB555BE, DRM_FORMAT_XRGB1555 | DRM_FORMAT_BIG_ENDIAN},
++    {AV_PIX_FMT_BGR555LE, DRM_FORMAT_XBGR1555},
++    {AV_PIX_FMT_BGR555BE, DRM_FORMAT_XBGR1555 | DRM_FORMAT_BIG_ENDIAN},
++    {AV_PIX_FMT_RGB565LE, DRM_FORMAT_RGB565},
++    {AV_PIX_FMT_RGB565BE, DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN},
++    {AV_PIX_FMT_BGR565LE, DRM_FORMAT_BGR565},
++    {AV_PIX_FMT_BGR565BE, DRM_FORMAT_BGR565 | DRM_FORMAT_BIG_ENDIAN},
++    {AV_PIX_FMT_RGB24, DRM_FORMAT_RGB888},
++    {AV_PIX_FMT_BGR24, DRM_FORMAT_BGR888},
++    {AV_PIX_FMT_RGBA, DRM_FORMAT_ABGR8888},
++    {AV_PIX_FMT_RGB0, DRM_FORMAT_XBGR8888},
++    {AV_PIX_FMT_BGRA, DRM_FORMAT_ARGB8888},
++    {AV_PIX_FMT_BGR0, DRM_FORMAT_XRGB8888},
++    {AV_PIX_FMT_ARGB, DRM_FORMAT_BGRA8888},
++    {AV_PIX_FMT_0RGB, DRM_FORMAT_BGRX8888},
++    {AV_PIX_FMT_ABGR, DRM_FORMAT_RGBA8888},
++    {AV_PIX_FMT_0BGR, DRM_FORMAT_RGBX8888},
++    {AV_PIX_FMT_X2RGB10LE, DRM_FORMAT_XRGB2101010},
++    {AV_PIX_FMT_X2RGB10BE, DRM_FORMAT_XRGB2101010 | DRM_FORMAT_BIG_ENDIAN},
++    {AV_PIX_FMT_X2BGR10LE, DRM_FORMAT_XBGR2101010},
++    {AV_PIX_FMT_X2BGR10BE, DRM_FORMAT_XBGR2101010 | DRM_FORMAT_BIG_ENDIAN}};
 +
 +static int esmpp_device_create(AVHWDeviceContext *hwdev, const char *device, AVDictionary *opts, int flags) {
++    ES_RETURN_VAL_IF_FAIL(hwdev, AVERROR(EINVAL));
 +    AVESMPPDeviceContext *hwctx = hwdev->hwctx;
++    ES_RETURN_VAL_IF_FAIL(hwctx, AVERROR(EINVAL));
 +    AVDictionaryEntry *opt_d = NULL;
++    /* find candidate device, select the usage ratio lowest one, in this stage the resource will be ocupatied
++        is unknown, the default value as below, can be changed manually through config*/
++    int dec_ratio = 5, enc_ratio = 4, filter_ratio = 1;
 +    hwctx->device_idx = 0;
 +    hwctx->die_idx = 0;
 +
@@ -9159,20 +9485,64 @@ index 0000000000..9120434fd2
 +    opt_d = av_dict_get(opts, "cacheable", NULL, 0);
 +    if (opt_d && !strtol(opt_d->value, NULL, 10)) hwctx->flags &= ~MPP_BUFFER_FLAGS_CACHABLE;
 +
++    opt_d = av_dict_get(opts, "res_ratio", NULL, 0);
++    if (opt_d) {
++        if (sscanf(opt_d->value, "%d:%d:%d", &dec_ratio, &enc_ratio, &filter_ratio) == 3) {
++            av_log(hwdev, AV_LOG_INFO, "configure res_ratio:%s, resource ratio, dec:%d,enc:%d,filter:%d\n",
++                   opt_d->value, dec_ratio, enc_ratio, filter_ratio);
++            int total = dec_ratio + enc_ratio + filter_ratio;
++            if (total != 10) {
++                dec_ratio = dec_ratio * 10 / total;
++                enc_ratio = enc_ratio * 10 / total;
++                filter_ratio = 10 - dec_ratio - enc_ratio;
++                av_log(hwdev, AV_LOG_WARNING, "res_ratio:%s sum not 10, recalculate it dec:%d,enc:%d,filter:%d\n",
++                   opt_d->value, dec_ratio, enc_ratio, filter_ratio);
++            }
++        } else {
++            av_log(hwdev, AV_LOG_WARNING, "invalid resource_ratio %s, use default value. dec:%d,enc:%d,filter:%d\n",
++                   opt_d->value, dec_ratio, enc_ratio, filter_ratio);
++        }
++    }
++
 +    opt_d = av_dict_get(opts, "device_idx", NULL, 0);
 +    if (opt_d) {
-+        hwctx->device_idx = strtol(opt_d->value, NULL, 10);
++        long dev_idx = 0;
++        dev_idx = strtol(opt_d->value, NULL, 10);
++        hwctx->device_idx = dev_idx;
 +        if (hwctx->device_idx < -1) {
 +            av_log(hwdev, AV_LOG_ERROR, "%s set device_idx: %d invalid.\n", __func__, hwctx->device_idx);
 +            return -1;
 +        } else if (hwctx->device_idx == -1) {
 +#ifdef TRANSCODE_HOST
-+            int ret = 0;
-+            ret = find_candidate(RPC_TIMEOUT_MS);
-+            if (ret < 0) {
-+                av_log(hwdev, AV_LOG_ERROR, "auto select device_idx failed, ret %d.\n", __func__, ret);
++            int ret = -1;
++            int loop_num = 0;
++            while (true) {
++                ret = find_candidate(dec_ratio, enc_ratio, filter_ratio, RPC_TIMEOUT_MS);
++                if (ret < 0) {
++                    av_log(hwdev, AV_LOG_ERROR, "%s auto select device_idx failed, ret %d.\n", __func__, ret);
++                    hwctx->device_idx = 0;
++                    break;
++                }
++                hwctx->device_idx = ret;
++                ret = lock_dev(hwctx->device_idx, RPC_TIMEOUT_MS);
++                if (ret == 1) {
++                    av_log(hwdev, AV_LOG_DEBUG, "%s lock the dev %d, ret %d.\n", __func__, hwctx->device_idx, ret);
++                    break;
++                } else if (ret == 0) {
++                    av_log(hwdev, AV_LOG_DEBUG, "%s can't lock the dev %d, ret %d. lock again, loop_num %d\n",
++                           __func__, hwctx->device_idx, ret, loop_num);
++                    usleep(FIND_DEV_SLEEP_FOR_NEXT_LOCK);
++                    loop_num++;
++                    if (loop_num < DEV_SELECT_MAX_LOOP)
++                        continue;
++                    else
++                        break;
++                } else {
++                    av_log(hwdev, AV_LOG_ERROR, "%s Error: Can't lock the dev %d, ret %d.\n",
++                           __func__, hwctx->device_idx, ret);
++                    break;
++                }
 +            }
-+            hwctx->device_idx = ret;
 +#else
 +            hwctx->device_idx = 0;
 +#endif
@@ -9202,6 +9572,7 @@ index 0000000000..9120434fd2
 +static int esmpp_frames_get_constraints(AVHWDeviceContext *hwdev,
 +                                        const void *hwconfig,
 +                                        AVHWFramesConstraints *constraints) {
++    ES_RETURN_VAL_IF_FAIL(constraints, AVERROR(EINVAL));
 +    int i;
 +
 +    constraints->min_width = 16;
@@ -9237,6 +9608,8 @@ index 0000000000..9120434fd2
 +}
 +
 +static int esmpp_get_aligned_linesize(enum AVPixelFormat pix_fmt, int width, int plane) {
++    ES_RETURN_VAL_IF_FAIL(width >= 0, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(plane >= 0, AVERROR(EINVAL));
 +    const AVPixFmtDescriptor *pixdesc = av_pix_fmt_desc_get(pix_fmt);
 +    const int is_rgb = pixdesc->flags & AV_PIX_FMT_FLAG_RGB;
 +    const int is_yuv = !is_rgb && pixdesc->nb_components >= 2;
@@ -9268,9 +9641,11 @@ index 0000000000..9120434fd2
 +}
 +
 +static AVBufferRef *esmpp_drm_pool_alloc(void *opaque, size_t size) {
++    ES_RETURN_VAL_IF_FAIL(opaque, AVERROR(EINVAL));
 +    int ret;
 +    AVHWFramesContext *hwfc = opaque;
 +    AVESMPPFramesContext *avfc = hwfc->hwctx;
++    ES_RETURN_VAL_IF_FAIL(avfc, AVERROR(EINVAL));
 +    AVESMPPDRMFrameDescriptor *desc;
 +    AVDRMLayerDescriptor *layer;
 +    AVBufferRef *ref;
@@ -9356,8 +9731,12 @@ index 0000000000..9120434fd2
 +}
 +
 +static int esmpp_frames_init(AVHWFramesContext *hwfc) {
++    ES_RETURN_VAL_IF_FAIL(hwfc, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(hwfc->device_ctx, AVERROR(EINVAL));
 +    AVESMPPFramesContext *avfc = hwfc->hwctx;
 +    AVESMPPDeviceContext *hwctx = hwfc->device_ctx->hwctx;
++    ES_RETURN_VAL_IF_FAIL(avfc, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(hwctx, AVERROR(EINVAL));
 +    MppBufferType buf_type = MPP_BUFFER_TYPE_DMA_HEAP;
 +    int i, ret;
 +    size_t size;
@@ -9399,7 +9778,9 @@ index 0000000000..9120434fd2
 +}
 +
 +static void esmpp_frames_uninit(AVHWFramesContext *hwfc) {
++    ES_RETURN_IF_FAIL(hwfc);
 +    AVESMPPFramesContext *avfc = hwfc->hwctx;
++    ES_RETURN_IF_FAIL(avfc);
 +
 +    av_freep(&avfc->frames);
 +
@@ -9410,6 +9791,8 @@ index 0000000000..9120434fd2
 +}
 +
 +static int esmpp_get_buffer(AVHWFramesContext *hwfc, AVFrame *frame) {
++    ES_RETURN_VAL_IF_FAIL(hwfc, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(frame, AVERROR(EINVAL));
 +    frame->buf[0] = av_buffer_pool_get(hwfc->pool);
 +    if (!frame->buf[0]) return AVERROR(ENOMEM);
 +
@@ -9432,7 +9815,9 @@ index 0000000000..9120434fd2
 +} ESMPPDRMMapping;
 +
 +static void esmpp_unmap_frame(AVHWFramesContext *hwfc, HWMapDescriptor *hwmap) {
++    ES_RETURN_IF_FAIL(hwmap);
 +    ESMPPDRMMapping *map = hwmap->priv;
++    ES_RETURN_IF_FAIL(map);
 +
 +    for (int i = 0; i < map->nb_regions; i++) {
 +        if (map->address[i] && map->unmap[i]) munmap(map->address[i], map->length[i]);
@@ -9442,7 +9827,10 @@ index 0000000000..9120434fd2
 +}
 +
 +static int esmpp_map_frame(AVHWFramesContext *hwfc, AVFrame *dst, const AVFrame *src, int flags) {
++    ES_RETURN_VAL_IF_FAIL(dst, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(src, AVERROR(EINVAL));
 +    const AVESMPPDRMFrameDescriptor *desc = (AVESMPPDRMFrameDescriptor *)src->data[0];
++    ES_RETURN_VAL_IF_FAIL(desc, AVERROR(EINVAL));
 +    ESMPPDRMMapping *map;
 +    int err, i, p, plane;
 +    int mmap_prot;
@@ -9517,6 +9905,8 @@ index 0000000000..9120434fd2
 +static int esmpp_transfer_get_formats(AVHWFramesContext *ctx,
 +                                      enum AVHWFrameTransferDirection dir,
 +                                      enum AVPixelFormat **formats) {
++    ES_RETURN_VAL_IF_FAIL(ctx, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(formats, AVERROR(EINVAL));
 +    enum AVPixelFormat *pix_fmts;
 +
 +    pix_fmts = av_malloc_array(2, sizeof(*pix_fmts));
@@ -9531,6 +9921,9 @@ index 0000000000..9120434fd2
 +}
 +
 +static int esmpp_transfer_data_from(AVHWFramesContext *hwfc, AVFrame *dst, const AVFrame *src) {
++    ES_RETURN_VAL_IF_FAIL(hwfc, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(dst, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(src, AVERROR(EINVAL));
 +    AVFrame *map;
 +    int err;
 +
@@ -9557,6 +9950,9 @@ index 0000000000..9120434fd2
 +}
 +
 +static int esmpp_transfer_data_to(AVHWFramesContext *hwfc, AVFrame *dst, const AVFrame *src) {
++    ES_RETURN_VAL_IF_FAIL(hwfc, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(dst, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(src, AVERROR(EINVAL));
 +    AVFrame *map;
 +    int err;
 +
@@ -9583,6 +9979,9 @@ index 0000000000..9120434fd2
 +}
 +
 +static int esmpp_map_from(AVHWFramesContext *hwfc, AVFrame *dst, const AVFrame *src, int flags) {
++    ES_RETURN_VAL_IF_FAIL(hwfc, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(dst, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(src, AVERROR(EINVAL));
 +    int err;
 +
 +    if (hwfc->sw_format != dst->format) return AVERROR(ENOSYS);
