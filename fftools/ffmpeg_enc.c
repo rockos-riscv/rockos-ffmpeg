@@ -119,7 +119,7 @@ static int hw_device_setup_for_encode(OutputStream *ost, AVBufferRef *frames_ref
             ost->enc_ctx->hw_frames_ctx = av_buffer_ref(frames_ref);
             if (!ost->enc_ctx->hw_frames_ctx)
                 return AVERROR(ENOMEM);
-            return 0;
+            break;
         }
 
         if (!dev &&
@@ -954,6 +954,25 @@ int encoder_thread(void *arg)
         ret = 0;
 
 finish:
+#ifdef CONFIG_ESMPP
+    if (e->opened) {
+        AVFrame *remaining_frame = av_frame_alloc();
+        if (remaining_frame) {
+            int status;
+            while (1) {
+                status = sch_enc_receive(e->sch, e->sch_idx, remaining_frame);
+                if (status < 0) {
+                    if (status != AVERROR_EOF && status != AVERROR(EAGAIN)) {
+                        av_log(e, AV_LOG_WARNING, "Error cleaning up remaining frames: %s\n", av_err2str(status));
+                    }
+                    break;
+                }
+                av_frame_unref(remaining_frame);
+            }
+            av_frame_free(&remaining_frame);
+        }
+    }
+#endif
     enc_thread_uninit(&et);
 
     return ret;

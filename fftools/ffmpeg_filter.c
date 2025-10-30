@@ -2870,6 +2870,28 @@ finish:
     if (ret == AVERROR_EOF)
         ret = 0;
 
+#ifdef CONFIG_ESMPP
+    if (fgt.graph) {
+        AVFrame *remaining_frame = av_frame_alloc();
+        if (remaining_frame) {
+            for(unsigned i = 0; i < fg->nb_inputs; i++){
+                int status;
+                while (1) {
+                    status = sch_filter_receive(fgp->sch, fgp->sch_idx, &i, remaining_frame);
+                    if (status < 0) {
+                        if (status != AVERROR_EOF && status != AVERROR(EAGAIN)) {
+                            av_log(fg, AV_LOG_WARNING, "Error cleaning up remaining frames: %s from input: %d\n",
+                                            av_err2str(status), i);
+                        }
+                        break;
+                    }
+                    av_frame_unref(remaining_frame);
+                }
+            }
+            av_frame_free(&remaining_frame);
+        }
+    }
+#endif
     fg_thread_uninit(&fgt);
 
     return ret;
