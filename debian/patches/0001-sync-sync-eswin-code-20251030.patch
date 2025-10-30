@@ -1,41 +1,52 @@
-From eec0d970105cc0ca12de64ce723942b0286fb392 Mon Sep 17 00:00:00 2001
+From c3452bd36f7a18071ab6414185236a30492aeec7 Mon Sep 17 00:00:00 2001
 From: Han Gao <rabenda.cn@gmail.com>
-Date: Mon, 1 Sep 2025 00:37:36 +0800
-Subject: [PATCH 1/2] sync: sync eswin code 20250730
+Date: Fri, 31 Oct 2025 01:29:32 +0800
+Subject: [PATCH 1/2] sync: sync eswin code 20251030
 
 Signed-off-by: Han Gao <rabenda.cn@gmail.com>
 ---
- configure                      |  105 ++
- fftools/ffmpeg.c               |   49 +
- fftools/ffmpeg_demux.c         |    6 +
- fftools/ffmpeg_enc.c           |    2 +-
- libavcodec/Makefile            |   18 +
- libavcodec/allcodecs.c         |   25 +
- libavcodec/es_audio_dec.c      |  432 +++++++++
- libavcodec/es_audio_enc.c      |  352 +++++++
- libavcodec/esmpp_comm.c        |  382 ++++++++
- libavcodec/esmpp_comm.h        |   74 ++
- libavcodec/esmppdec.c          | 1094 +++++++++++++++++++++
- libavcodec/esmppdec.h          |  247 +++++
- libavcodec/esmppenc.c          | 1543 ++++++++++++++++++++++++++++++
- libavcodec/esmppenc.h          |  599 ++++++++++++
- libavfilter/Makefile           |    1 +
- libavfilter/allfilters.c       |    3 +
- libavfilter/framesync.c        |    2 +-
- libavfilter/vf_esmpp_common.c  |  758 +++++++++++++++
- libavfilter/vf_esmpp_common.h  |  173 ++++
- libavfilter/vf_esmpp_complex.c | 1348 ++++++++++++++++++++++++++
- libavfilter/vf_stack_esmpp.c   | 1641 ++++++++++++++++++++++++++++++++
- libavutil/Makefile             |    2 +
- libavutil/esmpp_utils.c        |  102 ++
- libavutil/esmpp_utils.h        |   51 +
- libavutil/hwcontext.c          |    4 +
- libavutil/hwcontext.h          |    1 +
- libavutil/hwcontext_esmpp.c    |  644 +++++++++++++
- libavutil/hwcontext_esmpp.h    |   83 ++
- libavutil/hwcontext_internal.h |    1 +
- libavutil/libavutil.v          |    2 +
- 30 files changed, 9742 insertions(+), 2 deletions(-)
+ configure                       |  126 ++-
+ fftools/ffmpeg.c                |   49 +
+ fftools/ffmpeg_demux.c          |    6 +
+ fftools/ffmpeg_enc.c            |   21 +-
+ fftools/ffmpeg_filter.c         |   22 +
+ libavcodec/Makefile             |   18 +
+ libavcodec/allcodecs.c          |   25 +
+ libavcodec/es_audio_dec.c       |  432 ++++++++
+ libavcodec/es_audio_enc.c       |  352 +++++++
+ libavcodec/esmpp_comm.c         |  382 +++++++
+ libavcodec/esmpp_comm.h         |   74 ++
+ libavcodec/esmppdec.c           | 1094 +++++++++++++++++++++
+ libavcodec/esmppdec.h           |  247 +++++
+ libavcodec/esmppenc.c           | 1572 +++++++++++++++++++++++++++++
+ libavcodec/esmppenc.h           |  606 ++++++++++++
+ libavfilter/Makefile            |    7 +
+ libavfilter/allfilters.c        |    6 +
+ libavfilter/framesync.c         |    2 +-
+ libavfilter/vf_esmpp_addroi.c   |  952 ++++++++++++++++++
+ libavfilter/vf_esmpp_addroi.h   |   76 ++
+ libavfilter/vf_esmpp_common.c   |  893 +++++++++++++++++
+ libavfilter/vf_esmpp_common.h   |  179 ++++
+ libavfilter/vf_esmpp_complex.c  | 1348 +++++++++++++++++++++++++
+ libavfilter/vf_esmpp_drawtext.c |  670 +++++++++++++
+ libavfilter/vf_esmpp_drawtext.h |   57 ++
+ libavfilter/vf_esmpp_select.c   |  350 +++++++
+ libavfilter/vf_esmpp_select.h   |   48 +
+ libavfilter/vf_stack_esmpp.c    | 1641 +++++++++++++++++++++++++++++++
+ libavformat/img2enc.c           |   38 +
+ libavformat/mpeg.h              |    5 +
+ libavformat/mpegenc.c           |  137 ++-
+ libavutil/Makefile              |    2 +
+ libavutil/esmpp_utils.c         |  102 ++
+ libavutil/esmpp_utils.h         |   51 +
+ libavutil/frame.h               |    4 +
+ libavutil/hwcontext.c           |    4 +
+ libavutil/hwcontext.h           |    1 +
+ libavutil/hwcontext_esmpp.c     |  644 ++++++++++++
+ libavutil/hwcontext_esmpp.h     |   83 ++
+ libavutil/hwcontext_internal.h  |    1 +
+ libavutil/libavutil.v           |    2 +
+ 41 files changed, 12324 insertions(+), 5 deletions(-)
  create mode 100644 libavcodec/es_audio_dec.c
  create mode 100644 libavcodec/es_audio_enc.c
  create mode 100644 libavcodec/esmpp_comm.c
@@ -44,9 +55,15 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  create mode 100644 libavcodec/esmppdec.h
  create mode 100644 libavcodec/esmppenc.c
  create mode 100644 libavcodec/esmppenc.h
+ create mode 100644 libavfilter/vf_esmpp_addroi.c
+ create mode 100644 libavfilter/vf_esmpp_addroi.h
  create mode 100644 libavfilter/vf_esmpp_common.c
  create mode 100644 libavfilter/vf_esmpp_common.h
  create mode 100644 libavfilter/vf_esmpp_complex.c
+ create mode 100644 libavfilter/vf_esmpp_drawtext.c
+ create mode 100644 libavfilter/vf_esmpp_drawtext.h
+ create mode 100644 libavfilter/vf_esmpp_select.c
+ create mode 100644 libavfilter/vf_esmpp_select.h
  create mode 100644 libavfilter/vf_stack_esmpp.c
  create mode 100644 libavutil/esmpp_utils.c
  create mode 100644 libavutil/esmpp_utils.h
@@ -54,7 +71,7 @@ Signed-off-by: Han Gao <rabenda.cn@gmail.com>
  create mode 100644 libavutil/hwcontext_esmpp.h
 
 diff --git a/configure b/configure
-index 86425130bd..eb99b1f8e0 100755
+index 86425130bd..b3692134c5 100755
 --- a/configure
 +++ b/configure
 @@ -230,6 +230,14 @@ External library support:
@@ -72,16 +89,17 @@ index 86425130bd..eb99b1f8e0 100755
    --enable-libflite        enable flite (voice synthesis) support via libflite [no]
    --enable-libfontconfig   enable libfontconfig, useful for drawtext filter [no]
    --enable-libfreetype     enable libfreetype, needed for drawtext filter [no]
-@@ -333,6 +341,8 @@ External library support:
+@@ -333,7 +341,8 @@ External library support:
    --enable-vapoursynth     enable VapourSynth demuxer [no]
    --disable-xlib           disable xlib [autodetect]
    --disable-zlib           disable zlib [autodetect]
+-
 +  --enable-esmpp           enable esw mpp code [no]
-+  --enable-es-report-info  enable esw info report [no]
- 
++  --enable-es-host-build   enable esw host build [no]
    The following libraries provide various hardware acceleration features:
    --disable-amf            disable AMF video encoding code [autodetect]
-@@ -1873,7 +1883,17 @@ EXTERNAL_LIBRARY_GPL_LIST="
+   --disable-audiotoolbox   disable Apple AudioToolbox code [autodetect]
+@@ -1873,7 +1882,17 @@ EXTERNAL_LIBRARY_GPL_LIST="
  EXTERNAL_LIBRARY_NONFREE_LIST="
      decklink
      libfdk_aac
@@ -95,11 +113,11 @@ index 86425130bd..eb99b1f8e0 100755
 +    es_g726
      libtls
 +    esmpp
-+    es_report_info
++    es_host_build
  "
  
  EXTERNAL_LIBRARY_VERSION3_LIST="
-@@ -3402,6 +3422,18 @@ av1_qsv_encoder_deps="libvpl"
+@@ -3402,6 +3421,18 @@ av1_qsv_encoder_deps="libvpl"
  av1_amf_encoder_deps="amf"
  av1_vaapi_encoder_deps="VAEncPictureParameterBufferAV1"
  av1_vaapi_encoder_select="cbs_av1 vaapi_encode"
@@ -118,7 +136,7 @@ index 86425130bd..eb99b1f8e0 100755
  
  # parsers
  aac_parser_select="adts_header mpeg4audio"
-@@ -3489,6 +3521,36 @@ libdavs2_decoder_deps="libdavs2"
+@@ -3489,6 +3520,36 @@ libdavs2_decoder_deps="libdavs2"
  libdavs2_decoder_select="avs2_parser"
  libfdk_aac_decoder_deps="libfdk_aac"
  libfdk_aac_encoder_deps="libfdk_aac"
@@ -155,16 +173,46 @@ index 86425130bd..eb99b1f8e0 100755
  libfdk_aac_encoder_select="audio_frame_queue"
  libgme_demuxer_deps="libgme"
  libgsm_decoder_deps="libgsm"
-@@ -3946,6 +4008,8 @@ vstack_qsv_filter_deps="libmfx"
+@@ -3946,6 +4007,9 @@ vstack_qsv_filter_deps="libmfx"
  vstack_qsv_filter_select="qsvvpp"
  xstack_qsv_filter_deps="libmfx"
  xstack_qsv_filter_select="qsvvpp"
 +esmpp_complex_filter_deps="esmpp"
 +stack_esmpp_filter_deps="esmpp"
++esmpp_drawtext_filter_deps="esmpp"
  
  # examples
  avio_http_serve_files_deps="avformat avutil fork"
-@@ -6848,6 +6912,14 @@ enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aace
+@@ -4364,6 +4428,12 @@ for opt do
+                  "removed in the future. Use --x86asmexe instead."
+             x86asmexe="$optval"
+         ;;
++        --enable-es-host-build)
++            es_host_build="yes"
++        ;;
++        --disable-es-host-build)
++            es_host_build="no"
++        ;;
+         --enable-?*|--disable-?*)
+             eval $(echo "$opt" | sed 's/--/action=/;s/-/ option=/;s/-/_/g')
+             if is_in $option $COMPONENT_LIST; then
+@@ -4620,6 +4690,15 @@ windres_default="${cross_prefix}${windres_default}"
+ 
+ sysinclude_default="${sysroot}/usr/include"
+ 
++if enabled es_host_build; then
++    h264_esmpp_encoder_extralibs="-les_mpp -les_host_query_cap -les-ipcm"
++    hevc_esmpp_encoder_extralibs="-les_mpp -les_host_query_cap -les-ipcm"
++    h264_esmpp_decoder_extralibs="-les_mpp -les_host_query_cap -les-ipcm"
++    hevc_esmpp_decoder_extralibs="-les_mpp -les_host_query_cap -les-ipcm"
++    mjpeg_esmpp_encoder_extralibs="-les_mpp -les_host_query_cap -les-ipcm"
++    mjpeg_esmpp_decoder_extralibs="-les_mpp -les_host_query_cap -les-ipcm"
++fi
++
+ if enabled cuda_sdk; then
+     warn "Option --enable-cuda-sdk is deprecated. Use --enable-cuda-nvcc instead."
+     enable cuda_nvcc
+@@ -6848,6 +6927,14 @@ enabled libfdk_aac        && { check_pkg_config libfdk_aac fdk-aac "fdk-aac/aace
                                 { require libfdk_aac fdk-aac/aacenc_lib.h aacEncOpen -lfdk-aac &&
                                   warn "using libfdk without pkg-config"; } }
  flite_extralibs="-lflite_cmu_time_awb -lflite_cmu_us_awb -lflite_cmu_us_kal -lflite_cmu_us_kal16 -lflite_cmu_us_rms -lflite_cmu_us_slt -lflite_usenglish -lflite_cmulex -lflite"
@@ -179,7 +227,7 @@ index 86425130bd..eb99b1f8e0 100755
  enabled libflite          && require libflite "flite/flite.h" flite_init $flite_extralibs
  enabled fontconfig        && enable libfontconfig
  enabled libfontconfig     && require_pkg_config libfontconfig fontconfig "fontconfig/fontconfig.h" FcInit
-@@ -7069,6 +7141,39 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
+@@ -7069,6 +7156,43 @@ enabled rkmpp             && { require_pkg_config rkmpp rockchip_mpp  rockchip/r
                               }
  enabled vapoursynth       && require_pkg_config vapoursynth "vapoursynth-script >= 42" VSScript.h vsscript_init
  
@@ -212,7 +260,11 @@ index 86425130bd..eb99b1f8e0 100755
 +        log check_pkg_config stack_esmpp_filter
 +    } || disable stack_esmpp_filter
 +
-+    if disabled_all h264_esmpp_encoder hevc_esmpp_encoder h264_esmppvdec hevc_esmppvdec mjpeg_esmppvdec esmpp_complex_filter stack_esmpp_filter; then
++    enabled esmpp_drawtext_filter  && {
++        log check_pkg_config esmpp_drawtext_filter
++    } || disable esmpp_drawtext_filter
++
++    if disabled_all h264_esmpp_encoder hevc_esmpp_encoder h264_esmppvdec hevc_esmppvdec mjpeg_esmppvdec esmpp_complex_filter stack_esmpp_filter esmpp_drawtext_filter; then
 +        die "esmpp enabled but no supported codecs found"
 +    fi
 +}
@@ -303,7 +355,7 @@ index 47312c9fe1..e75f000f7f 100644
              // There is no real AVHWFrameContext implementation. Set
              // hwaccel_output_format to avoid av_hwframe_transfer_data error.
 diff --git a/fftools/ffmpeg_enc.c b/fftools/ffmpeg_enc.c
-index 447f133137..5b49a0c7bb 100644
+index 447f133137..387689e807 100644
 --- a/fftools/ffmpeg_enc.c
 +++ b/fftools/ffmpeg_enc.c
 @@ -119,7 +119,7 @@ static int hw_device_setup_for_encode(OutputStream *ost, AVBufferRef *frames_ref
@@ -315,6 +367,65 @@ index 447f133137..5b49a0c7bb 100644
          }
  
          if (!dev &&
+@@ -954,6 +954,25 @@ int encoder_thread(void *arg)
+         ret = 0;
+ 
+ finish:
++#ifdef CONFIG_ESMPP
++    if (e->opened) {
++        AVFrame *remaining_frame = av_frame_alloc();
++        if (remaining_frame) {
++            int status;
++            while (1) {
++                status = sch_enc_receive(e->sch, e->sch_idx, remaining_frame);
++                if (status < 0) {
++                    if (status != AVERROR_EOF && status != AVERROR(EAGAIN)) {
++                        av_log(e, AV_LOG_WARNING, "Error cleaning up remaining frames: %s\n", av_err2str(status));
++                    }
++                    break;
++                }
++                av_frame_unref(remaining_frame);
++            }
++            av_frame_free(&remaining_frame);
++        }
++    }
++#endif
+     enc_thread_uninit(&et);
+ 
+     return ret;
+diff --git a/fftools/ffmpeg_filter.c b/fftools/ffmpeg_filter.c
+index 171e47be9e..57cb61a2e1 100644
+--- a/fftools/ffmpeg_filter.c
++++ b/fftools/ffmpeg_filter.c
+@@ -2870,6 +2870,28 @@ finish:
+     if (ret == AVERROR_EOF)
+         ret = 0;
+ 
++#ifdef CONFIG_ESMPP
++    if (fgt.graph) {
++        AVFrame *remaining_frame = av_frame_alloc();
++        if (remaining_frame) {
++            for(unsigned i = 0; i < fg->nb_inputs; i++){
++                int status;
++                while (1) {
++                    status = sch_filter_receive(fgp->sch, fgp->sch_idx, &i, remaining_frame);
++                    if (status < 0) {
++                        if (status != AVERROR_EOF && status != AVERROR(EAGAIN)) {
++                            av_log(fg, AV_LOG_WARNING, "Error cleaning up remaining frames: %s from input: %d\n",
++                                            av_err2str(status), i);
++                        }
++                        break;
++                    }
++                    av_frame_unref(remaining_frame);
++                }
++            }
++            av_frame_free(&remaining_frame);
++        }
++    }
++#endif
+     fg_thread_uninit(&fgt);
+ 
+     return ret;
 diff --git a/libavcodec/Makefile b/libavcodec/Makefile
 index 113adb22d5..34417698c5 100644
 --- a/libavcodec/Makefile
@@ -1654,7 +1765,7 @@ index 0000000000..ddb8ef06ed
 \ No newline at end of file
 diff --git a/libavcodec/esmppdec.c b/libavcodec/esmppdec.c
 new file mode 100644
-index 0000000000..48fbb88d05
+index 0000000000..45df3111b5
 --- /dev/null
 +++ b/libavcodec/esmppdec.c
 @@ -0,0 +1,1094 @@
@@ -2677,7 +2788,7 @@ index 0000000000..48fbb88d05
 +    esmpp_set_device(r->mctx);
 +    /* drain remain frames */
 +    if (r->draining) {
-+        ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_BLOCK);
++        ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_MAX);
 +        goto exit;
 +    }
 +
@@ -2690,7 +2801,7 @@ index 0000000000..48fbb88d05
 +                mpp_decode_send_eos(avctx);
 +                // may return for info change or ffmpeg will close
 +                do {
-+                    ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_BLOCK);
++                    ret = mpp_decode_get_frame(avctx, frame, MPP_TIMEOUT_MAX);
 +                } while (ret == AVERROR(EAGAIN));
 +                goto exit;
 +            } else if (ret == AVERROR(EAGAIN)) {
@@ -3007,10 +3118,10 @@ index 0000000000..1e36c2b227
 +#endif /* AVCODEC_ESMPPDEC_H */
 diff --git a/libavcodec/esmppenc.c b/libavcodec/esmppenc.c
 new file mode 100644
-index 0000000000..a0b5e2bb33
+index 0000000000..fdc25b01b1
 --- /dev/null
 +++ b/libavcodec/esmppenc.c
-@@ -0,0 +1,1543 @@
+@@ -0,0 +1,1572 @@
 +#include "esmppenc.h"
 +#include <es_venc_def.h>
 +#include <es_mpp_video.h>
@@ -3742,9 +3853,10 @@ index 0000000000..a0b5e2bb33
 +static void esmpp_free_packet_buf(void *opaque, uint8_t *data) {
 +#ifdef TRANSCODE_HOST
 +    av_free(data);
-+#endif
++#else
 +    MppPacketPtr mpp_pkt = opaque;
 +    mpp_packet_deinit(&mpp_pkt);
++#endif
 +}
 +
 +static int esmpp_get_packet_internal(AVCodecContext *avctx, AVPacket *packet, int timeout) {
@@ -3817,6 +3929,9 @@ index 0000000000..a0b5e2bb33
 +        mpp_buf = mpp_frame_get_buffer(mpp_frame);
 +        if (!mpp_buf) {
 +            av_log(avctx, AV_LOG_ERROR, "Failed to get buf frame mpp frame: %d\n", ret);
++#ifdef TRANSCODE_HOST
++            mpp_packet_deinit(&mpp_pkt);
++#endif
 +            return AVERROR(ENOMEM);
 +        }
 +
@@ -3837,6 +3952,10 @@ index 0000000000..a0b5e2bb33
 +        }
 +        // av_log(NULL, AV_LOG_INFO, "dump packet: data %p size %d\n", packet->data, packet->size);
 +    }
++
++#ifdef TRANSCODE_HOST
++    mpp_packet_deinit(&mpp_pkt);
++#endif
 +
 +    return 0;
 +exit:
@@ -4076,6 +4195,8 @@ index 0000000000..a0b5e2bb33
 +            }
 +
 +            nb_rois = size / roi_size;
++            nb_rois = nb_rois > ES_VENC_MAX_ROI_NUM ? ES_VENC_MAX_ROI_NUM : nb_rois;
++            av_log(avctx, AV_LOG_DEBUG, "number of rois: %d.\n", nb_rois);
 +
 +            for (int i = nb_rois - 1; i >= 0; i--) {
 +                roi = (const AVRegionOfInterest *)(data + roi_size * i);
@@ -4098,7 +4219,7 @@ index 0000000000..a0b5e2bb33
 +            }
 +
 +            if (cxt->roi_attr_pre
-+                && !memcmp(cxt->roi_attr_pre, mpp_enc_frame->roi_attr, sizeof(mpp_enc_frame->roi_attr))) {
++                && !memcmp(cxt->roi_attr_pre, mpp_enc_frame->roi_attr, sizeof(*(mpp_enc_frame->roi_attr)))) {
 +                free(mpp_enc_frame->roi_attr);
 +                mpp_enc_frame->roi_attr = NULL;
 +                return 0;  // same roi attribution, do nothing.
@@ -4109,6 +4230,7 @@ index 0000000000..a0b5e2bb33
 +            }
 +            memcpy(cxt->roi_attr_pre, mpp_enc_frame->roi_attr, sizeof(mpp_enc_frame->roi_attr));
 +            mpp_meta_set_ptr(meta, KEY_ROI_DATA, mpp_enc_frame->roi_attr);
++            av_log(avctx, AV_LOG_DEBUG, "copy roi attr finished. rois num:%d\n", nb_rois);
 +        }
 +    }
 +
@@ -4125,12 +4247,21 @@ index 0000000000..a0b5e2bb33
 +
 +    cxt = avctx->priv_data;
 +
++    if (frame && (frame->flags & AV_FRAME_FLAG_DISCARD)) {
++
++        av_log(avctx, AV_LOG_DEBUG, "esmpp_encoder: discard frame pts=%" PRId64 "\n",
++               frame->pts);
++
++        *got_packet = 0;
++        return 0;
++    }
++
 +    esmpp_set_device(cxt->mctx);
 +    int timeout = (avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC
 +                   || avctx->codec_id == AV_CODEC_ID_MJPEG)
 +                          && !(avctx->flags & AV_CODEC_FLAG_LOW_DELAY)
 +                      ? MPP_TIMEOUT_NON_BLOCK
-+                      : MPP_TIMEOUT_BLOCK;
++                      : MPP_TIMEOUT_MAX;
 +    if (get_used_frame_count(cxt->frame_list) > cxt->async_frames) {
 +        av_log(avctx,
 +               AV_LOG_DEBUG,
@@ -4178,7 +4309,7 @@ index 0000000000..a0b5e2bb33
 +            av_log(avctx, AV_LOG_DEBUG, "frame is %p, ret %d\n", frame, ret);
 +            av_usleep(10 * 1000);
 +            goto get_pkt;
-+        } else if (cxt->sent_frm_cnt - cxt->got_pkt_cnt >= cxt->async_frames) {
++        } else if (cxt->sent_frm_cnt - cxt->got_pkt_cnt > cxt->async_frames) {
 +            av_log(avctx,
 +                   AV_LOG_TRACE,
 +                   "cxt->sent_frm_cnt %d, cxt->got_pkt_cnt %d\n",
@@ -4224,7 +4355,7 @@ index 0000000000..a0b5e2bb33
 +    cxt = avctx->priv_data;
 +    esmpp_set_device(cxt->mctx);
 +    cxt->cfg_init = 0;
-+    cxt->async_frames = 0;
++    cxt->async_frames = -1;
 +    if (cxt->roi_attr_pre) {
 +        free(cxt->roi_attr_pre);
 +        cxt->roi_attr_pre = NULL;
@@ -4410,6 +4541,7 @@ index 0000000000..a0b5e2bb33
 +
 +static int esmpp_encode_init(AVCodecContext *avctx) {
 +    ESMPPEncContext *cxt;
++    AVCPBProperties *cpb_props;
 +    enum AVPixelFormat pix_fmt = AV_PIX_FMT_NONE;
 +    MppCodingType coding_type = MPP_VIDEO_CodingUnused;
 +    MppPacketPtr mpp_pkt = NULL;
@@ -4423,7 +4555,6 @@ index 0000000000..a0b5e2bb33
 +    esmpp_set_log_level();
 +
 +    cxt->cfg_init = 0;
-+    cxt->async_frames = 0;
 +    cxt->sent_frm_cnt = 0;
 +    cxt->got_pkt_cnt = 0;
 +    cxt->device_idx = 0;
@@ -4481,7 +4612,9 @@ index 0000000000..a0b5e2bb33
 +        goto fail;
 +    }
 +
-+    cxt->async_frames = (avctx->codec_id == AV_CODEC_ID_MJPEG) ? MJPEG_ASYNC_FRAMES : H26X_ASYNC_FRAMES;
++    if(cxt->async_frames == -1){
++        cxt->async_frames = ASYNC_FRAMES;
++    }
 +
 +    if ((ret = mpp_enc_cfg_init(&cxt->mcfg)) != MPP_OK) {
 +        av_log(avctx, AV_LOG_ERROR, "Failed to init enc config: %d\n", ret);
@@ -4540,6 +4673,13 @@ index 0000000000..a0b5e2bb33
 +        cxt->dump_frame_hnd = esmpp_codec_dump_file_open(cxt->dump_path, cxt->dump_frame_time, &paras);
 +    }
 +
++    cpb_props = ff_encode_add_cpb_side_data(avctx);
++    if (!cpb_props)
++        return AVERROR(ENOMEM);
++    cpb_props->buffer_size = avctx->rc_buffer_size;
++    cpb_props->max_bitrate = avctx->rc_max_rate;
++    cpb_props->avg_bitrate = avctx->bit_rate;
++
 +    return 0;
 +
 +fail:
@@ -4556,10 +4696,10 @@ index 0000000000..a0b5e2bb33
 +DEFINE_ESMPP_ENCODER(mjpeg, MJPEG, mjpeg)
 diff --git a/libavcodec/esmppenc.h b/libavcodec/esmppenc.h
 new file mode 100644
-index 0000000000..d6892f6232
+index 0000000000..f5ab3c01a9
 --- /dev/null
 +++ b/libavcodec/esmppenc.h
-@@ -0,0 +1,599 @@
+@@ -0,0 +1,606 @@
 +#ifndef AVCODEC_ESMPPENC_H
 +#define AVCODEC_ESMPPENC_H
 +
@@ -4581,8 +4721,7 @@ index 0000000000..d6892f6232
 +#include "libavutil/hwcontext_esmpp.h"
 +
 +#define H26X_HEADER_SIZE 1024
-+#define H26X_ASYNC_FRAMES 5  // current max gop size 4
-+#define MJPEG_ASYNC_FRAMES 8
++#define ASYNC_FRAMES 3  // current max gop size 4 - 1
 +#define ALIGN_DOWN(a, b) ((a) & ~((b) - 1))
 +#define H26X_MAX_QP 32
 +#define TRUE 1
@@ -4610,11 +4749,11 @@ index 0000000000..d6892f6232
 +    enum AVPixelFormat pix_fmt;
 +
 +    ESMPPEncFrame *frame_list;
-+    int async_frames;  // cache
 +    int sent_frm_cnt;
 +    int got_pkt_cnt;
 +
 +    // common setting
++    int async_frames;  // cache
 +    int profile;
 +    int tier;
 +    int level;
@@ -4702,6 +4841,14 @@ index 0000000000..d6892f6232
 +#define VE (AV_OPT_FLAG_ENCODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
 +
 +#define ESMPP_ENC_COMMON_OPTS                                                                                         \
++    {"async_frames",                                                                                                  \
++     "set the async_frames of input queue. range[0,8]",                                                               \
++     OFFSET(async_frames),                                                                                            \
++     AV_OPT_TYPE_INT,                                                                                                 \
++     {.i64 = -1},                                                                                                      \
++     -1,                                                                                                               \
++     8,                                                                                                               \
++     VE},                                                                                                             \
 +    {"die_idx",                                                                                                       \
 +     "set the idx of die for multiple dies version. range[0,1]",                                                      \
 +     OFFSET(die_idx),                                                                                                 \
@@ -5160,27 +5307,36 @@ index 0000000000..d6892f6232
 +
 +#endif
 diff --git a/libavfilter/Makefile b/libavfilter/Makefile
-index 994d9773ba..94b3167493 100644
+index 994d9773ba..6c0a3bb7cc 100644
 --- a/libavfilter/Makefile
 +++ b/libavfilter/Makefile
-@@ -581,6 +581,7 @@ OBJS-$(CONFIG_XSTACK_VAAPI_FILTER)           += vf_stack_vaapi.o framesync.o vaa
+@@ -581,6 +581,13 @@ OBJS-$(CONFIG_XSTACK_VAAPI_FILTER)           += vf_stack_vaapi.o framesync.o vaa
  OBJS-$(CONFIG_HSTACK_QSV_FILTER)             += vf_stack_qsv.o framesync.o
  OBJS-$(CONFIG_VSTACK_QSV_FILTER)             += vf_stack_qsv.o framesync.o
  OBJS-$(CONFIG_XSTACK_QSV_FILTER)             += vf_stack_qsv.o framesync.o
-+OBJS-$(CONFIG_ESMPP)                         += vf_esmpp_complex.o vf_esmpp_common.o vf_stack_esmpp.o framesync.o
++OBJS-$(CONFIG_ESMPP)                         += vf_esmpp_complex.o \
++                                                vf_esmpp_common.o \
++                                                vf_stack_esmpp.o \
++                                                framesync.o \
++                                                vf_esmpp_addroi.o \
++                                                vf_esmpp_drawtext.o \
++                                                vf_esmpp_select.o
  
  OBJS-$(CONFIG_ALLRGB_FILTER)                 += vsrc_testsrc.o
  OBJS-$(CONFIG_ALLYUV_FILTER)                 += vsrc_testsrc.o
 diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
-index 149bf50997..d10c2dd11d 100644
+index 149bf50997..5778a83f2e 100644
 --- a/libavfilter/allfilters.c
 +++ b/libavfilter/allfilters.c
-@@ -546,6 +546,9 @@ extern const AVFilter ff_vf_xstack_vaapi;
+@@ -546,6 +546,12 @@ extern const AVFilter ff_vf_xstack_vaapi;
  extern const AVFilter ff_vf_hstack_qsv;
  extern const AVFilter ff_vf_vstack_qsv;
  extern const AVFilter ff_vf_xstack_qsv;
-+extern const AVFilter ff_vf_esmpp_complex;
++extern const AVFilter ff_vf_complex_esmpp;
 +extern const AVFilter ff_vf_stack_esmpp;
++extern const AVFilter ff_vf_addroi_esmpp;
++extern const AVFilter ff_vf_drawtext_esmpp;
++extern const AVFilter ff_vf_select_esmpp;
 +
  
  extern const AVFilter ff_vsrc_allrgb;
@@ -5198,15 +5354,1059 @@ index cf2f355c89..6dca379b97 100644
  
      ff_framesync_preinit(fs);
      fs->parent = parent;
+diff --git a/libavfilter/vf_esmpp_addroi.c b/libavfilter/vf_esmpp_addroi.c
+new file mode 100644
+index 0000000000..d12d651026
+--- /dev/null
++++ b/libavfilter/vf_esmpp_addroi.c
+@@ -0,0 +1,952 @@
++#include <stdio.h>
++#include <string.h>
++#include <dlfcn.h>
++#include "libavutil/avstring.h"
++#include "libavutil/common.h"
++#include "libavutil/hwcontext.h"
++#include "libavutil/hwcontext_esmpp.h"
++#include "libavcodec/defs.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/pixfmt.h"
++#include "libavutil/imgutils.h"
++#include "formats.h"
++#include "internal.h"
++#include "video.h"
++#include "vf_esmpp_common.h"
++#include "filters.h"
++#include "libavutil/esmpp_utils.h"
++#include "es_mpp.h"
++#include "vf_esmpp_addroi.h"
++#include "libavcodec/esmpp_comm.h"
++#include "es_roi_api.h"
++#include "mpp_drawtext_api.h"
++#include "mpp_drawtext_cfg.h"
++#include "mpp_drawtext_type.h"
++#include "libavutil/detection_bbox.h"
++
++#define OBJECT_DETECT_INTERVAL 3
++#define ES_VENC_MAX_ROI_NUM 8
++
++#define OFFSET(x) offsetof(MppAddRoiContext, x)
++#define FLAGS (AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
++#define MAX_INPUT_NB 2
++
++#define ESMPP_COMPLEX_DUMP (0)
++
++static int addroi_query_formats(AVFilterContext *ctx)
++{
++    av_log(ctx, AV_LOG_DEBUG, "calling addroi_query_formats.\n");
++    static const enum AVPixelFormat pixel_formats[] = {
++        AV_PIX_FMT_NV12,
++        AV_PIX_FMT_NV21,
++        AV_PIX_FMT_YUV420P,
++        AV_PIX_FMT_GRAY8,
++        AV_PIX_FMT_YUV420P10LE,
++        AV_PIX_FMT_P010LE,
++        AV_PIX_FMT_YVYU422,
++        AV_PIX_FMT_YUYV422,
++        AV_PIX_FMT_UYVY422,
++        AV_PIX_FMT_NV16,
++        AV_PIX_FMT_RGB24,
++        AV_PIX_FMT_BGR24,
++        AV_PIX_FMT_ARGB,
++        AV_PIX_FMT_ABGR,
++        AV_PIX_FMT_BGRA,
++        AV_PIX_FMT_RGBA,
++        AV_PIX_FMT_DRM_PRIME,
++        AV_PIX_FMT_NONE,
++    };
++
++    int ret;
++    for (int i = 0; i < ctx->nb_inputs; i++)
++    {
++        if ((ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->inputs[i]->outcfg.formats)) < 0)
++        {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_spaces(), &ctx->inputs[i]->outcfg.color_spaces)) < 0)
++        {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_ranges(), &ctx->inputs[i]->outcfg.color_ranges)) < 0)
++        {
++            return ret;
++        }
++    }
++    ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->outputs[0]->incfg.formats);
++    return ret;
++}
++
++static int roi_init_bufgroup(AVFilterLink *inlink)
++{
++    AVFilterContext *ctx = inlink->dst;
++    MppAddRoiContext *s = (MppAddRoiContext *)ctx->priv;
++    int ret = 0;
++
++    if (inlink->hw_frames_ctx)
++    {
++        AVHWFramesContext *hwfc = NULL;
++        AVESMPPFramesContext *mppfc = NULL;
++        ret = init_hwcontext_buf(
++            inlink, &s->out_hw_device_ref, &s->out_hw_frm_ref, s->in_fmt, s->device_idx, s->die_idx);
++        if (ret)
++        {
++            return ret;
++        }
++
++        hwfc = (AVHWFramesContext *)s->out_hw_frm_ref->data;
++        mppfc = hwfc->hwctx;
++        s->buf_grp = mppfc->buf_group;
++    }
++    else
++    {
++        ret = mpp_buffer_group_get_internal(&s->buf_grp, MPP_BUFFER_TYPE_DMA_HEAP);
++        if (ret)
++        {
++            av_log(ctx, AV_LOG_ERROR, "Create buffer group with type %d failed: %d.\n", MPP_BUFFER_TYPE_DMA_HEAP, ret);
++            return FAILURE;
++        }
++        ret = mpp_buffer_group_limit_config(s->buf_grp, 0, 0);
++        if (ret)
++        {
++            av_log(ctx, AV_LOG_ERROR, "Limit buffer group with no limit failed: %d.\n", ret);
++            return FAILURE;
++        }
++    }
++
++    return ret;
++}
++
++static int init_mpp_draw(AVFilterContext *ctx)
++{
++    MppAddRoiContext *s;
++    MppDrawtextCfgPtr drawtext_cfg;
++    int ret = SUCCESS;
++
++    ES_RETURN_VAL_IF_FAIL(ctx, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(ctx->priv, FAILURE);
++
++    s = (MppAddRoiContext *)ctx->priv;
++    if (s->draw_init)
++    {
++        return MPP_OK;
++    }
++
++    if ((ret = esmpp_create(&s->draw_mctx, MPP_CTX_DRAWTEXT, MPP_VIDEO_CodingUnused)) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Failed to create MPP context and api: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if ((ret = esmpp_select_dev(s->draw_mctx, s->device_idx, s->die_idx)) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Failed to select MPP dev: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if ((ret = esmpp_init(s->draw_mctx)) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Failed to init mpp context: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if ((ret = mpp_drawtext_cfg_init(&drawtext_cfg)) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Failed to init mpp_drawtext_cfg_init: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        return ret;
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_DEBUG, "success to init mpp_drawtext_cfg_init: %d\n", ret);
++    }
++
++    ret = esmpp_control(s->draw_mctx, MPP_DRAWTEXT_GET_CFG, drawtext_cfg);
++    if (ret != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "get cfg failed ret: %d\n", ret);
++        mpp_drawtext_cfg_deinit(&drawtext_cfg);
++        return ret;
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_DEBUG, "get cfg success ret: %d\n", ret);
++    }
++    mpp_drawtext_cfg_set_string(drawtext_cfg, "file_path", s->ttf_path);
++
++    ret = esmpp_control(s->draw_mctx, MPP_DRAWTEXT_SET_CFG, drawtext_cfg);
++    if (ret != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "set cfg failed\n");
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_DEBUG, "set cfg success\n");
++    }
++    mpp_drawtext_cfg_deinit(&drawtext_cfg);
++
++    ret = esmpp_open(s->draw_mctx);
++    s->draw_init = ES_TRUE;
++    return ret;
++
++fail:
++    if (s->draw_mctx)
++    {
++        esmpp_destroy(s->draw_mctx);
++    }
++    return ret;
++}
++
++static av_cold int addroi_config_props(AVFilterLink *inlink)
++{
++    AVFilterContext *ctx = inlink->dst;
++    AVFilterLink *outlink = ctx->outputs[0];
++
++    MppAddRoiContext *s = (MppAddRoiContext *)ctx->priv;
++    int ret = SUCCESS;
++
++    if (inlink->format == AV_PIX_FMT_DRM_PRIME && inlink->hw_frames_ctx)
++    {
++        AVHWFramesContext *input_hw_frm_ctx = NULL;
++        input_hw_frm_ctx = (AVHWFramesContext *)inlink->hw_frames_ctx->data;
++        s->in_fmt = input_hw_frm_ctx->sw_format;
++        outlink->format = inlink->format;
++    }
++    else
++    {
++        s->in_fmt = inlink->format;
++        outlink->format = s->in_fmt;
++    }
++
++    outlink->w = inlink->w;
++    outlink->h = inlink->h;
++
++    get_dev_info(ctx->hw_device_ctx, inlink->hw_frames_ctx, &s->device_idx, &s->die_idx);
++    // esmpp_set_dev(s->device_idx, s->die_idx);
++    if (!s->buf_grp)
++    {
++        roi_init_bufgroup(inlink);
++    }
++
++    if (inlink->format == AV_PIX_FMT_DRM_PRIME && inlink->hw_frames_ctx)
++    {
++        av_buffer_unref(&outlink->hw_frames_ctx);
++        outlink->hw_frames_ctx = av_buffer_ref(s->out_hw_frm_ref);
++    }
++
++    ret = es_roi_create(&s->mctx, &s->roi_info, ESCL_ROI_MAX_BOX_COUNT, s->device_idx, s->die_idx);
++    if (ret < 0)
++    {
++        av_log(ctx, AV_LOG_ERROR, "es roi create failed. ret = %d\n", ret);
++        return ret;
++    }
++
++    if (s->rand_roi_num > 0)
++    {
++        es_roi_proc_no_model(s->rand_roi_num);
++        av_log(ctx, AV_LOG_DEBUG, "es roi not use NPU models\n");
++    }
++
++    av_log(ctx, AV_LOG_DEBUG, "es roi init enter\n");
++    ret = es_roi_init(s->mctx, s->model_dir, ESCL_ROI_MAX_BOX_COUNT);
++    if (MPP_OK != ret)
++    {
++        av_log(ctx, AV_LOG_ERROR, "es roi init failed. ret = %d\n", ret);
++        return ret;
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_DEBUG, "es roi init success\n");
++        s->roi_inited = true;
++    }
++
++    if (s->draw_enable)
++    {
++        if (!s->ttf_path)
++        {
++            av_log(ctx, AV_LOG_ERROR, "ttf_path is not set\n");
++            return ret;
++        }
++        ret = init_mpp_draw(ctx);
++        if (MPP_OK != ret)
++        {
++            av_log(ctx, AV_LOG_ERROR, "es draw text init failed. ret = %d\n", ret);
++            return ret;
++        }
++        else
++        {
++            av_log(ctx, AV_LOG_DEBUG, "es draw text init success\n");
++        }
++    }
++
++    return ret;
++}
++
++static av_cold int esmpp_addroi_init(AVFilterContext *ctx)
++{
++    MppAddRoiContext *s = NULL;
++    int ret = SUCCESS;
++
++    if (!ctx || !ctx->priv)
++    {
++        return FAILURE;
++    }
++    av_log(ctx, AV_LOG_INFO, "Initializing esmpp_addroi filter.\n");
++
++    s = (MppAddRoiContext *)ctx->priv;
++    s->device_idx = 0;
++    s->die_idx = 0;
++    s->frame_cnt = 0;
++    s->buf_grp = NULL;
++    s->max_boxes = ESCL_ROI_MAX_BOX_COUNT;
++    s->roi_info = NULL;
++    s->roi_number = 0;
++    s->roi_inited = false;
++    s->draw_init = ES_FALSE;
++    s->roi_skip_interval += 1;
++    av_log(ctx, AV_LOG_DEBUG, "addroi init qoffset:[num%d/den%d], roi skip interval:%d, model_dir: %s\n",
++                               s->qoffset.num, s->qoffset.den, s->roi_skip_interval, s->model_dir);
++
++    mpp_set_log_level(s->mpp_log_level);
++
++    if (s->dump_roi_enable)
++    {
++        s->dump_roi_fp = esmpp_filter_dump_file_open(s->dump_roi_path, "esmpp_roi_box");
++        if (!s->dump_roi_fp)
++        {
++            s->dump_roi_enable = 0;
++        }
++    }
++
++    if(s->fifo_path) {
++        s->pipe_file = NULL;
++        int fifo_fd = open(s->fifo_path, O_WRONLY | O_NONBLOCK);
++        if (fifo_fd == -1) {
++            av_log(ctx, AV_LOG_ERROR, "Failed to open fifo_path %s, please open pipe reader first.\n", s->fifo_path);
++            perror("fopen fifo failed");
++            return AVERROR_EXTERNAL;
++        }
++        s->pipe_file = fdopen(fifo_fd, "w");
++        if(s->pipe_file == NULL) {
++            close(fifo_fd);
++            av_log(ctx, AV_LOG_ERROR, "Failed to open fifo_path %s, please open pipe reader first.\n", s->fifo_path);
++            perror("fopen fifo failed");
++            return AVERROR_EXTERNAL;
++        }
++    }
++
++    return ret;
++}
++
++static av_cold void esmpp_addroi_uninit(AVFilterContext *ctx)
++{
++    MppAddRoiContext *s = (MppAddRoiContext *)ctx->priv;
++    ES_BOOL use_hwaccel = ES_FALSE;
++
++    if (!ctx || !ctx->priv)
++    {
++        return;
++    }
++    av_log(ctx, AV_LOG_DEBUG, "es roi uninit\n");
++    if (s->out_hw_frm_ref)
++    {
++        av_buffer_unref(&s->out_hw_frm_ref);
++        use_hwaccel = ES_TRUE;
++    }
++    if (s->out_hw_device_ref)
++    {
++        av_buffer_unref(&s->out_hw_device_ref);
++    }
++    if (s->buf_grp)
++    {
++        if (!use_hwaccel)
++        {
++            mpp_buffer_group_put(s->buf_grp);
++        }
++        s->buf_grp = NULL;
++    }
++    if (s->roi_inited)
++    {
++        av_log(ctx, AV_LOG_DEBUG, "es roi uninit enter\n");
++        es_roi_deinit(s->mctx, s->roi_info);
++        av_log(ctx, AV_LOG_DEBUG, "es roi uninit success\n");
++        s->roi_inited = false;
++    }
++    if (s->draw_init)
++    {
++        if (s->draw_mctx)
++        {
++            esmpp_close(s->draw_mctx);
++            esmpp_destroy(s->draw_mctx);
++        }
++        s->draw_init = false;
++    }
++
++    if (s->dump_roi_enable)
++    {
++        esmpp_filter_dump_file_close(s->dump_roi_fp);
++    }
++    if(s->pipe_file) {
++        fclose(s->pipe_file);
++        s->pipe_file = NULL;
++    }
++}
++
++static ES_S32 esmpp_init_draw_info(AVFilterContext *ctx, DrawtextDrawInfoList *draw_info)
++{
++    MppAddRoiContext *s = (MppAddRoiContext *)ctx->priv;
++
++    draw_info->length = s->roi_info->box_num;
++    draw_info->drawInfo = malloc(sizeof(DrawtextDrawInfo) * draw_info->length);
++    memset(draw_info->drawInfo, 0, sizeof(DrawtextDrawInfo) * draw_info->length);
++    for (int32_t i = 0; i < s->roi_info->box_num; i++)
++    {
++        DrawtextRectangleInfo *rectangle_info = &draw_info->drawInfo[i].rectangleInfo;
++        DrawtextTextInfoList *text_info = &draw_info->drawInfo[i].textinfo;
++        MppRoiBoxPos *box = &s->roi_info->box_pos[i];
++        // char classId[128];
++        // char confidence[128];
++        // char name[128];
++        char item_text[128];
++
++        // init rectangle info
++        rectangle_info->color = s->rectangle_color;
++        rectangle_info->thickness = s->rectangle_thickness;
++        rectangle_info->rect.x = box->left;
++        rectangle_info->rect.y = box->top;
++        rectangle_info->rect.width = box->right - box->left;
++        rectangle_info->rect.height = box->bottom - box->top;
++
++        //init text info
++        text_info->length = 1;
++        text_info->drawTextInfo = (DrawtextTextInfo *)malloc(sizeof(DrawtextTextInfo) * text_info->length);
++        text_info->drawTextInfo[0].bgColor = s->bg_color;
++        text_info->drawTextInfo[0].fontColor = s->font_color;
++        text_info->drawTextInfo[0].fontWidth = s->font_width;
++        text_info->drawTextInfo[0].fontHeight = s->font_height;
++        text_info->drawTextInfo[0].posX = rectangle_info->rect.x;
++        text_info->drawTextInfo[0].posY = rectangle_info->rect.y;
++
++        Drawtext *text = &text_info->drawTextInfo[0].text;
++        text->length = 1;
++        text->txt = (DrawLine *)malloc(sizeof(DrawLine) * text->length);
++        av_log(ctx, AV_LOG_DEBUG, "total box:%d, this is:%d, class_id: %d, confidence: %f, name: %s\n",
++                                   s->roi_info->box_num, i, box->class_id, box->confidence, box->name);
++        // snprintf(classId, 128, "%d", box->class_id);
++        // snprintf(confidence, 128, "conf:%.1f", box->confidence);
++        // snprintf(name, 128, "name:%s", box->name);
++        snprintf(item_text, 128, "%s, %.2f", box->name, box->confidence);
++        char *title[3] = {item_text, 0, 0};
++        for (uint32_t t = 0; t < text->length; t++)
++        {
++            DrawLine *line_info = &text->txt[t];
++            line_info->length = strlen(title[t]);
++            line_info->line = (char *)malloc(sizeof(char) * line_info->length);
++            mpp_buffer_memcpy(line_info->line, title[t], line_info->length);
++        }
++    }
++    return 1;
++}
++
++static void esmpp_free_draw_info(DrawtextDrawInfoList *draw_info)
++{
++    if (!draw_info)
++        return;
++    for (int32_t i = 0; i < draw_info->length; i++)
++    {
++        DrawtextTextInfoList *text_info = &draw_info->drawInfo[i].textinfo;
++        for (uint32_t k = 0; k < text_info->length; k++)
++        {
++            DrawtextTextInfo *draw_info = &text_info->drawTextInfo[k];
++
++            Drawtext *text = &draw_info->text;
++            for (uint32_t t = 0; t < text->length; t++)
++            {
++                DrawLine *line_info = &text->txt[t];
++                free(line_info->line);
++            }
++            free(text->txt);
++        }
++    }
++    free(draw_info->drawInfo);
++}
++
++static int esmpp_addroi_send_frame(AVFilterLink *link, AVFrame *frame)
++{
++    AVFilterContext *ctx = link->dst;
++    MppAddRoiContext *s = (MppAddRoiContext *)ctx->priv;
++    int ret = 0;
++    MPP_RET mpp_ret = MPP_OK;
++    AVFrame *in_src = frame;
++    AVFilterLink *link_src = link;
++    MppFramePtr src_mpp_frame = NULL;
++    MppBufferPtr src_mpp_buf = NULL;
++    int stride[4] = {0}, offset[4] = {0};
++    size_t in_frame_size = 0;
++    uint32_t pic_size = 0;
++    DrawtextDrawInfoList draw_info = {0};
++    AVFrameSideData *sd = NULL;
++
++    if (link_src->format == AV_PIX_FMT_DRM_PRIME && !in_src->hw_frames_ctx)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Private format used, input frame must have hardware context.\n");
++        ret = FAILURE;
++        goto exit1;
++    }
++    // handle src mpp frame
++    if (mpp_frame_init(&src_mpp_frame) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Init src mpp frame failed.\n");
++        ret = FAILURE;
++        goto exit1;
++    }
++
++    esmpp_stack_get_offset_stride(in_src, s->in_fmt, stride, offset, &pic_size);
++    esmpp_set_mpp_frame(src_mpp_frame,
++                        ff_fmt_to_mpp_fmt(s->in_fmt),
++                        in_src->width,
++                        in_src->height,
++                        stride,
++                        offset,
++                        s->src_rotation,
++                        s->src_global_alpha);
++
++    in_frame_size = pic_size;
++
++    if (link_src->format == AV_PIX_FMT_DRM_PRIME)
++    {
++        if (in_src->data[0])
++        {
++            AVESMPPDRMFrameDescriptor *desc = (AVESMPPDRMFrameDescriptor *)in_src->data[0];
++            src_mpp_buf = desc->buffers[0];
++            if (!src_mpp_buf)
++            {
++                av_log(ctx, AV_LOG_ERROR, "src_mpp_buf is NULL\n");
++                goto exit1;
++            }
++            mpp_buffer_inc_ref(src_mpp_buf);
++        }
++        else
++        {
++            av_log(ctx, AV_LOG_WARNING, "frame buf is NULL\n");
++            goto exit1;
++        }
++
++        mpp_frame_set_buffer(src_mpp_frame, src_mpp_buf);
++        in_frame_size = mpp_buffer_get_size(src_mpp_buf);
++    }
++    else
++    {
++        mpp_ret = mpp_buffer_get(s->buf_grp, &src_mpp_buf, in_frame_size);
++        if (mpp_ret)
++        {
++            av_log(ctx, AV_LOG_ERROR, "Get buffer from group with %zu failed: %d.\n", in_src->buf[0]->size, mpp_ret);
++            ret = FAILURE;
++            goto exit1;
++        }
++
++        esmpp_memcpy_host2device(s->in_fmt, in_src, mpp_buffer_get_ptr(src_mpp_buf));
++        mpp_frame_set_buffer(src_mpp_frame, src_mpp_buf);
++        mpp_frame_set_buf_size(src_mpp_frame, in_frame_size);
++    }
++
++    if (s->roi_info) {
++        s->roi_info->box_num = 0;
++    }
++
++    if (0 == (s->frame_cnt % s->roi_skip_interval)) {
++        ret = es_roi_proc_frame(s->mctx, src_mpp_frame, s->roi_info);
++        if (ret != SUCCESS) {
++            av_log(ctx, AV_LOG_ERROR, "es_roi_proc_frame failed: %d.\n", ret);
++            ret = FAILURE;
++            goto exit1;
++        }
++        if(s->pipe_file) {
++            if (s->roi_info->box_num) {
++                int64_t cur_date_ms = frame->pts;
++                if (s->use_system_timestamp) {
++                    cur_date_ms = get_ticks_by_ms();
++                }
++                fprintf(s->pipe_file, "{\"timestamp\":%ld,\"box_num\":%d,\"object\" : [", cur_date_ms, s->roi_info->box_num);
++                for(int box_idx = 0; box_idx < s->roi_info->box_num; box_idx++) {
++                    MppRoiBoxPos *t = s->roi_info->box_pos + box_idx;
++                    fprintf(s->pipe_file, "{\"class_id\":%d,\"confidence\":%.1f,\"name\":\"%s\",\"topLeftX\":%d,\"topLeftY\":%d,\"bottomRightX\":%d,\"bottomRightY\":%d}", 
++                                t->class_id, t->confidence, t->name, t->left, t->top, t->right, t->bottom);
++                    if ( box_idx < s->roi_info->box_num - 1) {
++                        fprintf(s->pipe_file, ",");
++                    }
++                }
++                fprintf(s->pipe_file, "]}\n");
++                fflush(s->pipe_file);
++            }
++        }
++        sd = av_frame_get_side_data(frame, AV_FRAME_DATA_ESMPP_SIDE_DATA);
++        if (!sd) {
++            sd = av_frame_new_side_data(frame, AV_FRAME_DATA_ESMPP_SIDE_DATA, 0);
++        }
++    } else {
++        av_log(ctx, AV_LOG_DEBUG, "frame_cnt:%d, roi_skip_interval:%d, no need AI inference.\n",
++                                  s->frame_cnt, s->roi_skip_interval);
++    }
++
++    if (s->draw_enable)
++    {
++        esmpp_init_draw_info(ctx, &draw_info);
++        if (draw_info.length > 0)
++        {
++            mpp_ret = esmpp_process_drawtext_frame_sync(s->draw_mctx,
++                                                        src_mpp_frame,
++                                                        (void *)&draw_info,
++                                                        0,
++                                                        DRAWTEXT_TDE,
++                                                        DRAWTEXT_USAGE_DRAW_ALL);
++            if (mpp_ret != SUCCESS)
++            {
++                av_log(ctx, AV_LOG_ERROR, "esmpp_process_drawtext_frame_sync failed: %d.\n", mpp_ret);
++                ret = FAILURE;
++                goto exit1;
++            }
++            if (frame->format != AV_PIX_FMT_DRM_PRIME)
++            {
++                esmpp_memcpy_device2host(s->in_fmt, frame, mpp_buffer_get_ptr(src_mpp_buf));
++            }
++        }
++        else
++        {
++            av_log(ctx, AV_LOG_ERROR, "no info to draw!\n");
++        }
++    }
++    // static count = 0;
++    // write_buffer_to_file(mpp_buffer_get_ptr(src_mpp_buf),
++    //                      in_frame_size,
++    //                      NULL,
++    //                      frame->width,
++    //                      frame->height,
++    //                      s->in_fmt,
++    //                      count++);
++
++exit1:
++    if (src_mpp_buf)
++    {
++        mpp_buffer_put(src_mpp_buf);
++    }
++    if (src_mpp_frame)
++    {
++        mpp_frame_deinit(&src_mpp_frame);
++    }
++    if (s->draw_enable)
++    {
++        esmpp_free_draw_info(&draw_info);
++    }
++
++    return ret;
++}
++
++static int esmpp_add_detection_bbox(AVFilterContext *ctx,
++                                    AVFrame *frame,
++                                    const MppRoiBoxPos *boxes,
++                                    int box_num)
++{
++    int total_cnt = 0, old_cnt = 0, i = 0;
++
++    if (!box_num || !boxes) {
++        av_log(ctx, AV_LOG_DEBUG, "esmpp add dtection bbox no info! box_num:%d\n", box_num);
++        return 0;
++    }
++
++    AVFrameSideData *old_sd = av_frame_get_side_data(frame, AV_FRAME_DATA_DETECTION_BBOXES);
++
++    AVDetectionBBoxHeader *old_hdr = NULL;
++    if (old_sd) {
++        old_hdr = (AVDetectionBBoxHeader *)old_sd->data;
++        old_cnt = old_hdr->nb_bboxes;
++    }
++
++    total_cnt = old_cnt + box_num;
++    AVDetectionBBoxHeader *new_hdr =
++        av_detection_bbox_create_side_data(frame, total_cnt);
++    if (!new_hdr)
++        return AVERROR(ENOMEM);
++
++    for (i = 0; i < old_cnt; ++i) {
++        AVDetectionBBox *dst = av_get_detection_bbox(new_hdr, i);
++        const AVDetectionBBox *src = av_get_detection_bbox(old_hdr, i);
++        *dst = *src;
++    }
++
++    for (i = 0; i < box_num; ++i) {
++        AVDetectionBBox *bbox = av_get_detection_bbox(new_hdr, old_cnt + i);
++
++        int x = boxes[i].left;
++        int y = boxes[i].top;
++        int w = boxes[i].right - boxes[i].left;
++        int h = boxes[i].bottom - boxes[i].top;
++
++        x = x < 0 ? 0 : x;
++        x = x > frame->width ? frame->width : x;
++        y = y < 0 ? 0 : y;
++        y = y > frame->height ? frame->height : y;
++        w = w < 0 ? 0 : w;
++        w = (w + x) > frame->width ? (frame->width - x) : w;
++        h = h < 0 ? 0 : h;
++        h = (h + y) > frame->height ? (frame->height - y) : h;
++
++        bbox->x = x;
++        bbox->y = y;
++        bbox->w = w;
++        bbox->h = h;
++
++        snprintf(bbox->detect_label, sizeof(bbox->detect_label), "%s", boxes[i].name);
++
++        bbox->detect_confidence = (AVRational){ (int)(boxes[i].confidence * 100), 100 };
++        bbox->classify_count = 0;
++        av_log(ctx, AV_LOG_DEBUG,
++               "esmpp add detection bbox[%d/%d]: pos(x:%d,y:%d) size(w:%d,h:%d) label:%s confidence:%d/%d\n",
++               i, box_num,
++               bbox->x, bbox->y,
++               bbox->w, bbox->h,
++               bbox->detect_label,
++               bbox->detect_confidence.num,
++               bbox->detect_confidence.den);
++    }
++
++    snprintf(new_hdr->source, sizeof(new_hdr->source), "esmpp_addroi");
++
++    return 0;
++}
++
++static int esmpp_add_side_data(AVFilterLink *link, AVFrame *frame)
++{
++    AVFrameSideData *sd = NULL;
++    AVFilterContext *ctx = link->dst;
++    MppAddRoiContext *s = (MppAddRoiContext *)ctx->priv;
++    const AVRegionOfInterest *old_roi = NULL;
++    AVRegionOfInterest *roi = NULL;
++    AVBufferRef *roi_ref = NULL;
++    uint32_t roi_size = 0;
++    int old_roi_cnt = 0;
++    int nb_roi = 0, i = 0;
++    int ret = 0;
++
++    if (!s->roi_info || !s->roi_info->box_pos)
++    {
++        av_log(ctx, AV_LOG_ERROR, "roi info is NULL!\n");
++        return 0;
++    }
++
++    if (s->roi_info->box_num <= 0)
++    {
++        av_log(ctx, AV_LOG_DEBUG, "no roi need add, box_num = %d\n", s->roi_info->box_num);
++        return 0;
++    }
++
++    sd = av_frame_get_side_data(frame, AV_FRAME_DATA_REGIONS_OF_INTEREST);
++    if (sd)
++    {
++        old_roi = (const AVRegionOfInterest *)sd->data;
++        roi_size = old_roi->self_size;
++        av_assert0(roi_size && sd->size % roi_size == 0);
++        old_roi_cnt = sd->size / roi_size;
++        av_log(ctx, AV_LOG_DEBUG, "side data exist, old_roi_cnt = %d\n", old_roi_cnt);
++    }
++
++    if (old_roi_cnt >= ES_VENC_MAX_ROI_NUM)
++    {
++        av_log(ctx, AV_LOG_INFO, "side data exceeds max number, not add any new, old_roi_cnt = %d\n", old_roi_cnt);
++        return 0;
++    }
++
++    nb_roi = old_roi_cnt + s->roi_info->box_num > ES_VENC_MAX_ROI_NUM ? ES_VENC_MAX_ROI_NUM : old_roi_cnt + s->roi_info->box_num;
++    av_log(ctx, AV_LOG_DEBUG, "origin roi num:%d, new box num:%d, maximum box num:%d\n",
++           old_roi_cnt, s->roi_info->box_num, ES_VENC_MAX_ROI_NUM);
++
++    roi_ref = av_buffer_alloc(sizeof(AVRegionOfInterest) * nb_roi);
++    if (!roi_ref)
++    {
++        ret = AVERROR(ENOMEM);
++        return ret;
++    }
++
++    roi = (AVRegionOfInterest *)roi_ref->data;
++
++    if (old_roi)
++    {
++        for (i = 0; i < old_roi_cnt; ++i)
++        {
++            old_roi = (const AVRegionOfInterest *)(sd->data + old_roi_cnt * i);
++            roi[i] = (AVRegionOfInterest){
++                .self_size = sizeof(*roi),
++                .top = old_roi->top,
++                .bottom = old_roi->bottom,
++                .left = old_roi->left,
++                .right = old_roi->right,
++                .qoffset = old_roi->qoffset,
++            };
++        }
++    }
++
++    if (s->roi_info)
++    {
++        MppRoiBoxPos *region = s->roi_info->box_pos;
++        for (i = old_roi_cnt; i < nb_roi; ++i)
++        {
++            roi[i] = (AVRegionOfInterest){
++                .self_size = sizeof(*roi),
++                //TODO TODO
++                .top = region[i - old_roi_cnt].top,
++                .bottom = region[i - old_roi_cnt].bottom,
++                .left = region[i - old_roi_cnt].left,
++                .right = region[i - old_roi_cnt].right,
++                .qoffset = s->qoffset,
++            };
++            av_log(ctx, AV_LOG_DEBUG, "frame_pts:%ld, %d roies added, the %d roi: top:%d bottom:%d left:%d right:%d ."
++                                      "qoffset->num:%d, qoffset->den:%d\n",
++                   frame->pts,
++                   nb_roi - old_roi_cnt,
++                   i,
++                   roi[i].top,
++                   roi[i].bottom,
++                   roi[i].left,
++                   roi[i].right,
++                   roi[i].qoffset.num,
++                   roi[i].qoffset.den);
++        }
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_INFO, "roi_info no more roi info added\n");
++    }
++
++    if (s->dump_roi_enable && s->dump_roi_fp) {
++        for (i = 0; i < nb_roi; ++i) {
++            int x = roi[i].left;
++            int y = roi[i].top;
++            int w = roi[i].right - roi[i].left;
++            int h = roi[i].bottom - roi[i].top;
++
++            x = x < 0 ? 0 : x;
++            x = x > frame->width ? frame->width : x;
++            y = y < 0 ? 0 : y;
++            y = y > frame->height ? frame->height : y;
++            w = w < 0 ? 0 : w;
++            w = (w + x) > frame->width ? (frame->width - x) : w;
++            h = h < 0 ? 0 : h;
++            h = (h + y) > frame->height ? (frame->height - y) : h;
++            fprintf(s->dump_roi_fp, "%d ", s->frame_cnt);
++            fprintf(s->dump_roi_fp, "%d ", i);
++            fprintf(s->dump_roi_fp, "%d ", x);
++            fprintf(s->dump_roi_fp, "%d ", y);
++            fprintf(s->dump_roi_fp, "%d ", w);
++            fprintf(s->dump_roi_fp, "%d", h);
++            fprintf(s->dump_roi_fp, "\n");
++        }
++    }
++
++    if (sd)
++        av_frame_remove_side_data(frame, AV_FRAME_DATA_REGIONS_OF_INTEREST);
++
++    sd = av_frame_new_side_data_from_buf(frame,
++                                         AV_FRAME_DATA_REGIONS_OF_INTEREST,
++                                         roi_ref);
++    if (!sd)
++    {
++        av_buffer_unref(&roi_ref);
++        ret = AVERROR(ENOMEM);
++        return ret;
++    }
++
++    return ret;
++}
++
++static int esmpp_addroi_filter_frame(AVFilterLink *link, AVFrame *frame)
++{
++    AVFilterContext *ctx = link->dst;
++    MppAddRoiContext *s = (MppAddRoiContext *)ctx->priv;
++    int ret = 0;
++
++    ret = esmpp_addroi_send_frame(link, frame);
++    if (ret < 0) {
++        av_log(ctx, AV_LOG_WARNING, "esmpp addroi send frame failed, ret = %d\n", ret);
++    }
++
++    ret = esmpp_add_side_data(link, frame);
++    if ( ret < 0) {
++        av_log(ctx, AV_LOG_WARNING, "esmpp addroi add side data failed, ret = %d\n", ret);
++    }
++
++    ret = esmpp_add_detection_bbox(ctx, frame, s->roi_info->box_pos, s->roi_info->box_num);
++    if (ret < 0) {
++        av_log(ctx, AV_LOG_WARNING, "esmpp addroi add detection bbox failed, ret = %d\n", ret);
++    }
++
++    s->frame_cnt++;
++
++    return ff_filter_frame(ctx->outputs[0], frame);
++}
++
++static const AVOption options[] = {
++    {"qoffset", "Quantisation offset to apply in the region.",
++      OFFSET(qoffset), AV_OPT_TYPE_RATIONAL, {.dbl = 0}, -1, +1, FLAGS},
++    {"model_dir", "NPU model path",
++      OFFSET(model_dir), AV_OPT_TYPE_STRING, {.str = "/usr/local/lib/eswin"}, .flags = FLAGS},
++    {"roi_skip_interval", "skip some frames to improve the ROI performance",
++      OFFSET(roi_skip_interval), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, .flags = FLAGS},
++    {"dump_path", "dump roi box directory",
++      OFFSET(dump_roi_path), AV_OPT_TYPE_STRING, {.str = "/home/eswin"}, .flags = FLAGS},
++    {"dump_roi_enable", "dump roi box info enabled",
++      OFFSET(dump_roi_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, .flags = FLAGS},
++    {"rand_roi_num", "use the random roi box rather than models detected",
++      OFFSET(rand_roi_num), AV_OPT_TYPE_INT, {.i64 = 0}, 0, ES_VENC_MAX_ROI_NUM, .flags = FLAGS},
++    {"log_level", "mpp log level",
++      OFFSET(mpp_log_level), AV_OPT_TYPE_INT, {.i64 = 2}, 0, MPP_LOG_SILENT, .flags = FLAGS},
++    {"draw_enable", "enable draw text",OFFSET(draw_enable), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, .flags = FLAGS},
++    {"f_w", "Set font width", OFFSET(font_width), AV_OPT_TYPE_INT, {.i64 = 10}, 0, INT_MAX, FLAGS, "f_w"},
++    {"f_h", "Set font height", OFFSET(font_height), AV_OPT_TYPE_INT, {.i64 = 10}, 0, INT_MAX, FLAGS, "f_h"},
++    {"bg_color", "Set background color",
++      OFFSET(bg_color), AV_OPT_TYPE_INT, {.i64 = 0xFF00FFFF}, 0, INT64_MAX, FLAGS, "bg_color"},
++    {"f_color", "Set font color",
++      OFFSET(font_color), AV_OPT_TYPE_INT, {.i64 = 0xFF000000}, 0, INT64_MAX, FLAGS, "f_color"},
++    {"ttf_path", "Set set ttf file path", OFFSET(ttf_path), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS, "ttf_path"},
++    {"r_color", "Set rectangle color",
++      OFFSET(rectangle_color), AV_OPT_TYPE_INT, {.i64 = 0xFFFF0000}, 0, INT64_MAX, FLAGS, "rectangle_color"},
++    {"r_thick", "Set rectangle thickness",
++      OFFSET(rectangle_thickness), AV_OPT_TYPE_INT, {.i64 = 2}, 0, INT_MAX, FLAGS, "rectangle_thickness"},
++    {"fifo_path", "fifo_path", OFFSET(fifo_path), AV_OPT_TYPE_STRING, {.str = NULL}, .flags = FLAGS},
++    {"use_system_timestamp", "use_system_timestamp", OFFSET(use_system_timestamp), AV_OPT_TYPE_BOOL, {.i64 = 1}, 0, 1, .flags = FLAGS},
++
++    {NULL},
++};
++
++static const AVClass esmpp_addroi_class = {
++    .class_name = "esmpp_addroi",
++    .item_name = av_default_item_name,
++    .option = options,
++    .version = LIBAVUTIL_VERSION_INT,
++};
++
++static const AVFilterPad esmpp_addroi_inputs[] = {
++    {
++        .name = "default",
++        .type = AVMEDIA_TYPE_VIDEO,
++        .filter_frame = esmpp_addroi_filter_frame,
++        .config_props = addroi_config_props,
++    },
++};
++
++AVFilter ff_vf_addroi_esmpp = {
++    .name = "esmpp_addroi",
++    .description = NULL_IF_CONFIG_SMALL("eswin esmpp addroi filter"),
++    .init = esmpp_addroi_init,
++    .uninit = esmpp_addroi_uninit,
++    .priv_size = sizeof(MppAddRoiContext),
++    .priv_class = &esmpp_addroi_class,
++    FILTER_INPUTS(esmpp_addroi_inputs),
++    FILTER_OUTPUTS(ff_video_default_filterpad),
++    FILTER_QUERY_FUNC(addroi_query_formats),
++    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
++    .flags = AVFILTER_FLAG_HWDEVICE,
++};
+\ No newline at end of file
+diff --git a/libavfilter/vf_esmpp_addroi.h b/libavfilter/vf_esmpp_addroi.h
+new file mode 100644
+index 0000000000..cec094ca10
+--- /dev/null
++++ b/libavfilter/vf_esmpp_addroi.h
+@@ -0,0 +1,76 @@
++#ifndef AVCODEC_VF_ESMPP_ADDROI_H
++#define AVCODEC_VF_ESMPP_ADDROI_H
++
++#include "libavutil/avstring.h"
++#include "libavutil/common.h"
++#include "libavutil/hwcontext.h"
++//#include "libavutil/hwcontext_esmpp.h"
++#include "libavcodec/defs.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/pixfmt.h"
++#include "libavutil/imgutils.h"
++#include "mpp_buffer.h"
++#include "mpp_type.h"
++#include "es_roi_def.h"
++
++typedef struct MppAddRoiInInfo
++{
++    enum AVPixelFormat in_fmt;
++    int die_idx;
++    int device_idx;
++    ES_BOOL use_hwaccel;
++} MppAddRoiInInfo;
++
++typedef struct MppAddRoiContext
++{
++    const AVClass *class;
++    MppRoiCtxPtr mctx;
++    AVBufferRef *out_hw_device_ref;
++    AVBufferRef *out_hw_frm_ref;
++    MppBufferGroupPtr buf_grp;
++    AVRational qoffset;
++    char *model_dir;
++    char *dump_roi_path;
++    FILE *dump_roi_fp;
++    int dump_roi_enable;
++    int rand_roi_num;
++    int mpp_log_level;
++    int roi_skip_interval;
++
++    enum AVPixelFormat out_fmt;
++    enum AVPixelFormat in_fmt;
++    ROTATION_E src_rotation;
++    ROTATION_E dst_rotation;
++    ES_S32 src_global_alpha;
++    ES_S32 dst_global_alpha;
++
++    ES_BOOL mpp_init;
++    int frame_cnt;
++
++    int die_idx;
++    int device_idx;
++    int roi_number;
++
++    MppAddRoiInInfo in_info;
++    MppRoiBoxInfo *roi_info;
++    int max_boxes;
++    bool roi_inited;
++
++    int draw_enable;
++    uint32_t rectangle_color;
++    uint32_t rectangle_thickness;
++    uint32_t bg_color;
++    uint32_t font_color;
++    uint32_t font_width;
++    uint32_t font_height;
++    char *ttf_path;
++    MppCtxPtr draw_mctx;
++    ES_BOOL draw_init;
++
++    char *fifo_path;
++    FILE *pipe_file;
++    bool use_system_timestamp;
++} MppAddRoiContext;
++
++#endif
+\ No newline at end of file
 diff --git a/libavfilter/vf_esmpp_common.c b/libavfilter/vf_esmpp_common.c
 new file mode 100644
-index 0000000000..9c8844c7b5
+index 0000000000..6099cf6d61
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_common.c
-@@ -0,0 +1,758 @@
+@@ -0,0 +1,893 @@
 +#include "vf_esmpp_common.h"
 +#include <sys/time.h>
 +#include <time.h>
++#include <sys/stat.h>
++#include <unistd.h>
 +
 +#define MAX_FILE_PATH (200)
 +
@@ -5324,6 +6524,35 @@ index 0000000000..9c8844c7b5
 +        }
 +        cp_size = in->linesize[i] * height;
 +        mpp_buffer_memcpy(out_vir + totol_size, in->data[i], cp_size);
++        totol_size += cp_size;
++    }
++    return SUCCESS;
++}
++
++int esmpp_memcpy_device2host(const enum AVPixelFormat fmt, const AVFrame *out, void *in_vir) {
++    const AVPixFmtDescriptor *desc;
++    int height = 0;
++    int cp_size = 0;
++    int totol_size = 0;
++
++    ES_RETURN_VAL_IF_FAIL(out, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(in_vir, FAILURE);
++
++    desc = av_pix_fmt_desc_get(fmt);
++    if (!desc) {
++        av_log(NULL,
++               AV_LOG_ERROR,
++               "convert_memcpy_host2device get fmt: %s AVPixFmtDescriptor failed.\n",
++               av_get_pix_fmt_name(fmt));
++        return FAILURE;
++    }
++    for (int i = 0; i < FF_ARRAY_ELEMS(out->data) && out->data[i]; i++) {
++        height = out->height;
++        if (i == 1 || i == 2) {
++            height = AV_CEIL_RSHIFT(height, desc->log2_chroma_h);
++        }
++        cp_size = out->linesize[i] * height;
++        mpp_buffer_memcpy(out->data[i], in_vir + totol_size, cp_size);
 +        totol_size += cp_size;
 +    }
 +    return SUCCESS;
@@ -5962,13 +7191,117 @@ index 0000000000..9c8844c7b5
 +
 +    return SUCCESS;
 +}
++
++FILE *esmpp_filter_dump_file_open(const char *dump_path, const char *prefix_name) {
++    FILE *dump_fp = NULL;
++    char file_path[PATH_MAX];
++    time_t now;
++    char time_char[128];
++    struct tm *tm;
++    int ret;
++
++    if (!dump_path) {
++        av_log(NULL, AV_LOG_ERROR, "error !!! dump path is null\n");
++        return NULL;
++    }
++
++    ret = access(dump_path, 0);
++    if (ret == -1) {
++        av_log(NULL, AV_LOG_INFO, "dump_path: %s does not exist\n", dump_path);
++        if (mkdir(dump_path, 0731) == -1) {
++            av_log(NULL, AV_LOG_ERROR, "create dump_path: %s failed errno: %d\n", dump_path, errno);
++            return NULL;
++        }
++    } else {
++        av_log(NULL, AV_LOG_INFO, "dump_path: %s exist\n", dump_path);
++    }
++
++    // get local time
++    time(&now);
++    tm = localtime(&now);
++    strftime(time_char, sizeof(time_char), "%y%m%d%H%M%S", tm);
++
++    snprintf(file_path,
++             sizeof(file_path),
++             "%s/%s_%s",
++             dump_path,
++             prefix_name,
++             time_char);
++
++    dump_fp = fopen(file_path, "wb");
++    if (dump_fp) {
++        av_log(NULL, AV_LOG_INFO, "open %s success\n", file_path);
++    } else {
++        av_log(NULL, AV_LOG_ERROR, "open %s failed\n", file_path);
++        return NULL;
++    }
++
++    return dump_fp;
++}
++
++int esmpp_filter_dump_file_close(FILE *dump_fp) {
++    if (!dump_fp) {
++        av_log(NULL, AV_LOG_ERROR, "esmpp filter close dump file is NULL\n");
++        return 0;
++    }
++
++    fflush(dump_fp);
++    fclose(dump_fp);
++    dump_fp = NULL;
++
++    return 0;
++}
++
++FILE *esmpp_filter_file_write_open(const char *file_path) {
++    FILE *fp = NULL;
++    char *dir_path = NULL;
++    char *last_slash;
++
++    if (!file_path) {
++        av_log(NULL, AV_LOG_ERROR, "Error: file path is null\n");
++        return NULL;
++    }
++
++    last_slash = strrchr(file_path, '/');
++    if (last_slash) {
++        dir_path = av_strndup(file_path, last_slash - file_path);
++        if (!dir_path) {
++            av_log(NULL, AV_LOG_ERROR, "Error: out of memory\n");
++            return NULL;
++        }
++
++        if (access(dir_path, F_OK) == -1) {
++            av_log(NULL, AV_LOG_INFO, "Directory %s does not exist, creating...\n", dir_path);
++            if (mkdir(dir_path, 0755) == -1) {
++                av_log(NULL, AV_LOG_ERROR, "Failed to create directory %s, errno=%d (%s)\n",
++                       dir_path, errno, strerror(errno));
++                av_free(dir_path);
++                return NULL;
++            }
++            av_log(NULL, AV_LOG_INFO, "Directory %s created successfully\n", dir_path);
++        } else {
++            av_log(NULL, AV_LOG_INFO, "Directory %s already exists\n", dir_path);
++        }
++        av_free(dir_path);
++    }
++
++    fp = fopen(file_path, "w");
++    if (fp) {
++        av_log(NULL, AV_LOG_INFO, "Opened file successfully: %s\n", file_path);
++    } else {
++        av_log(NULL, AV_LOG_ERROR, "Failed to open file: %s (errno=%d, %s)\n",
++               file_path, errno, strerror(errno));
++    }
++
++    return fp;
++}
 \ No newline at end of file
 diff --git a/libavfilter/vf_esmpp_common.h b/libavfilter/vf_esmpp_common.h
 new file mode 100644
-index 0000000000..a5551e04d7
+index 0000000000..893529a2e7
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_common.h
-@@ -0,0 +1,173 @@
+@@ -0,0 +1,179 @@
 +#ifndef VF_ESMPP_COMMON
 +#define VF_ESMPP_COMMON
 +
@@ -6103,6 +7436,8 @@ index 0000000000..a5551e04d7
 +
 +int esmpp_memcpy_host2device(const enum AVPixelFormat fmt, const AVFrame *in, void *out_vir);
 +
++int esmpp_memcpy_device2host(const enum AVPixelFormat fmt, const AVFrame *out, void *in_vir);
++
 +void esmpp_free_frame_buf(void *opaque, uint8_t *data);
 +
 +void esmpp_free_drm_desc(void *opaque, uint8_t *data);
@@ -6141,11 +7476,15 @@ index 0000000000..a5551e04d7
 +
 +// normalization
 +int parse_normalization(MppFilterContext *s);
++
++FILE *esmpp_filter_dump_file_open(const char *dump_path, const char *prefix_name);
++int esmpp_filter_dump_file_close(FILE *dump_fp);
++FILE *esmpp_filter_file_write_open(const char *file_path);
 +#endif
 \ No newline at end of file
 diff --git a/libavfilter/vf_esmpp_complex.c b/libavfilter/vf_esmpp_complex.c
 new file mode 100644
-index 0000000000..24d0bda4dd
+index 0000000000..d4fe6c070a
 --- /dev/null
 +++ b/libavfilter/vf_esmpp_complex.c
 @@ -0,0 +1,1348 @@
@@ -7482,7 +8821,7 @@ index 0000000000..24d0bda4dd
 +    .config_props = complex_config_props,
 +};
 +
-+AVFilter ff_vf_esmpp_complex = {
++AVFilter ff_vf_complex_esmpp = {
 +    .name = "esmpp_complex",
 +    .description = NULL_IF_CONFIG_SMALL("eswin esmpp complex filter"),
 +
@@ -7497,6 +8836,1159 @@ index 0000000000..24d0bda4dd
 +    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 +    .flags = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_HWDEVICE,
 +};
+\ No newline at end of file
+diff --git a/libavfilter/vf_esmpp_drawtext.c b/libavfilter/vf_esmpp_drawtext.c
+new file mode 100644
+index 0000000000..14fbfef4f0
+--- /dev/null
++++ b/libavfilter/vf_esmpp_drawtext.c
+@@ -0,0 +1,670 @@
++#include <stdio.h>
++#include <string.h>
++#include <dlfcn.h>
++#include "libavutil/avstring.h"
++#include "libavutil/common.h"
++#include "libavutil/hwcontext.h"
++#include "libavutil/hwcontext_esmpp.h"
++#include "libavcodec/defs.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/pixfmt.h"
++#include "libavutil/imgutils.h"
++#include "libavutil/detection_bbox.h"
++#include "formats.h"
++#include "internal.h"
++#include "video.h"
++#include "vf_esmpp_common.h"
++#include "filters.h"
++#include "libavutil/esmpp_utils.h"
++#include "es_mpp.h"
++#include "vf_esmpp_drawtext.h"
++#include "libavcodec/esmpp_comm.h"
++#include "mpp_drawtext_api.h"
++#include "mpp_drawtext_cfg.h"
++#include "mpp_drawtext_type.h"
++
++#define OFFSET(x) offsetof(MppDrawTextContext, x)
++#define FLAGS (AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
++
++#define ESMPP_DRAWTEXT_DUMP (0)
++#define HWTYPE_TDE 0
++#define HWTYPE_CPU 1
++
++static int esmpp_drawtext_query_formats(AVFilterContext *ctx)
++{
++    static const enum AVPixelFormat pixel_formats[] = {
++        AV_PIX_FMT_NV12,
++        AV_PIX_FMT_NV21,
++        AV_PIX_FMT_YUV420P,
++        AV_PIX_FMT_GRAY8,
++        AV_PIX_FMT_NV16,
++        AV_PIX_FMT_RGB24,
++        AV_PIX_FMT_BGR24,
++        AV_PIX_FMT_ARGB,
++        AV_PIX_FMT_ABGR,
++        AV_PIX_FMT_BGRA,
++        AV_PIX_FMT_RGBA,
++        AV_PIX_FMT_DRM_PRIME,
++        AV_PIX_FMT_NONE,
++    };
++
++    int ret;
++    for (int i = 0; i < ctx->nb_inputs; i++)
++    {
++        if ((ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->inputs[i]->outcfg.formats)) < 0)
++        {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_spaces(), &ctx->inputs[i]->outcfg.color_spaces)) < 0)
++        {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_ranges(), &ctx->inputs[i]->outcfg.color_ranges)) < 0)
++        {
++            return ret;
++        }
++    }
++    ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->outputs[0]->incfg.formats);
++    return ret;
++}
++
++static int esmpp_drawtext_init_bufgroup(AVFilterLink *inlink)
++{
++    AVFilterContext *ctx = inlink->dst;
++    MppDrawTextContext *s = (MppDrawTextContext *)ctx->priv;
++    int ret = 0;
++
++    if (inlink->hw_frames_ctx)
++    {
++        AVHWFramesContext *hwfc = NULL;
++        AVESMPPFramesContext *mppfc = NULL;
++        ret = init_hwcontext_buf(
++            inlink, &s->out_hw_device_ref, &s->out_hw_frm_ref, s->in_fmt, s->device_idx, s->die_idx);
++        if (ret)
++        {
++            return ret;
++        }
++
++        hwfc = (AVHWFramesContext *)s->out_hw_frm_ref->data;
++        mppfc = hwfc->hwctx;
++        s->buf_grp = mppfc->buf_group;
++    }
++    else
++    {
++        ret = mpp_buffer_group_get_internal(&s->buf_grp, MPP_BUFFER_TYPE_DMA_HEAP);
++        if (ret)
++        {
++            av_log(ctx, AV_LOG_ERROR, "Create buffer group with type %d failed: %d.\n", MPP_BUFFER_TYPE_DMA_HEAP, ret);
++            return FAILURE;
++        }
++        ret = mpp_buffer_group_limit_config(s->buf_grp, 0, 0);
++        if (ret)
++        {
++            av_log(ctx, AV_LOG_ERROR, "Limit buffer group with no limit failed: %d.\n", ret);
++            return FAILURE;
++        }
++    }
++
++    return ret;
++}
++
++static int esmpp_drawtext_init_mpp_drawtext(AVFilterContext *ctx)
++{
++    MppDrawTextContext *s;
++    MppDrawtextCfgPtr drawtext_cfg;
++    int ret = SUCCESS;
++
++    ES_RETURN_VAL_IF_FAIL(ctx, FAILURE);
++    ES_RETURN_VAL_IF_FAIL(ctx->priv, FAILURE);
++
++    s = (MppDrawTextContext *)ctx->priv;
++    if (s->draw_init)
++    {
++        return MPP_OK;
++    }
++
++    if ((ret = esmpp_create(&s->draw_mctx, MPP_CTX_DRAWTEXT, MPP_VIDEO_CodingUnused)) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Failed to create MPP context and api: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if ((ret = esmpp_select_dev(s->draw_mctx, s->device_idx, s->die_idx)) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Failed to select MPP dev: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if ((ret = esmpp_init(s->draw_mctx)) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Failed to init mpp context: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        goto fail;
++    }
++
++    if ((ret = mpp_drawtext_cfg_init(&drawtext_cfg)) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Failed to init mpp_drawtext_cfg_init: %d\n", ret);
++        ret = AVERROR_EXTERNAL;
++        return ret;
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_DEBUG, "success to init mpp_drawtext_cfg_init: %d\n", ret);
++    }
++
++    ret = esmpp_control(s->draw_mctx, MPP_DRAWTEXT_GET_CFG, drawtext_cfg);
++    if (ret != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "get cfg failed ret: %d\n", ret);
++        mpp_drawtext_cfg_deinit(&drawtext_cfg);
++        return ret;
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_DEBUG, "get cfg success ret: %d\n", ret);
++    }
++    mpp_drawtext_cfg_set_string(drawtext_cfg, "file_path", s->ttf_path);
++
++    ret = esmpp_control(s->draw_mctx, MPP_DRAWTEXT_SET_CFG, drawtext_cfg);
++    if (ret != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "set cfg failed\n");
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_DEBUG, "set cfg success\n");
++    }
++    mpp_drawtext_cfg_deinit(&drawtext_cfg);
++
++    ret = esmpp_open(s->draw_mctx);
++    s->draw_init = ES_TRUE;
++    return ret;
++
++fail:
++    if (s->draw_mctx)
++    {
++        esmpp_destroy(s->draw_mctx);
++    }
++    return ret;
++}
++
++static av_cold int esmpp_drawtext_config_props(AVFilterLink *inlink)
++{
++    AVFilterContext *ctx = inlink->dst;
++    AVFilterLink *outlink = ctx->outputs[0];
++    MppDrawTextContext *s = (MppDrawTextContext *)ctx->priv;
++    int ret = SUCCESS;
++
++    if (inlink->format == AV_PIX_FMT_DRM_PRIME && inlink->hw_frames_ctx)
++    {
++        AVHWFramesContext *input_hw_frm_ctx = NULL;
++        input_hw_frm_ctx = (AVHWFramesContext *)inlink->hw_frames_ctx->data;
++        outlink->format = inlink->format;
++        s->in_fmt = input_hw_frm_ctx->sw_format;
++    }
++    else
++    {
++        s->in_fmt = inlink->format;
++        outlink->format = s->in_fmt;
++    }
++
++    if(s->in_fmt != AV_PIX_FMT_NV12 && s->hw_type == HWTYPE_CPU) {
++        av_log(ctx, AV_LOG_ERROR, "cpu hardware only support NV12 format!\n");
++        return AVERROR_EXTERNAL;
++    }
++
++    outlink->w = inlink->w;
++    outlink->h = inlink->h;
++
++    get_dev_info(ctx->hw_device_ctx, inlink->hw_frames_ctx, &s->device_idx, &s->die_idx);
++    // esmpp_set_dev(s->device_idx, s->die_idx);
++    if (!s->buf_grp)
++    {
++        esmpp_drawtext_init_bufgroup(inlink);
++    }
++    if (inlink->format == AV_PIX_FMT_DRM_PRIME && inlink->hw_frames_ctx)
++    {
++        av_buffer_unref(&outlink->hw_frames_ctx);
++        outlink->hw_frames_ctx = av_buffer_ref(s->out_hw_frm_ref);
++    }
++
++    av_log(ctx, AV_LOG_DEBUG, "es drawtext init enter\n");
++    if (!s->ttf_path)
++    {
++        av_log(ctx, AV_LOG_ERROR, "ttf_path is not set\n");
++        return ret;
++    }
++    ret = esmpp_drawtext_init_mpp_drawtext(ctx);
++    if (MPP_OK != ret)
++    {
++        av_log(ctx, AV_LOG_ERROR, "es drawtext init failed. ret = %d\n", ret);
++        return ret;
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_DEBUG, "es drawtext init success\n");
++    }
++
++    return ret;
++}
++
++static av_cold int esmpp_drawtext_init(AVFilterContext *ctx)
++{
++    MppDrawTextContext *s = NULL;
++    int ret = SUCCESS;
++
++    if (!ctx || !ctx->priv)
++    {
++        return FAILURE;
++    }
++    av_log(ctx, AV_LOG_INFO, "Initializing esmpp_drawtext filter.\n");
++
++    s = (MppDrawTextContext *)ctx->priv;
++    s->device_idx = 0;
++    s->die_idx = 0;
++    s->buf_grp = NULL;
++    s->draw_init = ES_FALSE;
++
++    return ret;
++}
++
++static av_cold void esmpp_drawtext_uninit(AVFilterContext *ctx)
++{
++    MppDrawTextContext *s = (MppDrawTextContext *)ctx->priv;
++    ES_BOOL use_hwaccel = ES_FALSE;
++
++    esmpp_set_device(s->draw_mctx);
++
++    if (!ctx || !ctx->priv)
++    {
++        return;
++    }
++    av_log(ctx, AV_LOG_DEBUG, "es drawtext uninit enter.\n");
++    if (s->out_hw_frm_ref)
++    {
++        av_buffer_unref(&s->out_hw_frm_ref);
++        use_hwaccel = ES_TRUE;
++    }
++    if (s->out_hw_device_ref)
++    {
++        av_buffer_unref(&s->out_hw_device_ref);
++    }
++    if (s->buf_grp)
++    {
++        if (!use_hwaccel)
++        {
++            mpp_buffer_group_put(s->buf_grp);
++        }
++        s->buf_grp = NULL;
++    }
++    if (s->draw_init)
++    {
++        if (s->draw_mctx)
++        {
++            esmpp_close(s->draw_mctx);
++            esmpp_destroy(s->draw_mctx);
++        }
++        s->draw_init = false;
++    }
++    av_log(ctx, AV_LOG_DEBUG, "es drawtext uninit success.\n");
++}
++
++static ES_S32 esmpp_drawtext_init_draw_info_from_roi(AVFilterContext *ctx,
++                                                    DrawtextDrawInfoList *draw_info,
++                                                    AVFrame *frame)
++{
++    MppDrawTextContext *s = (MppDrawTextContext *)ctx->priv;
++    AVDetectionBBoxHeader *hdr = NULL;
++    AVFrameSideData *sd = NULL;
++    int hdr_cnt = 0;
++
++    ES_RETURN_VAL_IF_FAIL(frame, FAILURE);
++
++    sd = av_frame_get_side_data(frame, AV_FRAME_DATA_DETECTION_BBOXES);
++    if (sd) {
++        hdr = (AVDetectionBBoxHeader *)sd->data;
++        hdr_cnt = hdr->nb_bboxes;
++    } else {
++        draw_info->length = 0;
++        return 0;
++    }
++    // draw_info->length = s->roi_info->box_num;
++    draw_info->length = hdr_cnt;
++    draw_info->drawInfo = malloc(sizeof(DrawtextDrawInfo) * draw_info->length);
++    memset(draw_info->drawInfo, 0, sizeof(DrawtextDrawInfo) * draw_info->length);
++    for (int32_t i = 0; i < draw_info->length; i++)
++    {
++        DrawtextRectangleInfo *rectangle_info = &draw_info->drawInfo[i].rectangleInfo;
++        DrawtextTextInfoList *text_info = &draw_info->drawInfo[i].textinfo;
++        Drawtext *text = NULL;
++        AVDetectionBBox *bbox = NULL;
++        char item_text[128];
++        float confidence = 0.0;
++
++        bbox = av_get_detection_bbox(hdr, i);
++
++        // init rectangle info
++        rectangle_info->color = s->rectangle_color;
++        rectangle_info->thickness = s->rectangle_thickness;
++        rectangle_info->rect.x = bbox->x;
++        rectangle_info->rect.y = bbox->y;
++        rectangle_info->rect.width = bbox->w;
++        rectangle_info->rect.height = bbox->h;
++
++        //init text info
++        text_info->length = 1;
++        text_info->drawTextInfo = (DrawtextTextInfo *)malloc(sizeof(DrawtextTextInfo) * text_info->length);
++        text_info->drawTextInfo[0].bgColor = s->bg_color;
++        text_info->drawTextInfo[0].fontColor = s->font_color;
++        text_info->drawTextInfo[0].fontWidth = s->font_width;
++        text_info->drawTextInfo[0].fontHeight = s->font_height;
++        text_info->drawTextInfo[0].posX = rectangle_info->rect.x;
++        text_info->drawTextInfo[0].posY = rectangle_info->rect.y;
++
++        text = &text_info->drawTextInfo[0].text;
++        text->length = 1;
++        text->txt = (DrawLine *)malloc(sizeof(DrawLine) * text->length);
++
++        confidence = (float)bbox->detect_confidence.num/bbox->detect_confidence.den;
++        snprintf(item_text, 128, "%s, %.2f", bbox->detect_label, confidence);
++        char *title[3] = {item_text, 0, 0};
++        for (uint32_t t = 0; t < text->length; t++)
++        {
++            DrawLine *line_info = &text->txt[t];
++            line_info->length = strlen(title[t]);
++            line_info->line = (char *)malloc(sizeof(char) * line_info->length);
++            mpp_buffer_memcpy(line_info->line, title[t], line_info->length);
++        }
++    }
++    return 0;
++}
++
++static ES_S32 esmpp_drawtext_init_draw_both(AVFilterContext *ctx, DrawtextDrawInfoList *draw_info)
++{
++    MppDrawTextContext *s = (MppDrawTextContext *)ctx->priv;
++
++    draw_info->length = 8;
++    draw_info->drawInfo = malloc(sizeof(DrawtextDrawInfo) * draw_info->length);
++    memset(draw_info->drawInfo, 0, sizeof(DrawtextDrawInfo) * draw_info->length);
++    for (int32_t i = 0; i < draw_info->length; i++)
++    {
++        DrawtextRectangleInfo *rectangle_info = &draw_info->drawInfo[i].rectangleInfo;
++        DrawtextTextInfoList *text_info = &draw_info->drawInfo[i].textinfo;
++        Drawtext *text = NULL;
++        char item_text[128];
++
++        // init rectangle info
++        rectangle_info->color = s->rectangle_color;
++        rectangle_info->thickness = s->rectangle_thickness;
++        rectangle_info->rect.x = 0 + 50 * i;
++        rectangle_info->rect.y = 0 + 50 * i;
++        rectangle_info->rect.width = 300;
++        rectangle_info->rect.height = 300;
++
++        //init text info
++        text_info->length = 1;
++        text_info->drawTextInfo = (DrawtextTextInfo *)malloc(sizeof(DrawtextTextInfo) * text_info->length);
++        text_info->drawTextInfo[0].bgColor = s->bg_color;
++        text_info->drawTextInfo[0].fontColor = s->font_color;
++        text_info->drawTextInfo[0].fontWidth = s->font_width;
++        text_info->drawTextInfo[0].fontHeight = s->font_height;
++        text_info->drawTextInfo[0].posX = rectangle_info->rect.x;
++        text_info->drawTextInfo[0].posY = rectangle_info->rect.y;
++
++        text = &text_info->drawTextInfo[0].text;
++        text->length = 1;
++        text->txt = (DrawLine *)malloc(sizeof(DrawLine) * text->length);
++
++        snprintf(item_text, 128, "%s, %.2f", "person", 0.82);
++        char *title[3] = {item_text, 0, 0};
++        for (uint32_t t = 0; t < text->length; t++)
++        {
++            DrawLine *line_info = &text->txt[t];
++            line_info->length = strlen(title[t]);
++            line_info->line = (char *)malloc(sizeof(char) * line_info->length);
++            mpp_buffer_memcpy(line_info->line, title[t], line_info->length);
++        }
++    }
++    return 0;
++}
++
++static void esmpp_drawtext_free_draw_info(DrawtextDrawInfoList *draw_info)
++{
++    if (!draw_info)
++        return;
++    for (int32_t i = 0; i < draw_info->length; i++)
++    {
++        DrawtextTextInfoList *text_info = &draw_info->drawInfo[i].textinfo;
++        for (uint32_t k = 0; k < text_info->length; k++)
++        {
++            DrawtextTextInfo *draw_info = &text_info->drawTextInfo[k];
++
++            Drawtext *text = &draw_info->text;
++            for (uint32_t t = 0; t < text->length; t++)
++            {
++                DrawLine *line_info = &text->txt[t];
++                free(line_info->line);
++            }
++            free(text->txt);
++        }
++    }
++    free(draw_info->drawInfo);
++}
++
++static int esmpp_drawtext_process_frame(AVFilterLink *link, AVFrame *frame)
++{
++    AVFilterContext *ctx = link->dst;
++    MppDrawTextContext *s = (MppDrawTextContext *)ctx->priv;
++    int ret = 0;
++    MPP_RET mpp_ret = MPP_OK;
++    AVFrame *in_src = frame;
++    AVFilterLink *link_src = link;
++    MppFramePtr src_mpp_frame = NULL;
++    MppBufferPtr src_mpp_buf = NULL;
++    int stride[4] = {0}, offset[4] = {0};
++    size_t in_frame_size = 0;
++    uint32_t pic_size = 0;
++    DrawtextDrawInfoList draw_info = {0};
++
++    if (link_src->format == AV_PIX_FMT_DRM_PRIME && !in_src->hw_frames_ctx)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Private format used, input frame must have hardware context.\n");
++        ret = FAILURE;
++        goto exit1;
++    }
++    // handle src mpp frame
++    if (mpp_frame_init(&src_mpp_frame) != MPP_OK)
++    {
++        av_log(ctx, AV_LOG_ERROR, "Init src mpp frame failed.\n");
++        ret = FAILURE;
++        goto exit1;
++    }
++
++    esmpp_stack_get_offset_stride(in_src, s->in_fmt, stride, offset, &pic_size);
++    esmpp_set_mpp_frame(src_mpp_frame,
++                        ff_fmt_to_mpp_fmt(s->in_fmt),
++                        in_src->width,
++                        in_src->height,
++                        stride,
++                        offset,
++                        0,
++                        0);
++
++    in_frame_size = pic_size;
++
++    if (link_src->format == AV_PIX_FMT_DRM_PRIME)
++    {
++        if (in_src->data[0])
++        {
++            AVESMPPDRMFrameDescriptor *desc = (AVESMPPDRMFrameDescriptor *)in_src->data[0];
++            src_mpp_buf = desc->buffers[0];
++            if (!src_mpp_buf)
++            {
++                av_log(ctx, AV_LOG_ERROR, "src_mpp_buf is NULL\n");
++                goto exit1;
++            }
++            mpp_buffer_inc_ref(src_mpp_buf);
++        }
++        else
++        {
++            av_log(ctx, AV_LOG_WARNING, "frame buf is NULL\n");
++            goto exit1;
++        }
++
++        mpp_frame_set_buffer(src_mpp_frame, src_mpp_buf);
++        in_frame_size = mpp_buffer_get_size(src_mpp_buf);
++    }
++    else
++    {
++        mpp_ret = mpp_buffer_get(s->buf_grp, &src_mpp_buf, in_frame_size);
++        if (mpp_ret)
++        {
++            av_log(ctx, AV_LOG_ERROR, "Get buffer from group with %zu failed: %d.\n", in_src->buf[0]->size, mpp_ret);
++            ret = FAILURE;
++            goto exit1;
++        }
++
++        esmpp_memcpy_host2device(s->in_fmt, in_src, mpp_buffer_get_ptr(src_mpp_buf));
++        mpp_frame_set_buffer(src_mpp_frame, src_mpp_buf);
++        mpp_frame_set_buf_size(src_mpp_frame, in_frame_size);
++    }
++
++    if(s->mode == 0) {
++        ret = esmpp_drawtext_init_draw_info_from_roi(ctx, &draw_info, frame);
++        if(ret) {
++            av_log(ctx, AV_LOG_ERROR, "esmpp_drawtext_init_draw_info_from_roi failed: %d.\n", ret);
++            goto exit1;
++        }
++    }
++
++    if(s->mode == 1) {
++        ret = esmpp_drawtext_init_draw_both(ctx, &draw_info);
++        if(ret) {
++            av_log(ctx, AV_LOG_ERROR, "esmpp_drawtext_init_draw_both failed: %d.\n", ret);
++            goto exit1;
++        }
++    }
++
++    if (draw_info.length > 0)
++    {
++        mpp_ret = esmpp_process_drawtext_frame_sync(s->draw_mctx,
++                                                    src_mpp_frame,
++                                                    (void *)&draw_info,
++                                                    0,
++                                                    s->hw_type == HWTYPE_CPU ? DRAWTEXT_CPU : DRAWTEXT_TDE,
++                                                    DRAWTEXT_USAGE_DRAW_ALL);
++        if (mpp_ret != SUCCESS)
++        {
++            av_log(ctx, AV_LOG_ERROR, "esmpp_process_drawtext_frame_sync failed: %d.\n", mpp_ret);
++            ret = FAILURE;
++            goto exit1;
++        }
++        if (frame->format != AV_PIX_FMT_DRM_PRIME)
++        {
++            esmpp_memcpy_device2host(s->in_fmt, frame, mpp_buffer_get_ptr(src_mpp_buf));
++        }
++    }
++    else
++    {
++        av_log(ctx, AV_LOG_ERROR, "no info to draw!\n");
++    }
++#if ESMPP_DRAWTEXT_DUMP
++    static count = 0;
++    write_buffer_to_file(mpp_buffer_get_ptr(src_mpp_buf),
++                         in_frame_size,
++                         NULL,
++                         frame->width,
++                         frame->height,
++                         s->in_fmt,
++                         count++);
++#endif
++
++exit1:
++    if (src_mpp_buf)
++    {
++        mpp_buffer_put(src_mpp_buf);
++    }
++    if (src_mpp_frame)
++    {
++        mpp_frame_deinit(&src_mpp_frame);
++    }
++    esmpp_drawtext_free_draw_info(&draw_info);
++
++    return ret;
++}
++
++static int esmpp_drawtext_filter_frame(AVFilterLink *link, AVFrame *frame)
++{
++    AVFilterContext *ctx = link->dst;
++    MppDrawTextContext *s = (MppDrawTextContext *)ctx->priv;
++    // AVFrameSideData *sd;
++
++    // sd = av_frame_get_side_data(frame, AV_FRAME_DATA_REGIONS_OF_INTEREST);
++
++    esmpp_drawtext_process_frame(link, frame);
++
++    s->frame_cnt++;
++
++    return ff_filter_frame(ctx->outputs[0], frame);
++}
++
++static const AVOption options[] = {
++    {"hw_type",
++     "set hardware type",
++     OFFSET(hw_type),
++     AV_OPT_TYPE_INT,
++     {.i64 = 0},
++     HWTYPE_TDE,
++     INT_MAX,
++     FLAGS,
++     "hw_type"},
++    {"tde", "Select tde to work", 0, AV_OPT_TYPE_CONST, {.i64 = HWTYPE_TDE}, 0, INT_MAX, FLAGS, "hw_type"},
++    {"cpu", "Select cpu to work", 0, AV_OPT_TYPE_CONST, {.i64 = HWTYPE_CPU}, 0, INT_MAX, FLAGS, "hw_type"},
++    {"mode", "Set draw text mode", OFFSET(mode), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 3, FLAGS, "mode"},
++    {"f_w", "Set font width", OFFSET(font_width), AV_OPT_TYPE_INT, {.i64 = 10}, 0, INT_MAX, FLAGS, "f_w"},
++    {"f_h", "Set font height", OFFSET(font_height), AV_OPT_TYPE_INT, {.i64 = 10}, 0, INT_MAX, FLAGS, "f_h"},
++    {"bg_color", "Set background color",
++      OFFSET(bg_color), AV_OPT_TYPE_INT, {.i64 = 0xFF00FFFF}, 0, INT64_MAX, FLAGS, "bg_color"},
++    {"f_color", "Set font color",
++      OFFSET(font_color), AV_OPT_TYPE_INT, {.i64 = 0xFF000000}, 0, INT64_MAX, FLAGS, "f_color"},
++    {"ttf_path", "Set set ttf file path", OFFSET(ttf_path), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS, "ttf_path"},
++    {"r_color", "Set rectangle color",
++      OFFSET(rectangle_color), AV_OPT_TYPE_INT, {.i64 = 0xFFFF0000}, 0, INT64_MAX, FLAGS, "rectangle_color"},
++    {"r_thick", "Set rectangle thickness",
++      OFFSET(rectangle_thickness), AV_OPT_TYPE_INT, {.i64 = 2}, 0, INT_MAX, FLAGS, "rectangle_thickness"},
++    {NULL},
++};
++
++static const AVClass esmpp_drawtext_class = {
++    .class_name = "esmpp_drawtext",
++    .item_name = av_default_item_name,
++    .option = options,
++    .version = LIBAVUTIL_VERSION_INT,
++};
++
++static const AVFilterPad esmpp_drawtext_inputs[] = {
++    {
++        .name = "default",
++        .type = AVMEDIA_TYPE_VIDEO,
++        .filter_frame = esmpp_drawtext_filter_frame,
++        .config_props = esmpp_drawtext_config_props,
++    },
++};
++
++AVFilter ff_vf_drawtext_esmpp = {
++    .name = "esmpp_drawtext",
++    .description = NULL_IF_CONFIG_SMALL("eswin esmpp drawtext filter"),
++    .init = esmpp_drawtext_init,
++    .uninit = esmpp_drawtext_uninit,
++    .priv_size = sizeof(MppDrawTextContext),
++    .priv_class = &esmpp_drawtext_class,
++    FILTER_INPUTS(esmpp_drawtext_inputs),
++    FILTER_OUTPUTS(ff_video_default_filterpad),
++    FILTER_QUERY_FUNC(esmpp_drawtext_query_formats),
++    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
++    .flags = AVFILTER_FLAG_HWDEVICE,
++};
+\ No newline at end of file
+diff --git a/libavfilter/vf_esmpp_drawtext.h b/libavfilter/vf_esmpp_drawtext.h
+new file mode 100644
+index 0000000000..026d607986
+--- /dev/null
++++ b/libavfilter/vf_esmpp_drawtext.h
+@@ -0,0 +1,57 @@
++#ifndef AVCODEC_VF_ESMPP_DRAWTEXT_H
++#define AVCODEC_VF_ESMPP_DRAWTEXT_H
++
++#include "libavutil/avstring.h"
++#include "libavutil/common.h"
++#include "libavutil/hwcontext.h"
++#include "libavcodec/defs.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/pixfmt.h"
++#include "libavutil/imgutils.h"
++#include "mpp_buffer.h"
++#include "mpp_type.h"
++#include "es_roi_def.h"
++
++typedef struct MppDrawTextInfo
++{
++    enum AVPixelFormat in_fmt;
++    int die_idx;
++    int device_idx;
++    ES_BOOL use_hwaccel;
++} MppDrawTextInfo;
++
++typedef struct MppDrawTextContext
++{
++    const AVClass *class;
++    MppRoiCtxPtr mctx;
++    AVBufferRef *out_hw_device_ref;
++    AVBufferRef *out_hw_frm_ref;
++    MppBufferGroupPtr buf_grp;
++
++    enum AVPixelFormat out_fmt;
++    enum AVPixelFormat in_fmt;
++
++    ES_BOOL mpp_init;
++    int frame_cnt;
++
++    int die_idx;
++    int device_idx;
++
++    uint32_t rectangle_color;
++    uint32_t rectangle_thickness;
++    uint32_t bg_color;
++    uint32_t font_color;
++    uint32_t font_width;
++    uint32_t font_height;
++    char *ttf_path;
++    MppCtxPtr draw_mctx;
++    ES_BOOL draw_init;
++    // define 0: get info from ahead filter to draw,
++    // 1: draw text and rectangle, 2: draw text only, 3: draw rectangle only
++    uint32_t mode;
++
++    int hw_type;
++} MppDrawTextContext;
++
++#endif
+\ No newline at end of file
+diff --git a/libavfilter/vf_esmpp_select.c b/libavfilter/vf_esmpp_select.c
+new file mode 100644
+index 0000000000..e736df5c39
+--- /dev/null
++++ b/libavfilter/vf_esmpp_select.c
+@@ -0,0 +1,350 @@
++#include <stdio.h>
++#include <string.h>
++#include <dlfcn.h>
++#include "libavutil/avstring.h"
++#include "libavutil/common.h"
++#include "libavutil/hwcontext.h"
++#include "libavutil/hwcontext_esmpp.h"
++#include "libavcodec/defs.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/pixfmt.h"
++#include "libavutil/imgutils.h"
++#include "formats.h"
++#include "video.h"
++#include "vf_esmpp_common.h"
++#include "filters.h"
++#include "libavutil/esmpp_utils.h"
++#include "vf_esmpp_select.h"
++#include "libavcodec/esmpp_comm.h"
++
++
++#define OFFSET(x) offsetof(MppSelectContext, x)
++#define FLAGS (AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
++#define MAX_INPUT_NB 2
++
++#define ESMPP_COMPLEX_DUMP (0)
++
++static int esmpp_select_write_detection_status(AVFilterContext *ctx,
++                                               int start, int stop,
++                                               int64_t start_time,
++                                               int64_t end_time)
++{
++    MppSelectContext *s = (MppSelectContext *)ctx->priv;
++    int ret = 0;
++
++    if (!s->json_fp) {
++        av_log(ctx, AV_LOG_WARNING, "cannot write to the file, file fp not exist!\n");
++        return FAILURE;
++    }
++
++    if (fseek(s->json_fp, 0, SEEK_SET) != 0) {
++        av_log(ctx, AV_LOG_WARNING, "fseek file failed!\n");
++        return FAILURE;
++    }
++
++    fprintf(s->json_fp, "{\n");
++    fprintf(s->json_fp, "    \"start\":%s,\n", start ? "True" : "False");
++    fprintf(s->json_fp, "    \"stop\":%s,\n", stop ? "True" : "False");
++    fprintf(s->json_fp, "    \"start_time\": %" PRId64 ",\n", start_time);
++    fprintf(s->json_fp, "    \"end_time\": %" PRId64 "\n", end_time);
++    fprintf(s->json_fp, "}\n");
++
++    fflush(s->json_fp);
++
++    return ret;
++}
++
++static int select_query_formats(AVFilterContext *ctx) {
++    av_log(ctx, AV_LOG_DEBUG, "calling select_query_formats.\n");
++    static const enum AVPixelFormat pixel_formats[] = {
++        AV_PIX_FMT_NV12,
++        AV_PIX_FMT_NV21,
++        AV_PIX_FMT_YUV420P,
++        AV_PIX_FMT_GRAY8,
++        AV_PIX_FMT_YUV420P10LE,
++        AV_PIX_FMT_P010LE,
++        AV_PIX_FMT_YVYU422,
++        AV_PIX_FMT_YUYV422,
++        AV_PIX_FMT_UYVY422,
++        AV_PIX_FMT_NV16,
++        AV_PIX_FMT_RGB24,
++        AV_PIX_FMT_BGR24,
++        AV_PIX_FMT_ARGB,
++        AV_PIX_FMT_ABGR,
++        AV_PIX_FMT_BGRA,
++        AV_PIX_FMT_RGBA,
++        AV_PIX_FMT_DRM_PRIME,
++        AV_PIX_FMT_NONE,
++    };
++
++    int ret;
++    for (int i = 0; i < ctx->nb_inputs; i++) {
++        if ((ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->inputs[i]->outcfg.formats)) < 0) {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_spaces(), &ctx->inputs[i]->outcfg.color_spaces)) < 0) {
++            return ret;
++        }
++        if ((ret = ff_formats_ref(ff_all_color_ranges(), &ctx->inputs[i]->outcfg.color_ranges)) < 0) {
++            return ret;
++        }
++    }
++    ret = ff_formats_ref(ff_make_format_list(pixel_formats), &ctx->outputs[0]->incfg.formats);
++    return ret;
++}
++
++static int esmpp_select_init_bufgroup(AVFilterLink *inlink) {
++    AVFilterContext *ctx = inlink->dst;
++    MppSelectContext *s = (MppSelectContext *)ctx->priv;
++    int ret = 0;
++
++    if (inlink->hw_frames_ctx) {
++        AVHWFramesContext *hwfc = NULL;
++        AVESMPPFramesContext *mppfc = NULL;
++        ret = init_hwcontext_buf(
++              inlink, &s->out_hw_device_ref, &s->out_hw_frm_ref, s->in_fmt, s->device_idx, s->die_idx);
++        if (ret) {
++            return ret;
++        }
++
++        hwfc = (AVHWFramesContext *)s->out_hw_frm_ref->data;
++        mppfc = hwfc->hwctx;
++        s->buf_grp = mppfc->buf_group;
++    } else {
++        ret = mpp_buffer_group_get_internal(&s->buf_grp, MPP_BUFFER_TYPE_DMA_HEAP);
++        if (ret) {
++            av_log(ctx, AV_LOG_ERROR, "Create buffer group with type %d failed: %d.\n", MPP_BUFFER_TYPE_DMA_HEAP, ret);
++            return FAILURE;
++        }
++        ret = mpp_buffer_group_limit_config(s->buf_grp, 0, 0);
++        if (ret) {
++            av_log(ctx, AV_LOG_ERROR, "Limit buffer group with no limit failed: %d.\n", ret);
++            return FAILURE;
++        }
++    }
++
++    return ret;
++}
++
++static av_cold int select_config_props(AVFilterLink *inlink) {
++    AVFilterContext *ctx = inlink->dst;
++    AVFilterLink *outlink = ctx->outputs[0];
++    MppSelectContext *s = (MppSelectContext *)ctx->priv;
++    ES_DOUBLE in_frame_rate = 0.0;
++    int ret = SUCCESS;
++
++    if (inlink->format == AV_PIX_FMT_DRM_PRIME && inlink->hw_frames_ctx) {
++        AVHWFramesContext *input_hw_frm_ctx = NULL;
++        input_hw_frm_ctx = (AVHWFramesContext *)inlink->hw_frames_ctx->data;
++        s->in_fmt = input_hw_frm_ctx->sw_format;
++        outlink->format = inlink->format;
++    } else {
++        s->in_fmt = inlink->format;
++        outlink->format = s->in_fmt;
++    }
++
++    outlink->w = inlink->w;
++    outlink->h = inlink->h;
++
++    get_dev_info(ctx->hw_device_ctx, inlink->hw_frames_ctx, &s->device_idx, &s->die_idx);
++    if (!s->buf_grp) {
++        esmpp_select_init_bufgroup(inlink);
++    }
++    if (inlink->format == AV_PIX_FMT_DRM_PRIME && inlink->hw_frames_ctx) {
++        av_buffer_unref(&inlink->hw_frames_ctx);
++        outlink->hw_frames_ctx = av_buffer_ref(s->out_hw_frm_ref);
++    }
++
++    outlink->frame_rate = inlink->frame_rate;
++    outlink->sample_aspect_ratio = inlink->sample_aspect_ratio;
++    outlink->time_base = inlink->time_base;
++
++    in_frame_rate = av_q2d(inlink->frame_rate);
++
++    if (0 == s->roi_frame) {
++        outlink->frame_rate = av_d2q(in_frame_rate, 1000);
++    } else {
++        s->roi_skip_interval += 1;
++        outlink->frame_rate = av_d2q(in_frame_rate / s->roi_skip_interval, 1000);
++    }
++
++    av_log(ctx,
++           AV_LOG_DEBUG,
++           "out w:%d h:%d @%.2f -> w:%d h:%d @%.2f\n",
++           inlink->w,
++           inlink->h,
++           in_frame_rate,
++           outlink->w,
++           outlink->h,
++           av_q2d(outlink->frame_rate));
++
++    return ret;
++}
++
++static av_cold int esmpp_select_init(AVFilterContext *ctx) {
++    MppSelectContext *s = NULL;
++    int ret = SUCCESS;
++
++    if (!ctx || !ctx->priv) {
++        av_log(ctx, AV_LOG_ERROR, "Initializing esmpp_select filter failed!\n");
++        return FAILURE;
++    }
++    av_log(ctx, AV_LOG_INFO, "Initializing esmpp_select filter.\n");
++
++    s = (MppSelectContext *)ctx->priv;
++    s->device_idx = 0;
++    s->die_idx = 0;
++    s->frame_cnt = 0;
++    s->frame_roi_cnt = 0;
++    s->buf_grp = NULL;
++    s->select_inited = ES_FALSE;
++    s->target_enter_cnt = 0;
++    s->target_exit_cnt = 0;
++    s->target_state = ESMPP_SELECT_TARGET_LEAVE;
++
++    if (s->target_detect) {
++        s->json_fp = esmpp_filter_file_write_open(s->json_file);
++        if (!s->json_fp) {
++            av_log(ctx, AV_LOG_ERROR, "Initializing esmpp_select filter.\n");
++            return FAILURE;
++        }
++        esmpp_select_write_detection_status(ctx, 0, 0, -1, -1);
++    }
++
++    return ret;
++}
++
++static av_cold void esmpp_select_uninit(AVFilterContext *ctx) {
++    MppSelectContext *s = (MppSelectContext *)ctx->priv;
++    ES_BOOL use_hwaccel = ES_FALSE;
++
++    if (!ctx || !ctx->priv) {
++        av_log(ctx, AV_LOG_ERROR, "uninit esmpp_select filter failed!\n");
++        return;
++    }
++    av_log(ctx, AV_LOG_DEBUG, "esmpp select uninit\n");
++    if (s->out_hw_frm_ref) {
++        av_buffer_unref(&s->out_hw_frm_ref);
++        use_hwaccel = ES_TRUE;
++    }
++    if (s->out_hw_device_ref) {
++        av_buffer_unref(&s->out_hw_device_ref);
++    }
++    if (s->buf_grp) {
++        if (!use_hwaccel) {
++            mpp_buffer_group_put(s->buf_grp);
++        }
++        s->buf_grp = NULL;
++    }
++
++    if (s->target_detect) {
++        esmpp_filter_dump_file_close(s->json_fp);
++    }
++}
++
++static void esmpp_select_handle_detection(AVFilterContext *ctx, ES_BOOL has_target) {
++    MppSelectContext *s = (MppSelectContext *)ctx->priv;
++    time_t now;
++
++    av_log(ctx, AV_LOG_DEBUG, "esmpp select frame_cnt:%d, target state:%d.\n", s->frame_cnt, s->target_state);
++    if (has_target) {
++        s->target_enter_cnt++;
++        s->target_exit_cnt = 0;
++        if (ESMPP_SELECT_TARGET_LEAVE == s->target_state && s->target_enter_cnt >= s->target_detect_thres) {
++            time(&now);
++            s->target_state = ESMPP_SELECT_TARGET_ENTER;
++            esmpp_select_write_detection_status(ctx, 1, 0, now, -1);
++            av_log(ctx, AV_LOG_DEBUG, "esmpp select target enter, frame_cnt:%d.\n", s->frame_cnt);
++        }
++    } else {
++        s->target_enter_cnt = 0;
++        s->target_exit_cnt++;
++        if (ESMPP_SELECT_TARGET_ENTER == s->target_state && s->target_exit_cnt >= s->target_detect_thres) {
++            time(&now);
++            s->target_state = ESMPP_SELECT_TARGET_LEAVE;
++            esmpp_select_write_detection_status(ctx, 0, 1, -1, now);
++            av_log(ctx, AV_LOG_DEBUG, "esmpp select target leave, frame_cnt:%d.\n", s->frame_cnt);
++        }
++    }
++}
++
++static int esmpp_select_filter_frame(AVFilterLink *link, AVFrame *frame) {
++    AVFilterContext *ctx = link->dst;
++    MppSelectContext *s = (MppSelectContext *)ctx->priv;
++    AVFrameSideData *sd_roi = NULL;
++    AVFrameSideData *sd_roi_proc = NULL;
++    ES_BOOL has_target = ES_FALSE;
++
++    s->frame_cnt++;
++    sd_roi = av_frame_get_side_data(frame, AV_FRAME_DATA_REGIONS_OF_INTEREST);
++
++    if (s->target_detect) {
++        has_target = sd_roi != NULL ? ES_TRUE : ES_FALSE;
++        sd_roi_proc = av_frame_get_side_data(frame, AV_FRAME_DATA_ESMPP_SIDE_DATA);
++        if (sd_roi_proc) {
++            esmpp_select_handle_detection(ctx, has_target);
++        }
++    }
++
++    if (s->roi_frame) {
++        if (!sd_roi) {
++            frame->flags |= AV_FRAME_FLAG_DISCARD;
++            av_log(ctx, AV_LOG_DEBUG, "esmpp current frame no roi, frame_num:%d \n", s->frame_cnt);
++            return ff_filter_frame(ctx->outputs[0], frame);
++        }
++        s->frame_roi_cnt++;
++        av_log(ctx,
++               AV_LOG_DEBUG,
++               "esmpp select frame roi, frame_num:%d, roi frames:%d \n",
++               s->frame_cnt, s->frame_roi_cnt);
++
++        return ff_filter_frame(ctx->outputs[0], frame);
++    }
++    av_log(ctx, AV_LOG_DEBUG, "esmpp select filer send frame, frame_num:%d \n", s->frame_cnt);
++    return ff_filter_frame(ctx->outputs[0], frame);
++}
++
++static const AVOption options[] = {
++    {"roi_frame", "select the frame with roi side data",
++      OFFSET(roi_frame), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, .flags = FLAGS},
++    {"roi_skip_interval", "skip some frames to improve the ROI performance",
++      OFFSET(roi_skip_interval), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, .flags = FLAGS},
++    {"target_detect", "detect target enter into the region function enable",
++      OFFSET(target_detect), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, .flags = FLAGS},
++    {"target_detect_thres", "target is considered present after being detected in consecutive frames threshold.",
++      OFFSET(target_detect_thres), AV_OPT_TYPE_INT, {.i64 = 3}, 0, INT_MAX, .flags = FLAGS},
++    {"json_file", "dump the target enter and exit time to json file",
++      OFFSET(json_file), AV_OPT_TYPE_STRING, {.str = "/home/eswin/roi.json"}, .flags = FLAGS},
++    {NULL},
++};
++
++static const AVClass esmpp_select_class = {
++    .class_name = "esmpp_select",
++    .item_name = av_default_item_name,
++    .option = options,
++    .version = LIBAVUTIL_VERSION_INT,
++};
++
++static const AVFilterPad esmpp_select_inputs[] = {
++    {
++        .name = "default",
++        .type = AVMEDIA_TYPE_VIDEO,
++        .filter_frame = esmpp_select_filter_frame,
++        .config_props = select_config_props,
++    },
++};
++
++AVFilter ff_vf_select_esmpp = {
++    .name = "esmpp_select",
++    .description = NULL_IF_CONFIG_SMALL("eswin esmpp select filter"),
++    .init = esmpp_select_init,
++    .uninit = esmpp_select_uninit,
++    .priv_size = sizeof(MppSelectContext),
++    .priv_class = &esmpp_select_class,
++    FILTER_INPUTS(esmpp_select_inputs),
++    FILTER_OUTPUTS(ff_video_default_filterpad),
++    FILTER_QUERY_FUNC(select_query_formats),
++    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
++    .flags = AVFILTER_FLAG_HWDEVICE,
++};
+\ No newline at end of file
+diff --git a/libavfilter/vf_esmpp_select.h b/libavfilter/vf_esmpp_select.h
+new file mode 100644
+index 0000000000..84bca3c003
+--- /dev/null
++++ b/libavfilter/vf_esmpp_select.h
+@@ -0,0 +1,48 @@
++#ifndef AVCODEC_VF_ESMPP_ADDROI_H
++#define AVCODEC_VF_ESMPP_ADDROI_H
++
++#include "libavutil/avstring.h"
++#include "libavutil/common.h"
++#include "libavutil/hwcontext.h"
++#include "libavcodec/defs.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/pixfmt.h"
++#include "libavutil/imgutils.h"
++#include "mpp_buffer.h"
++#include "mpp_type.h"
++
++enum MppSelectTargetState {
++    ESMPP_SELECT_TARGET_LEAVE,
++    ESMPP_SELECT_TARGET_ENTER,
++};
++
++typedef struct MppSelectContext {
++    const AVClass *class;
++
++    AVBufferRef *out_hw_device_ref;
++    AVBufferRef *out_hw_frm_ref;
++    MppBufferGroupPtr buf_grp;
++    int die_idx;
++    int device_idx;
++    char *json_file;
++    FILE *json_fp;
++    int roi_frame;
++    int target_detect;
++    int target_detect_thres;
++    int target_enter_cnt;
++    int target_exit_cnt;
++    int roi_skip_interval;
++    enum MppSelectTargetState target_state;
++
++    enum AVPixelFormat out_fmt;
++    enum AVPixelFormat in_fmt;
++
++    int frame_cnt;
++    int frame_roi_cnt;
++
++    ES_BOOL select_inited;
++
++} MppSelectContext;
++
++#endif
 \ No newline at end of file
 diff --git a/libavfilter/vf_stack_esmpp.c b/libavfilter/vf_stack_esmpp.c
 new file mode 100644
@@ -9146,6 +11638,269 @@ index 0000000000..18ab453dce
 +    .flags = AVFILTER_FLAG_DYNAMIC_INPUTS | AVFILTER_FLAG_HWDEVICE,
 +};
 \ No newline at end of file
+diff --git a/libavformat/img2enc.c b/libavformat/img2enc.c
+index 526a11e5ee..9f84e3dc0a 100644
+--- a/libavformat/img2enc.c
++++ b/libavformat/img2enc.c
+@@ -36,6 +36,9 @@
+ #include "internal.h"
+ #include "img2.h"
+ #include "mux.h"
++#ifdef CONFIG_ESMPP
++#include <sys/time.h>
++#endif
+ 
+ typedef struct VideoMuxData {
+     const AVClass *class;  /**< Class for private options. */
+@@ -151,6 +154,22 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
+     if (img->update) {
+         av_strlcpy(filename, s->url, sizeof(filename));
+     } else if (img->use_strftime) {
++#ifdef CONFIG_ESMPP
++        char *pt = NULL;
++        pt = strstr(s->url, "%3T");
++        if (NULL != pt) {
++            struct timeval tv;
++            int64_t ms = 0;
++            int prefix_len = 0;
++            memset(filename, 0x00, sizeof(filename));
++            gettimeofday(&tv, NULL);
++            ms = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
++            prefix_len = pt - s->url;
++            snprintf(filename, sizeof(filename), "%.*s%lld%.*s",
++                     prefix_len, s->url, (long long)ms,
++                     (int)(strlen(s->url) - (pt - s->url) - 3), pt + 3);
++        } else {
++#endif
+         time_t now0;
+         struct tm *tm, tmpbuf;
+         time(&now0);
+@@ -159,6 +178,25 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
+             av_log(s, AV_LOG_ERROR, "Could not get frame filename with strftime\n");
+             return AVERROR(EINVAL);
+         }
++
++#ifdef CONFIG_ESMPP
++        {
++            char *p = NULL;
++            p = strstr(filename, "%3N");
++            if (p != NULL) {
++                struct timeval tv;
++                int ms;
++                char temp[1024] = {0};
++                int prefix_len = 0;
++                gettimeofday(&tv, NULL);
++                ms = (int)(tv.tv_usec / 1000);
++                prefix_len = p - filename;
++                av_strlcpy(temp, filename, prefix_len + 1);
++                snprintf(filename, sizeof(filename), "%s%03d%s", temp, ms, p + 3);
++            }
++        }
++    }
++#endif
+     } else if (img->frame_pts) {
+         if (av_get_frame_filename2(filename, sizeof(filename), s->url, pkt->pts, AV_FRAME_FILENAME_FLAGS_MULTIPLE) < 0) {
+             av_log(s, AV_LOG_ERROR, "Cannot write filename by pts of the frames.");
+diff --git a/libavformat/mpeg.h b/libavformat/mpeg.h
+index 20592eb184..0619821722 100644
+--- a/libavformat/mpeg.h
++++ b/libavformat/mpeg.h
+@@ -61,6 +61,11 @@
+ 
+ #define STREAM_TYPE_AUDIO_AC3       0x81
+ 
++#ifdef CONFIG_ESMPP
++#define STREAM_TYPE_AUDIO_PCM_ALAW  0x90
++#define STREAM_TYPE_AUDIO_PCM_MULAW 0x91
++#endif
++
+ static const int lpcm_freq_tab[4] = { 48000, 96000, 44100, 32000 };
+ 
+ /**
+diff --git a/libavformat/mpegenc.c b/libavformat/mpegenc.c
+index 14caf9e162..125423e9d1 100644
+--- a/libavformat/mpegenc.c
++++ b/libavformat/mpegenc.c
+@@ -30,7 +30,9 @@
+ #include "libavutil/opt.h"
+ 
+ #include "libavcodec/put_bits.h"
+-
++#ifdef CONFIG_ESMPP
++#include "libavutil/crc.h"
++#endif
+ #include "avformat.h"
+ #include "avio_internal.h"
+ #include "internal.h"
+@@ -70,6 +72,9 @@ typedef struct MpegMuxContext {
+     int pack_header_freq;     /* frequency (in packets^-1) at which we send pack headers */
+     int system_header_freq;
+     int system_header_size;
++#ifdef CONFIG_ESMPP
++    int system_map_freq;
++#endif
+     int user_mux_rate; /* bitrate in units of bits/s */
+     int mux_rate; /* bitrate in units of 50 bytes/s */
+     /* stream info */
+@@ -275,6 +280,95 @@ static int put_system_header(AVFormatContext *ctx, uint8_t *buf,
+     return size;
+ }
+ 
++#ifdef CONFIG_ESMPP
++static uint8_t mpegps_get_stream_type(const AVCodecParameters *par, int is_mpeg2)
++{
++    switch (par->codec_id) {
++        case AV_CODEC_ID_MPEG1VIDEO:
++            return STREAM_TYPE_VIDEO_MPEG1;
++        case AV_CODEC_ID_MPEG2VIDEO:
++            return STREAM_TYPE_VIDEO_MPEG2;
++        case AV_CODEC_ID_H264:
++            return STREAM_TYPE_VIDEO_H264;
++        case AV_CODEC_ID_HEVC:
++            return STREAM_TYPE_VIDEO_HEVC;
++        case AV_CODEC_ID_MPEG4:
++            return STREAM_TYPE_VIDEO_MPEG4;
++        case AV_CODEC_ID_VVC:
++            return STREAM_TYPE_VIDEO_VVC;
++        case AV_CODEC_ID_MP3:
++            if (is_mpeg2) {
++                return STREAM_TYPE_AUDIO_MPEG2;
++            } else {
++                return STREAM_TYPE_AUDIO_MPEG1;
++            }
++        case AV_CODEC_ID_AAC:
++            return STREAM_TYPE_AUDIO_AAC;
++        case AV_CODEC_ID_AC3:
++            return STREAM_TYPE_AUDIO_AC3;
++        case AV_CODEC_ID_PCM_ALAW:
++            return STREAM_TYPE_AUDIO_PCM_ALAW;
++        case AV_CODEC_ID_PCM_MULAW:
++            return STREAM_TYPE_AUDIO_PCM_MULAW;
++        default:
++            av_log(NULL, AV_LOG_WARNING, "Unknown codec id %d for PSM\n", par->codec_id);
++            return 0;
++    }
++}
++
++static int put_stream_map_header(AVFormatContext *ctx, uint8_t *buf, int is_mpeg2)
++{
++    MpegMuxContext *s = ctx->priv_data;
++    PutBitContext pb;
++    int map_size = 0;
++    int ele_pos = 0;
++    int ele_size = 0;
++    int size;
++    uint32_t crc;
++    const int crc_len = 4;
++
++    init_put_bits(&pb, buf, 128);
++    put_bits32(&pb, PROGRAM_STREAM_MAP);
++    put_bits(&pb, 16, 0);
++    map_size += 6;
++    put_bits(&pb, 1, 1);  // current_next_indicator
++    put_bits(&pb, 2, 0);  // reserved
++    put_bits(&pb, 5, 2);  // program_stream_map_version
++    put_bits(&pb, 7, 0);  // reserved
++    put_bits(&pb, 1, 1);  // marker_bit
++    map_size += 2;
++    put_bits(&pb, 16, 0); // program_stream_info_length
++    map_size += 2;
++    ele_pos = map_size;
++    put_bits(&pb, 16, 0); // elementary_stream_map_length
++    map_size += 2;
++
++    for (int i = 0; i < ctx->nb_streams; i++) {
++        AVStream *st;
++        st = ctx->streams[i];
++        StreamInfo *stream = (StreamInfo *)st->priv_data;
++        uint8_t stream_type = mpegps_get_stream_type(st->codecpar, is_mpeg2);
++        put_bits(&pb, 8, stream_type); // stream_type
++        put_bits(&pb, 8, stream->id); // elementary_stream_id
++        put_bits(&pb, 16, 0); // elementary_stream_info_length
++        map_size += 4;
++        ele_size += 4;
++    }
++
++    crc = av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, buf, map_size);
++    put_bits32(&pb, crc);
++    map_size += 4;
++
++    flush_put_bits(&pb);
++    size = put_bits_ptr(&pb) - pb.buf;
++    /* patch packet size */
++    AV_WB16(buf + 4, map_size - 6);
++    AV_WB16(buf + ele_pos, ele_size);
++
++    return size;
++}
++#endif
++
+ static int get_system_header_size(AVFormatContext *ctx)
+ {
+     int buf_index, i, private_stream_coded;
+@@ -416,8 +510,18 @@ static av_cold int mpeg_mux_init(AVFormatContext *ctx)
+                        return AVERROR_PATCHWELCOME;
+             } else if (st->codecpar->codec_id != AV_CODEC_ID_MP1 &&
+                        st->codecpar->codec_id != AV_CODEC_ID_MP2 &&
+-                       st->codecpar->codec_id != AV_CODEC_ID_MP3) {
++                       st->codecpar->codec_id != AV_CODEC_ID_MP3 
++#ifdef CONFIG_ESMPP
++                       && st->codecpar->codec_id != AV_CODEC_ID_AAC
++                       && st->codecpar->codec_id != AV_CODEC_ID_PCM_ALAW
++                       && st->codecpar->codec_id != AV_CODEC_ID_PCM_MULAW
++#endif
++                    ) {
++#ifdef CONFIG_ESMPP
++                       av_log(ctx, AV_LOG_ERROR, "Unsupported audio codec. Must be one of mp1, mp2, mp3, 16-bit pcm_dvd, pcm_s16be, pcm_alaw, pcm_mulaw, aac, ac3 or dts.\n");
++#else
+                        av_log(ctx, AV_LOG_ERROR, "Unsupported audio codec. Must be one of mp1, mp2, mp3, 16-bit pcm_dvd, pcm_s16be, ac3 or dts.\n");
++#endif
+                        return AVERROR(EINVAL);
+             } else {
+                 stream->id = mpa_id++;
+@@ -567,6 +671,12 @@ static av_cold int mpeg_mux_init(AVFormatContext *ctx)
+     else
+         s->system_header_freq = s->pack_header_freq * 5;
+ 
++#ifdef CONFIG_ESMPP
++    s->system_map_freq = s->pack_header_freq * 40;
++    if (s->system_map_freq == 0)
++        s->system_map_freq = 1;
++#endif
++
+     for (i = 0; i < ctx->nb_streams; i++) {
+         stream                = ctx->streams[i]->priv_data;
+         stream->packet_number = 0;
+@@ -732,6 +842,29 @@ static int flush_packet(AVFormatContext *ctx, int stream_index,
+                 buf_ptr += size;
+             }
+         }
++
++#ifdef CONFIG_ESMPP
++        // Add this code for mux AAC and PCM_ALAW or PCM_MULAW in mpeg2 PS file
++        if (s->is_mpeg2) {
++            if ((s->packet_number % s->system_map_freq) == 0) {
++                int need_stream_map = 0;
++                for (int i = 0; i < ctx->nb_streams; i++) {
++                    AVStream *st = ctx->streams[i];
++                    if (st->codecpar->codec_id == AV_CODEC_ID_AAC ||
++                        st->codecpar->codec_id == AV_CODEC_ID_PCM_ALAW ||
++                        st->codecpar->codec_id == AV_CODEC_ID_PCM_MULAW) {
++                        need_stream_map = 1;
++                        break;
++                    }
++                }
++
++                if (need_stream_map) {
++                    size     = put_stream_map_header(ctx, buf_ptr, s->is_mpeg2);
++                    buf_ptr += size;
++                }
++            }
++        }
++#endif
+     }
+     size = buf_ptr - buffer;
+     avio_write(ctx->pb, buffer, size);
 diff --git a/libavutil/Makefile b/libavutil/Makefile
 index 6e6fa8d800..9e9736011f 100644
 --- a/libavutil/Makefile
@@ -9332,6 +12087,21 @@ index 0000000000..c5c20ae8dc
 +
 +#endif
 \ No newline at end of file
+diff --git a/libavutil/frame.h b/libavutil/frame.h
+index 8aa05ec127..fbd4aa663b 100644
+--- a/libavutil/frame.h
++++ b/libavutil/frame.h
+@@ -228,6 +228,10 @@ enum AVFrameSideDataType {
+      * encoding.
+      */
+     AV_FRAME_DATA_VIDEO_HINT,
++        /**
++     * esmpp private side data, in current stage indicate if frame do the roi process.
++     */
++    AV_FRAME_DATA_ESMPP_SIDE_DATA = AV_FRAME_DATA_VIDEO_HINT + 1024,
+ };
+ 
+ enum AVActiveFormatDescription {
 diff --git a/libavutil/hwcontext.c b/libavutil/hwcontext.c
 index fa99a0d8a4..0e12aa1236 100644
 --- a/libavutil/hwcontext.c
@@ -9368,7 +12138,7 @@ index bac30debae..24f8e2eba9 100644
  /**
 diff --git a/libavutil/hwcontext_esmpp.c b/libavutil/hwcontext_esmpp.c
 new file mode 100644
-index 0000000000..a45af394d2
+index 0000000000..8729a1d5bf
 --- /dev/null
 +++ b/libavutil/hwcontext_esmpp.c
 @@ -0,0 +1,644 @@
@@ -9641,11 +12411,11 @@ index 0000000000..a45af394d2
 +}
 +
 +static AVBufferRef *esmpp_drm_pool_alloc(void *opaque, size_t size) {
-+    ES_RETURN_VAL_IF_FAIL(opaque, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(opaque, NULL);
 +    int ret;
 +    AVHWFramesContext *hwfc = opaque;
 +    AVESMPPFramesContext *avfc = hwfc->hwctx;
-+    ES_RETURN_VAL_IF_FAIL(avfc, AVERROR(EINVAL));
++    ES_RETURN_VAL_IF_FAIL(avfc, NULL);
 +    AVESMPPDRMFrameDescriptor *desc;
 +    AVDRMLayerDescriptor *layer;
 +    AVBufferRef *ref;
@@ -10129,5 +12899,5 @@ index fb17058df5..e44a99b825 100644
      local:
          *;
 -- 
-2.47.2
+2.47.3
 
