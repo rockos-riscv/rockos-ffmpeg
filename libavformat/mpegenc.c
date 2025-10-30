@@ -30,7 +30,9 @@
 #include "libavutil/opt.h"
 
 #include "libavcodec/put_bits.h"
-
+#ifdef CONFIG_ESMPP
+#include "libavutil/crc.h"
+#endif
 #include "avformat.h"
 #include "avio_internal.h"
 #include "internal.h"
@@ -70,6 +72,9 @@ typedef struct MpegMuxContext {
     int pack_header_freq;     /* frequency (in packets^-1) at which we send pack headers */
     int system_header_freq;
     int system_header_size;
+#ifdef CONFIG_ESMPP
+    int system_map_freq;
+#endif
     int user_mux_rate; /* bitrate in units of bits/s */
     int mux_rate; /* bitrate in units of 50 bytes/s */
     /* stream info */
@@ -275,6 +280,95 @@ static int put_system_header(AVFormatContext *ctx, uint8_t *buf,
     return size;
 }
 
+#ifdef CONFIG_ESMPP
+static uint8_t mpegps_get_stream_type(const AVCodecParameters *par, int is_mpeg2)
+{
+    switch (par->codec_id) {
+        case AV_CODEC_ID_MPEG1VIDEO:
+            return STREAM_TYPE_VIDEO_MPEG1;
+        case AV_CODEC_ID_MPEG2VIDEO:
+            return STREAM_TYPE_VIDEO_MPEG2;
+        case AV_CODEC_ID_H264:
+            return STREAM_TYPE_VIDEO_H264;
+        case AV_CODEC_ID_HEVC:
+            return STREAM_TYPE_VIDEO_HEVC;
+        case AV_CODEC_ID_MPEG4:
+            return STREAM_TYPE_VIDEO_MPEG4;
+        case AV_CODEC_ID_VVC:
+            return STREAM_TYPE_VIDEO_VVC;
+        case AV_CODEC_ID_MP3:
+            if (is_mpeg2) {
+                return STREAM_TYPE_AUDIO_MPEG2;
+            } else {
+                return STREAM_TYPE_AUDIO_MPEG1;
+            }
+        case AV_CODEC_ID_AAC:
+            return STREAM_TYPE_AUDIO_AAC;
+        case AV_CODEC_ID_AC3:
+            return STREAM_TYPE_AUDIO_AC3;
+        case AV_CODEC_ID_PCM_ALAW:
+            return STREAM_TYPE_AUDIO_PCM_ALAW;
+        case AV_CODEC_ID_PCM_MULAW:
+            return STREAM_TYPE_AUDIO_PCM_MULAW;
+        default:
+            av_log(NULL, AV_LOG_WARNING, "Unknown codec id %d for PSM\n", par->codec_id);
+            return 0;
+    }
+}
+
+static int put_stream_map_header(AVFormatContext *ctx, uint8_t *buf, int is_mpeg2)
+{
+    MpegMuxContext *s = ctx->priv_data;
+    PutBitContext pb;
+    int map_size = 0;
+    int ele_pos = 0;
+    int ele_size = 0;
+    int size;
+    uint32_t crc;
+    const int crc_len = 4;
+
+    init_put_bits(&pb, buf, 128);
+    put_bits32(&pb, PROGRAM_STREAM_MAP);
+    put_bits(&pb, 16, 0);
+    map_size += 6;
+    put_bits(&pb, 1, 1);  // current_next_indicator
+    put_bits(&pb, 2, 0);  // reserved
+    put_bits(&pb, 5, 2);  // program_stream_map_version
+    put_bits(&pb, 7, 0);  // reserved
+    put_bits(&pb, 1, 1);  // marker_bit
+    map_size += 2;
+    put_bits(&pb, 16, 0); // program_stream_info_length
+    map_size += 2;
+    ele_pos = map_size;
+    put_bits(&pb, 16, 0); // elementary_stream_map_length
+    map_size += 2;
+
+    for (int i = 0; i < ctx->nb_streams; i++) {
+        AVStream *st;
+        st = ctx->streams[i];
+        StreamInfo *stream = (StreamInfo *)st->priv_data;
+        uint8_t stream_type = mpegps_get_stream_type(st->codecpar, is_mpeg2);
+        put_bits(&pb, 8, stream_type); // stream_type
+        put_bits(&pb, 8, stream->id); // elementary_stream_id
+        put_bits(&pb, 16, 0); // elementary_stream_info_length
+        map_size += 4;
+        ele_size += 4;
+    }
+
+    crc = av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, buf, map_size);
+    put_bits32(&pb, crc);
+    map_size += 4;
+
+    flush_put_bits(&pb);
+    size = put_bits_ptr(&pb) - pb.buf;
+    /* patch packet size */
+    AV_WB16(buf + 4, map_size - 6);
+    AV_WB16(buf + ele_pos, ele_size);
+
+    return size;
+}
+#endif
+
 static int get_system_header_size(AVFormatContext *ctx)
 {
     int buf_index, i, private_stream_coded;
@@ -416,8 +510,18 @@ static av_cold int mpeg_mux_init(AVFormatContext *ctx)
                        return AVERROR_PATCHWELCOME;
             } else if (st->codecpar->codec_id != AV_CODEC_ID_MP1 &&
                        st->codecpar->codec_id != AV_CODEC_ID_MP2 &&
-                       st->codecpar->codec_id != AV_CODEC_ID_MP3) {
+                       st->codecpar->codec_id != AV_CODEC_ID_MP3 
+#ifdef CONFIG_ESMPP
+                       && st->codecpar->codec_id != AV_CODEC_ID_AAC
+                       && st->codecpar->codec_id != AV_CODEC_ID_PCM_ALAW
+                       && st->codecpar->codec_id != AV_CODEC_ID_PCM_MULAW
+#endif
+                    ) {
+#ifdef CONFIG_ESMPP
+                       av_log(ctx, AV_LOG_ERROR, "Unsupported audio codec. Must be one of mp1, mp2, mp3, 16-bit pcm_dvd, pcm_s16be, pcm_alaw, pcm_mulaw, aac, ac3 or dts.\n");
+#else
                        av_log(ctx, AV_LOG_ERROR, "Unsupported audio codec. Must be one of mp1, mp2, mp3, 16-bit pcm_dvd, pcm_s16be, ac3 or dts.\n");
+#endif
                        return AVERROR(EINVAL);
             } else {
                 stream->id = mpa_id++;
@@ -566,6 +670,12 @@ static av_cold int mpeg_mux_init(AVFormatContext *ctx)
         s->system_header_freq = 0x7fffffff;
     else
         s->system_header_freq = s->pack_header_freq * 5;
+
+#ifdef CONFIG_ESMPP
+    s->system_map_freq = s->pack_header_freq * 40;
+    if (s->system_map_freq == 0)
+        s->system_map_freq = 1;
+#endif
 
     for (i = 0; i < ctx->nb_streams; i++) {
         stream                = ctx->streams[i]->priv_data;
@@ -732,6 +842,29 @@ static int flush_packet(AVFormatContext *ctx, int stream_index,
                 buf_ptr += size;
             }
         }
+
+#ifdef CONFIG_ESMPP
+        // Add this code for mux AAC and PCM_ALAW or PCM_MULAW in mpeg2 PS file
+        if (s->is_mpeg2) {
+            if ((s->packet_number % s->system_map_freq) == 0) {
+                int need_stream_map = 0;
+                for (int i = 0; i < ctx->nb_streams; i++) {
+                    AVStream *st = ctx->streams[i];
+                    if (st->codecpar->codec_id == AV_CODEC_ID_AAC ||
+                        st->codecpar->codec_id == AV_CODEC_ID_PCM_ALAW ||
+                        st->codecpar->codec_id == AV_CODEC_ID_PCM_MULAW) {
+                        need_stream_map = 1;
+                        break;
+                    }
+                }
+
+                if (need_stream_map) {
+                    size     = put_stream_map_header(ctx, buf_ptr, s->is_mpeg2);
+                    buf_ptr += size;
+                }
+            }
+        }
+#endif
     }
     size = buf_ptr - buffer;
     avio_write(ctx->pb, buffer, size);

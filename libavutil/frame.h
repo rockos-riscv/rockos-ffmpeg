@@ -228,6 +228,10 @@ enum AVFrameSideDataType {
      * encoding.
      */
     AV_FRAME_DATA_VIDEO_HINT,
+        /**
+     * esmpp private side data, in current stage indicate if frame do the roi process.
+     */
+    AV_FRAME_DATA_ESMPP_SIDE_DATA = AV_FRAME_DATA_VIDEO_HINT + 1024,
 };
 
 enum AVActiveFormatDescription {

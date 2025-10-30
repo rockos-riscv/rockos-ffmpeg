@@ -36,6 +36,9 @@
 #include "internal.h"
 #include "img2.h"
 #include "mux.h"
+#ifdef CONFIG_ESMPP
+#include <sys/time.h>
+#endif
 
 typedef struct VideoMuxData {
     const AVClass *class;  /**< Class for private options. */
@@ -151,6 +154,22 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
     if (img->update) {
         av_strlcpy(filename, s->url, sizeof(filename));
     } else if (img->use_strftime) {
+#ifdef CONFIG_ESMPP
+        char *pt = NULL;
+        pt = strstr(s->url, "%3T");
+        if (NULL != pt) {
+            struct timeval tv;
+            int64_t ms = 0;
+            int prefix_len = 0;
+            memset(filename, 0x00, sizeof(filename));
+            gettimeofday(&tv, NULL);
+            ms = tv.tv_sec * 1000LL + tv.tv_usec / 1000;
+            prefix_len = pt - s->url;
+            snprintf(filename, sizeof(filename), "%.*s%lld%.*s",
+                     prefix_len, s->url, (long long)ms,
+                     (int)(strlen(s->url) - (pt - s->url) - 3), pt + 3);
+        } else {
+#endif
         time_t now0;
         struct tm *tm, tmpbuf;
         time(&now0);
@@ -159,6 +178,25 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
             av_log(s, AV_LOG_ERROR, "Could not get frame filename with strftime\n");
             return AVERROR(EINVAL);
         }
+
+#ifdef CONFIG_ESMPP
+        {
+            char *p = NULL;
+            p = strstr(filename, "%3N");
+            if (p != NULL) {
+                struct timeval tv;
+                int ms;
+                char temp[1024] = {0};
+                int prefix_len = 0;
+                gettimeofday(&tv, NULL);
+                ms = (int)(tv.tv_usec / 1000);
+                prefix_len = p - filename;
+                av_strlcpy(temp, filename, prefix_len + 1);
+                snprintf(filename, sizeof(filename), "%s%03d%s", temp, ms, p + 3);
+            }
+        }
+    }
+#endif
     } else if (img->frame_pts) {
         if (av_get_frame_filename2(filename, sizeof(filename), s->url, pkt->pts, AV_FRAME_FILENAME_FLAGS_MULTIPLE) < 0) {
             av_log(s, AV_LOG_ERROR, "Cannot write filename by pts of the frames.");

@@ -61,6 +61,11 @@
 
 #define STREAM_TYPE_AUDIO_AC3       0x81
 
+#ifdef CONFIG_ESMPP
+#define STREAM_TYPE_AUDIO_PCM_ALAW  0x90
+#define STREAM_TYPE_AUDIO_PCM_MULAW 0x91
+#endif
+
 static const int lpcm_freq_tab[4] = { 48000, 96000, 44100, 32000 };
 
 /**
